@@ -1,0 +1,49 @@
+import { Common } from "src/utils/constants/constant";
+import { canView } from "../helperFunction";
+import { DashboardTabVisibility } from "../models/common";
+
+export function getDashboardTabVisibility(): DashboardTabVisibility {
+  const student = [
+    Common.Modules.DASHBOARD.DASHBOARD_STUDENT_COUNT,
+    Common.Modules.DASHBOARD
+      .DASHBOARD_CANCELLED_AND_TERMINATED_STUDENT_ATTENDED_LECTURE,
+    Common.Modules.DASHBOARD.DASHBOARD_TODAY_AND_OVER_ALL_COUNT,
+    Common.Modules.DASHBOARD.DASHBOARD_BRANCH_LIST,
+  ].some(canView);
+
+  const finance = [
+    Common.Modules.DASHBOARD.DASHBOARD_TODAY_COUNT,
+    Common.Modules.DASHBOARD.DASHBOARD_OVER_ALL_COUNT,
+    Common.Modules.DASHBOARD.DASHBOARD_REVENUE_COURSE,
+    Common.Modules.DASHBOARD.DASHBOARD_INCOME_COURSE,
+    Common.Modules.DASHBOARD.DASHBOARD_REVENUE_BRANCH,
+    Common.Modules.DASHBOARD.DASHBOARD_BRANCH_WISE_OVERDUE_INCOME,
+  ].some(canView);
+
+  const academics = [
+    Common.Modules.DASHBOARD.DASHBOARD_ABSENT_TODAY,
+    Common.Modules.DASHBOARD.DASHBOARD_BATCHES,
+    Common.Modules.DASHBOARD.DASHBOARD_CD_GRADES_STUDENT_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_AUTO_FEEDBACK,
+    Common.Modules.DASHBOARD.DASHBOARD_LOW_ATTENDANCE_BELOW_NINETY_PERCENTAGE,
+    Common.Modules.DASHBOARD.DASHBOARD_BELOW_EIGHTY_PERCENTAGE_STUDENT_REPORT,
+    Common.Modules.DASHBOARD.DASHBOARD_OVERDUE_BATCHES,
+    Common.Modules.DASHBOARD.DASHBOARD_CONTINUOUSLY_FIFTEEN_DAYS_ABSENT,
+    Common.Modules.DASHBOARD.DASHBOARD_FACULTY,
+    Common.Modules.DASHBOARD.DASHBOARD_PENDING_EXAM_VIVA_PROJECT,
+  ].some(canView);
+
+  const events = [
+    Common.Modules.DASHBOARD.DASHBOARD_PTM_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_COMPANY_VISIT_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_PLACEMENT_INTERVIEW_SESSION_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_REPORTED_COMPANY_VISIT_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_PLACEMENT_INTERVIEW_SESSION_LIST,
+    Common.Modules.DASHBOARD
+      .DASHBOARD_REPORTED_PLACEMENT_INTERVIEW_SESSION_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_EXPERT_SESSION_LIST,
+    Common.Modules.DASHBOARD.DASHBOARD_REPORTED_EXPERT_SESSION_LIST,
+  ].some(canView);
+
+  return { student, finance, academics, events };
+}

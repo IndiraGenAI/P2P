@@ -1,0 +1,26 @@
+{
+  "name": "erp-db",
+  "version": "0.0.1",
+  "description": "",
+  "author": "Devotee Infotech",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "scripts": {
+    "db:pack": "npm pack",
+    "build": "rm -vrf dist && tsc",
+    "deploy": "sh updateScript.sh",
+    "build:pack": "yarn build && yarn db:pack",
+    "build:pack:deploy": "yarn build:pack && yarn deploy",
+    "db": "typeorm-model-generator -h 192.168.29.101 -p 5432 -d rnw-erp  -u postgres -x postgres -e postgres -o output --cf param --noConfig true",
+    "db:dev": "typeorm-model-generator -h 103.154.233.221 -p 5432 -d erp_db -u erp_user -x ERP@100491 -e postgres -o output --cf param --noConfig true"
+  },
+  "devDependencies": {
+    "tsconfig-paths": "4.0.0",
+    "typeorm-model-generator": "^0.4.6",
+    "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.1"
+  }
+}
