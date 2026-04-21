@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  background: #f1f4f9;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s ease-out;
+}
+
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Soft, modern scrollbar — applied globally */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease-in-out;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.55);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(5, 150, 105, 0.7);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbar arrows on Firefox/older browsers */
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+.soft-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+.soft-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+.soft-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.6);
+}
+
+.soft-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 4px 16px rgba(16, 24, 40, 0.04);
+}
+
+.soft-card-lg {
+  background: #ffffff;
+  border-radius: 1.5rem;
+  box-shadow:
+    0 2px 4px rgba(16, 24, 40, 0.04),
+    0 8px 24px rgba(16, 24, 40, 0.05);
+}
+
+.soft-input {
+  background: #f8fafc;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: all 0.2s;
+}
+
+.soft-input:focus {
+  background: #ffffff;
+  border-color: #6ee7b7;
+  box-shadow:
+    inset 0 1px 2px rgba(16, 24, 40, 0.04),
+    0 0 0 3px rgba(16, 185, 129, 0.15);
+  outline: none;
+}
+
+.soft-btn {
+  background: #ffffff;
+  border: 1px solid transparent;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05),
+    0 1px 3px rgba(16, 24, 40, 0.06);
+  transition: all 0.2s;
+}
+
+.soft-btn:hover {
+  box-shadow:
+    0 2px 4px rgba(16, 24, 40, 0.08),
+    0 4px 8px rgba(16, 24, 40, 0.06);
+}
+
+.soft-sidebar {
+  box-shadow: 4px 0 24px rgba(16, 24, 40, 0.04);
+}
+
+.soft-header {
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+.soft-pill-emerald {
+  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+}
+
+.soft-pill-red {
+  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+}
+
+.soft-pill-amber {
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+}
