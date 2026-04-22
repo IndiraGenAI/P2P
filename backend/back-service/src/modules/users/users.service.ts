@@ -32,7 +32,7 @@ interface UserListResponse {
 const BCRYPT_ROUNDS = 10;
 
 const stripHash = (user: Users): Users => {
-  // Never leak the password hash to API clients.
+
   const { hash: _hash, ...rest } = user;
   return rest as Users;
 };
@@ -43,11 +43,6 @@ interface UserRoleJoinRow {
   name: string;
 }
 
-/**
- * Loads the role assignments for the supplied user ids in a single query and
- * returns a `Map<userId, roles[]>` so callers can stitch the relation onto
- * `Users` rows without per-user round-trips.
- */
 const loadRolesForUsers = async (
   userIds: number[],
 ): Promise<Map<number, UserRoleSummary[]>> => {

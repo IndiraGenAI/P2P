@@ -13,4 +13,3 @@ export class PreSignedURLParams {
     @ApiPropertyOptional()
     bucket_name: string;
   }
-  

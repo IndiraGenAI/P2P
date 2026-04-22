@@ -18,7 +18,7 @@ export enum FeeTypes {
     MATERIAL = 'Material',
     REGISTRATION = 'Registration',
   }
-  
+
 export enum AdmissionInstallment_Type {
     ONGOING = 'ONGOING',
     PENDING = 'PENDING',
@@ -40,7 +40,7 @@ export enum GenderType{
     FEMALE="FEMALE",
     OTHER="OTHER"
 }
- 
+
 export enum SubCourseTopicType {
     LECTURE = 'LECTURE',
     PROJECT = 'PROJECT',

@@ -13,14 +13,8 @@ interface DrawerComponentProps {
   size?: 'default' | 'large';
 }
 
-/**
- * Antd Drawer wrapper used by the Role page.
- *
- * When `footer` is true the drawer renders Cancel + a primary submit button.
- * The submit button forwards a click to the first `.btn-submit` button found
- * inside the drawer body, which lets nested antd Forms own validation while
- * still being triggered from a global drawer footer.
- */
+
+
 const DrawerComponent = ({
   title,
   visible,

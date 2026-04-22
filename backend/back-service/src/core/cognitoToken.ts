@@ -16,7 +16,7 @@ export const CognitoAuthorizer = async (
   const httpService = new HttpService();
   iss = 'https://cognito-idp.' + region + '.amazonaws.com/' + userPoolId;
   return new Promise((resolve, reject) => {
-    //Download the JWKs and save it as PEM
+
     httpService
       .get(iss + '/.well-known/jwks.json')
       .pipe(take(1))
@@ -26,7 +26,7 @@ export const CognitoAuthorizer = async (
             pems = {};
             const keys = res.data['keys'];
             for (let i = 0; i < keys.length; i++) {
-              //Convert each key to PEM
+
               const key_id = keys[i].kid;
               const modulus = keys[i].n;
               const exponent = keys[i].e;
@@ -35,7 +35,7 @@ export const CognitoAuthorizer = async (
               const pem = jwkToPem(jwk);
               pems[key_id] = pem;
             }
-            //Now continue with validating the token
+
             try {
               const tokenResponse = ValidateToken(pems, req);
               resolve(tokenResponse);
@@ -43,7 +43,7 @@ export const CognitoAuthorizer = async (
               reject(error);
             }
           } else {
-            //Unable to download JWKs, fail the call
+
             throw errorGeneret(ErrorType.TokenExpiredError);
           }
         },
@@ -69,7 +69,7 @@ const errorGeneret = (errorType: string): Error => {
 const ValidateToken = (pems: Record<string, unknown>, req: Request) => {
   const tokenData = getAuthorizationToken(req);
   try {
-    //Fail if the token is not jwt
+
     const token = tokenData.replace(/^Bearer /,'')
     const decodedJwt: any = jwt.decode(token, {
       complete: true,
@@ -77,16 +77,16 @@ const ValidateToken = (pems: Record<string, unknown>, req: Request) => {
     if (!decodedJwt) {
       throw errorGeneret(ErrorType.TokenExpiredError);
     }
-    //Fail if token is not from your UserPool
+
     if (decodedJwt.payload.iss != iss) {
       throw errorGeneret(ErrorType.TokenExpiredError);
     }
-    //Reject the jwt if it's not an 'Access Token'
+
     if (decodedJwt.payload.token_use != 'access') {
       throw errorGeneret(ErrorType.TokenExpiredError);
     }
 
-    //Get the kid from the token and retrieve corresponding PEM
+
     const kid = decodedJwt.header.kid;
     const pem = pems[kid] as string;
 
@@ -94,7 +94,7 @@ const ValidateToken = (pems: Record<string, unknown>, req: Request) => {
       throw errorGeneret(ErrorType.TokenExpiredError);
     }
 
-    //Verify the signature of the JWT token to ensure it's really coming from your User Pool
+
 
     const payload: any = jwt.verify(token, pem, { issuer: iss || '' });
     return payload.sub;

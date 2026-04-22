@@ -13,10 +13,10 @@ export const typeOrmConfig = (): PostgresConnectionOptions => {
     ssl: APP_ENV.db.ssl ? { rejectUnauthorized: false } : false,
     extra: APP_ENV.db.ssl ? { ssl: { rejectUnauthorized: false } } : undefined,
     entities: [
-      // erp-db ships compiled entities at node_modules/erp-db/dist/entities/*.js.
-      // The previous glob (`erp-db/**/dist/entities/*.js`) required at least one
-      // directory between erp-db and dist, so TypeORM loaded zero entities and
-      // every query failed with "No metadata for 'Roles' was found".
+
+
+
+
       join(
         __dirname,
         '..',

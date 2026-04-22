@@ -1,6 +1,6 @@
-/**
- * Action codes used by the permission/ability system. Mirrors the backend enum.
- */
+
+
+
 export const ActionType = {
   VIEW: 'VIEW',
   CREATE: 'CREATE',
@@ -14,10 +14,8 @@ export const ActionType = {
 
 export type ActionType = (typeof ActionType)[keyof typeof ActionType];
 
-/**
- * Mirrors the WEB project's `Common.Modules` map. Each leaf is a `page_code`
- * that the backend's `pages` table emits for permission checks.
- */
+
+
 export const Common = {
   Actions: {
     CAN_ADD: 'CREATE',
@@ -68,11 +66,8 @@ export const Common = {
   },
 } as const;
 
-/**
- * Role types mirror the backend `RoleType` enum in `erp-db`.
- * Extra entries (FACULTY_HEAD etc.) are kept so the legacy filter UI compiles
- * without needing the backend to recognise them.
- */
+
+
 export const RoleType = {
   SUPER_ADMIN: 'SUPER_ADMIN',
   ADMIN: 'ADMIN',

@@ -107,8 +107,6 @@ const TABLE_COLUMNS: { key: Exclude<SortKey, null>; label: string }[] = [
   { key: 'created_date', label: 'Created Date' },
 ];
 
-// `Roles` is a derived/joined column; it's rendered between the sortable
-// table columns and the Action column but isn't sortable on the server.
 const EXTRA_COLUMN_COUNT = 1;
 
 const STATUS_BADGE: Record<UserStatus, string> = {
@@ -196,8 +194,8 @@ export const UsersPage = () => {
   const isSubmitting =
     userState.createUsers.loading || userState.editById.loading;
 
-  // Same StrictMode dedupe pattern as RolesPage: short-window guard against
-  // back-to-back identical queries from the dev double-mount cycle.
+
+
   const lastFetchRef = useRef<{ key: string; at: number } | null>(null);
 
   const refresh = (force = false) => {
@@ -218,12 +216,12 @@ export const UsersPage = () => {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [appliedFilters, sort, page, pageSize, quickSearch]);
 
-  // One-shot fetch of the active role list so the create/edit drawer can
-  // render its multi-select picker. We pull a generous page size up-front so
-  // the picker does not need to lazy-load while the user is filling the form.
+
+
+
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('skip', '0');
@@ -232,7 +230,7 @@ export const UsersPage = () => {
     dispatch(searchRoleData(params));
   }, [dispatch]);
 
-  // One useEffect per Redux slice — same pattern as RolesPage / WEB project.
+
   useEffect(() => {
     if (userState.createUsers.message) {
       if (userState.createUsers.hasErrors) {
@@ -242,7 +240,7 @@ export const UsersPage = () => {
       }
       dispatch(clearUserMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [userState.createUsers.message]);
 
   useEffect(() => {
@@ -254,7 +252,7 @@ export const UsersPage = () => {
       }
       dispatch(clearUserMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [userState.editById.message]);
 
   useEffect(() => {
@@ -266,7 +264,7 @@ export const UsersPage = () => {
       }
       dispatch(clearUserMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [userState.removeById.message]);
 
   useEffect(() => {
@@ -278,16 +276,16 @@ export const UsersPage = () => {
       }
       dispatch(clearUserMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [userState.updateById.message]);
 
-  // List fetch failures only — skip the success "fetched" message.
+
   useEffect(() => {
     if (userState.usersData.message && userState.usersData.hasErrors) {
       message.error(userState.usersData.message);
       dispatch(clearUserMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [userState.usersData.message, userState.usersData.hasErrors]);
 
   const activeFilterCount = useMemo(

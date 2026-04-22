@@ -102,12 +102,12 @@ function AppRoutes({
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
 
-        {/* Always-on routes (no permission required). */}
+        {}
         <Route path="/dashboard" element={<EcommerceDashboard />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/access-denied" element={<NotAccessPage />} />
 
-        {/* Permission-gated routes. */}
+        {}
         <Route element={<RequirePage pageCode={Modules.USER_CONFIGURATION.USERS} />}>
           <Route path="/user-management" element={<UsersPage />} />
         </Route>
@@ -199,20 +199,20 @@ function AppShell() {
   const navigate = useNavigate();
   const { setIsCode } = useSidebarPermissionCodes();
 
-  // If we already have a token in localStorage on app start, validate it via
-  // /auth/me. If the call fails the auth slice clears the token automatically
-  // (see authSlice.fetchProfile.rejected) which flips us back to /login.
+
+
+
   useEffect(() => {
     if (accessToken && !profile.data && !profile.loading) {
       dispatch(fetchProfile());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [accessToken]);
 
-  // Bootstrap permissions whenever the user becomes logged in OR whenever
-  // /auth/me returns a fresh profile (which carries the user's role_permissions
-  // joined to page+action). Drives both CASL ability and the sidebar `isCode`
-  // allow-list so the menu always reflects what the backend actually grants.
+
+
+
+
   useEffect(() => {
     if (!isLoggedIn) {
       ability.update([]);

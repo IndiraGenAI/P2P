@@ -159,10 +159,10 @@ export const RolesPage = () => {
   const isEdit = form.id !== undefined;
   const isSubmitting = roleState.createRoles.loading || roleState.editById.loading;
 
-  // Tracks the last issued query so we can skip duplicate fetches that React
-  // StrictMode triggers on its mount→unmount→remount cycle in development. Uses
-  // a short time window (100 ms) so legitimate back-to-back searches still go
-  // through; only true twin-fires from StrictMode remount get deduped.
+
+
+
+
   const lastFetchRef = useRef<{ key: string; at: number } | null>(null);
 
   const refresh = (force = false) => {
@@ -183,13 +183,13 @@ export const RolesPage = () => {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [appliedFilters, sort, page, pageSize, quickSearch]);
 
-  // One useEffect per Redux slice mirrors the WEB project's pattern
-  // (frontend/src/pages/Role/index.tsx). Each effect fires only when its own
-  // slice's `message` changes, then surfaces a success/error toast and clears
-  // the message so it doesn't replay on the next render.
+
+
+
+
   useEffect(() => {
     if (roleState.createRoles.message) {
       if (roleState.createRoles.hasErrors) {
@@ -199,7 +199,7 @@ export const RolesPage = () => {
       }
       dispatch(clearRemoveMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [roleState.createRoles.message]);
 
   useEffect(() => {
@@ -211,7 +211,7 @@ export const RolesPage = () => {
       }
       dispatch(clearRemoveMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [roleState.editById.message]);
 
   useEffect(() => {
@@ -223,7 +223,7 @@ export const RolesPage = () => {
       }
       dispatch(clearRemoveMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [roleState.removeById.message]);
 
   useEffect(() => {
@@ -235,18 +235,18 @@ export const RolesPage = () => {
       }
       dispatch(clearRemoveMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [roleState.updateById.message]);
 
-  // List fetch failures (e.g. backend 500 / network error) — only surface
-  // errors here, not the standard "fetched" success message that would
-  // otherwise pop on every page load.
+
+
+
   useEffect(() => {
     if (roleState.rolesData.message && roleState.rolesData.hasErrors) {
       message.error(roleState.rolesData.message);
       dispatch(clearRemoveMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [roleState.rolesData.message, roleState.rolesData.hasErrors]);
 
   const activeFilterCount = useMemo(
@@ -337,8 +337,8 @@ export const RolesPage = () => {
   };
 
   const goToPermissions = (row: IRoleDetails) => {
-    // Pre-fetch the role's permissions so the page can render its checkboxes
-    // immediately on mount instead of waiting for the in-page useEffect.
+
+
     dispatch(getRolePermissions(row.id));
     navigate(`/permissions/${row.id}`);
   };

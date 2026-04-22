@@ -1,11 +1,6 @@
-/**
- * Centralized, typed access to runtime environment variables.
- *
- * @nestjs/config (loaded in AppModule via `ConfigModule.forRoot({ isGlobal: true })`)
- * already populates `process.env` from `.env` at boot time. This helper just
- * provides a single, typed accessor with sane defaults so the rest of the
- * codebase never has to read `process.env.*` directly.
- */
+
+
+
 
 const readString = (value: string | undefined, fallback: string): string =>
   value && value.trim().length > 0 ? value : fallback;
@@ -44,8 +39,8 @@ export const APP_ENV = {
   },
 
   jwt: {
-    // The fallback is intentionally only used in DEV. Configure JWT_SECRET in
-    // .env for any non-dev environment.
+
+
     secret: readString(
       process.env.JWT_SECRET,
       'change-me-in-prod-please-use-a-long-random-string',

@@ -8,11 +8,8 @@ interface FloatLabelProps {
   children: ReactNode;
 }
 
-/**
- * Minimal float-label wrapper. Renders a label above the field along with
- * an optional required indicator. Kept simple so the legacy Role page
- * (which already provides its own antd Form.Item rules) renders consistently.
- */
+
+
 const FloatLabel = ({ label, name, required, children }: FloatLabelProps) => (
   <div className="float-label" data-field={name} style={{ marginBottom: 16 }}>
     <label

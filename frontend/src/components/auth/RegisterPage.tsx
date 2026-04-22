@@ -36,7 +36,7 @@ export function RegisterPage({ onRegister }: Readonly<RegisterPageProps>) {
       }
       dispatch(clearAuthMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [register.message]);
 
   const handleSubmit = async (e?: FormEvent) => {

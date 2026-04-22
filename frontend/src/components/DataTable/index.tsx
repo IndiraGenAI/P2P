@@ -12,15 +12,8 @@ interface TableComponentProps<T> {
   meta?: IMetaProps;
 }
 
-/**
- * Thin wrapper around antd Table that:
- *  - reads pagination + sort state from URL search params (skip/take/orderBy/order)
- *  - writes them back when the user changes page/size/sort, so reloads + share
- *    links preserve table state.
- *
- * Designed to plug directly into pages that already dispatch list actions
- * keyed off the URL search string.
- */
+
+
 const TableComponent = <T extends object>({
   columns,
   dataSource,

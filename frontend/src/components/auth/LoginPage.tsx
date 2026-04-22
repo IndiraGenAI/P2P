@@ -22,8 +22,8 @@ export function LoginPage({ onLogin }: Readonly<LoginPageProps>) {
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Surface backend error messages as toasts (mirrors the per-slice useEffect
-  // pattern used by RolesPage / UsersPage).
+
+
   useEffect(() => {
     if (login.message) {
       if (login.hasErrors) {
@@ -33,7 +33,7 @@ export function LoginPage({ onLogin }: Readonly<LoginPageProps>) {
       }
       dispatch(clearAuthMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [login.message]);
 
   const handleSubmit = async (e?: FormEvent) => {

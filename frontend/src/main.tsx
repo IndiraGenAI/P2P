@@ -12,9 +12,9 @@ import { BRAND_COLORS } from './common/constants/theme.constants';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      {/* Align antd's success/primary tones with the app's brand emerald so
-          message toasts (and any other antd components) use the same green
-          as the rest of the UI instead of antd's default #52c41a. */}
+      {
+
+}
       <ConfigProvider
         theme={{
           token: {

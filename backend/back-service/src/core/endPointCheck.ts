@@ -5,7 +5,7 @@ export const EndPointAuthorizer = async (req: Request, providerKey: string) => {
   const data = await dataSource.query(
     `select * from get_user_with_permission('${providerKey}')`,
   );
-  if (data[0].user_id === 0) { 
+  if (data[0].user_id === 0) {
     return null;
   }
   return data;

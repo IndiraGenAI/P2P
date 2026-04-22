@@ -59,7 +59,7 @@ export const roleSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // searchRoleData
+
       .addCase(searchRoleData.pending, (state) => {
         state.rolesData.loading = true;
       })
@@ -75,7 +75,7 @@ export const roleSlice = createSlice({
         state.rolesData.message = action.error.message ?? '';
       })
 
-      // createNewRole
+
       .addCase(createNewRole.pending, (state) => {
         state.createRoles.loading = true;
       })
@@ -90,7 +90,7 @@ export const roleSlice = createSlice({
         state.createRoles.message = action.error.message ?? '';
       })
 
-      // editRoleById
+
       .addCase(editRoleById.pending, (state) => {
         state.editById.loading = true;
       })
@@ -105,7 +105,7 @@ export const roleSlice = createSlice({
         state.editById.message = action.error.message ?? '';
       })
 
-      // updateRoleStatus
+
       .addCase(updateRoleStatus.pending, (state) => {
         state.updateById.loading = true;
       })
@@ -120,7 +120,7 @@ export const roleSlice = createSlice({
         state.updateById.message = action.error.message ?? '';
       })
 
-      // removeRoleById
+
       .addCase(removeRoleById.pending, (state) => {
         state.removeById.loading = true;
       })
@@ -135,7 +135,7 @@ export const roleSlice = createSlice({
         state.removeById.message = action.error.message ?? '';
       })
 
-      // getRolePermissions
+
       .addCase(getRolePermissions.pending, (state) => {
         state.getPermissions.loading = true;
       })

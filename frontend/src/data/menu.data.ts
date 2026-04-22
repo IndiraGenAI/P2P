@@ -19,20 +19,14 @@ import type { MenuItem } from '@/common/models';
 
 const { Actions, Modules } = Common;
 
-/**
- * Nested menu tree consumed by the sidebar. Mirrors the WEB project's
- * SubMenu structure but rendered with the modern Tailwind UI.
- *
- * - A leaf shows up only when `ability.can(action, pageCode)` is true AND
- *   `pageCode` is in the SidebarPermissionCode `isCode` list.
- * - A group shows up when at least one child would be visible.
- */
+
+
 export const APP_MENU_ITEMS: MenuItem[] = [
   {
-    // Dashboard is always shown — it matches the always-on `/dashboard` route
-    // in App.tsx, so users see something useful even before any role
-    // permissions have been assigned. Omitting `pageCode`/`action` makes
-    // `canShowMenuItem` short-circuit to true.
+
+
+
+
     key: 'dashboard',
     label: 'Dashboard',
     icon: LayoutGrid,
@@ -179,10 +173,8 @@ export const APP_MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-/**
- * Flatten the tree so the route table and the page-title lookup can pick up
- * every leaf (and its `pageCode`) in one pass.
- */
+
+
 export const APP_MENU_LEAVES: MenuItem[] = APP_MENU_ITEMS.flatMap((item) =>
   item.children?.length ? item.children : [item],
 ).filter((item) => !!item.to);

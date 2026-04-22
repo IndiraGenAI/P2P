@@ -45,7 +45,7 @@ export const userSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // searchUserData
+
       .addCase(searchUserData.pending, (state) => {
         state.usersData.loading = true;
       })
@@ -61,7 +61,7 @@ export const userSlice = createSlice({
         state.usersData.message = action.error.message ?? '';
       })
 
-      // createNewUser
+
       .addCase(createNewUser.pending, (state) => {
         state.createUsers.loading = true;
       })
@@ -76,7 +76,7 @@ export const userSlice = createSlice({
         state.createUsers.message = action.error.message ?? '';
       })
 
-      // editUserById
+
       .addCase(editUserById.pending, (state) => {
         state.editById.loading = true;
       })
@@ -91,7 +91,7 @@ export const userSlice = createSlice({
         state.editById.message = action.error.message ?? '';
       })
 
-      // updateUserStatus
+
       .addCase(updateUserStatus.pending, (state) => {
         state.updateById.loading = true;
       })
@@ -106,7 +106,7 @@ export const userSlice = createSlice({
         state.updateById.message = action.error.message ?? '';
       })
 
-      // removeUserById
+
       .addCase(removeUserById.pending, (state) => {
         state.removeById.loading = true;
       })

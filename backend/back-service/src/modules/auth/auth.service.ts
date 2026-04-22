@@ -59,15 +59,6 @@ interface RolePermissionRow {
   action_name: string;
 }
 
-/**
- * Fetch the flattened role_permissions for every role linked to a user.
- *
- * We use a raw SQL query rather than going through the `UserRoles` entity
- * because that entity (defined in `erp-db`) requires `zone_id`, `availability`
- * etc. that we have not seeded into the back-service schema yet. This keeps
- * `/auth/me` working as soon as a row exists in the lightweight `user_roles`
- * table created in `backend/db/database/table.sql`.
- */
 const loadRolePermissionsForUser = async (
   userId: number,
 ): Promise<AuthRolePermission[]> => {
@@ -141,8 +132,8 @@ export class AuthService {
       email,
       hash,
       phone: dto.phone?.trim() ?? '',
-      // Self-registered accounts go straight to ENABLE so the user can log in.
-      // Tighten this to PENDING + an admin-approval flow later if needed.
+
+
       status: UserStatus.ENABLE,
       created_by: email,
     });
@@ -202,8 +193,8 @@ export class AuthService {
     try {
       safe.role_permissions = await loadRolePermissionsForUser(userId);
     } catch {
-      // Tables may not exist yet (fresh DB). Treat as "no permissions" so the
-      // app still boots and the user can see permission-free pages.
+
+
       safe.role_permissions = [];
     }
     return safe;

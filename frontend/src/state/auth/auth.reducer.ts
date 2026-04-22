@@ -53,7 +53,7 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // login
+
       .addCase(loginUser.pending, (state) => {
         state.login.loading = true;
         state.login.hasErrors = false;
@@ -75,7 +75,7 @@ export const authSlice = createSlice({
         state.login.message = action.error.message ?? '';
       })
 
-      // register
+
       .addCase(registerUser.pending, (state) => {
         state.register.loading = true;
         state.register.hasErrors = false;
@@ -97,7 +97,7 @@ export const authSlice = createSlice({
         state.register.message = action.error.message ?? '';
       })
 
-      // me
+
       .addCase(fetchProfile.pending, (state) => {
         state.profile.loading = true;
       })
@@ -110,7 +110,7 @@ export const authSlice = createSlice({
         state.profile.loading = false;
         state.profile.hasErrors = true;
         state.profile.message = action.error.message ?? '';
-        // Token is invalid/expired – wipe it so the app falls back to /login.
+
         state.accessToken = null;
         state.profile.data = null;
         if (hasWindow()) {

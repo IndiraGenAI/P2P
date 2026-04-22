@@ -28,7 +28,7 @@ class BaseController {
       successObject.message = message;
     }
     if (responseType === 'text') {
-      // res.set(this.headers);
+
 
       res.status(code).send(data);
       return res;
@@ -44,7 +44,7 @@ class BaseController {
     key: string
   ): Response {
     const result: ErrorResult = new ErrorResult(key);
-    // res.set(this.headers);
+
     return res.status(code).json(result);
   }
 }

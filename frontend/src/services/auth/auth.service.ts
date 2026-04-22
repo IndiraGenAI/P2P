@@ -11,9 +11,9 @@ import type {
 class AuthService {
   ENDPOINT = config.baseApiAuth + '/auth';
 
-  // login + register run before any token exists, so they bypass the
-  // axios bearer-attaching interceptor via the `no-auth` header sentinel
-  // (Interceptor strips both `no-auth` and `Authorization` when set).
+
+
+
   public login = async (
     data: ILoginPayload,
   ): Promise<IApiResponse<IAuthTokenPair>> => {

@@ -1,12 +1,6 @@
-/**
- * Centralized, typed access to runtime environment variables.
- *
- * All Vite env vars must be prefixed with `VITE_` to be exposed to the client.
- * Using this single object instead of `import.meta.env` directly gives us:
- *   - one place for defaults
- *   - one place for type coercion (string → number / boolean)
- *   - safer refactors (rename a key in one file, not 50)
- */
+
+
+
 
 const readString = (value: string | undefined, fallback: string): string =>
   value && value.trim().length > 0 ? value : fallback;

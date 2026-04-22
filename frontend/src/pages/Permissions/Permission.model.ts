@@ -1,6 +1,6 @@
-// CheckboxValueType used to come from `antd/lib/checkbox/Group` (antd v4/v5)
-// but is no longer exported in antd v6. We re-define it locally here so this
-// model can be imported by the role module without dragging in antd internals.
+
+
+
 export type CheckboxValueType = string | number | boolean;
 
 export interface IPermission {

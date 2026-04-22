@@ -1,22 +1,16 @@
 import type { CSSProperties } from 'react';
 
 interface SkeletonProps {
-  /** Tailwind width utility (e.g. `w-24`, `w-full`). */
+
   width?: string;
-  /** Tailwind height utility (e.g. `h-4`). */
+
   height?: string;
-  /** Tailwind rounding utility (defaults to `rounded`). */
+
   rounded?: string;
   className?: string;
   style?: CSSProperties;
 }
 
-/**
- * Single shimmer block. Use with Tailwind utility classes for sizing.
- *
- *   <Skeleton width="w-24" height="h-4" />
- *   <Skeleton className="h-9 w-9" rounded="rounded-full" />
- */
 export function Skeleton({
   width = 'w-full',
   height = 'h-4',

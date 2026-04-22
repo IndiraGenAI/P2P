@@ -1,13 +1,8 @@
 import type { MenuItem } from '@/common/models';
 import type { AppAbility } from '@/ability';
 
-/**
- * True when the user can see this menu item.
- *
- * - A leaf is visible when it has no `pageCode`, OR when both
- *   `ability.can(action, pageCode)` is true AND the page code is in `isCode`.
- * - A group is visible when at least one of its children is visible.
- */
+
+
 export function canShowMenuItem(
   item: MenuItem,
   ability: AppAbility,

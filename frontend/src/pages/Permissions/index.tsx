@@ -62,7 +62,7 @@ const Permissions = () => {
         setLoading(false);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   useEffect(() => {
@@ -74,13 +74,13 @@ const Permissions = () => {
       }
       dispatch(clearMessage());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [rolePermissionsState.saveRolePermissions.message]);
 
   useEffect(() => {
     let page: module[] = [];
     let subPage: module[] = [];
-    // eslint-disable-next-line array-callback-return
+
     getPermissions.data.pages.map((x: module) => {
       if (x.parent_page_id === null) {
         page.push(x);
@@ -110,7 +110,7 @@ const Permissions = () => {
 
   useEffect(() => {
     const data = getPermissions.data.role_permissions.map(
-      // eslint-disable-next-line array-callback-return
+
       (x: IRolePermission) => {
         if (x !== undefined) return x.page_action?.id;
       }

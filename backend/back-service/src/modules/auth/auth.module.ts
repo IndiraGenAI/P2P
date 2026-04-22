@@ -11,9 +11,9 @@ import { JwtStrategy } from './jwt.strategy';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       secret: APP_ENV.jwt.secret,
-      // jsonwebtoken accepts strings like "12h" / "30d" at runtime, but the
-      // newer types narrow this to its own template literal union — cast to
-      // string to avoid forcing every consumer to pin a specific format.
+
+
+
       signOptions: { expiresIn: APP_ENV.jwt.expiresIn as unknown as number },
     }),
   ],

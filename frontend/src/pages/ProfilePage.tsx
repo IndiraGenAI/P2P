@@ -13,10 +13,6 @@ import { useAppSelector } from '@/state/app.hooks';
 import { authSelector } from '@/state/auth/auth.reducer';
 import type { IAuthUser } from '@/services/auth/auth.model';
 
-// Fields like role / bio / location / social handles aren't stored on the
-// Users entity yet — they remain client-only defaults until the schema is
-// extended. The core identity fields (name, email, phone) are sourced from
-// the logged-in auth user.
 const PLACEHOLDER_PROFILE: Profile = {
   firstName: '',
   lastName: '',
@@ -54,8 +50,8 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<Profile>(profile);
   const [toast, setToast] = useState('');
 
-  // Re-sync the displayed profile whenever the underlying auth user changes
-  // (e.g. after a fresh login or /auth/me hydration on app start).
+
+
   useEffect(() => {
     if (!authUser) return;
     setProfile((prev) => ({

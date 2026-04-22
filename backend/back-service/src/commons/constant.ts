@@ -1,6 +1,6 @@
 export interface BatchExamPortal {
     name: string,
-    classEquivalent: string, 
+    classEquivalent: string,
     subjects: string[],
     description: string,
     stream: string[],
