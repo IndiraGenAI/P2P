@@ -3,6 +3,7 @@ import { message } from 'antd';
 import {
   ChevronsUpDown,
   Filter,
+  KeyRound,
   Loader2,
   Pencil,
   Plus,
@@ -10,13 +11,16 @@ import {
   Trash2,
   Search,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
+import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import {
   createNewRole,
   editRoleById,
+  getRolePermissions,
   removeRoleById,
   searchRoleData,
   updateRoleStatus,
@@ -126,6 +130,7 @@ const buildSearchParams = (
 
 export const RolesPage = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const roleState = useAppSelector(roleSelector);
 
   const [page, setPage] = useState(1);
@@ -331,6 +336,13 @@ export const RolesPage = () => {
     if (updateRoleStatus.fulfilled.match(result)) refresh(true);
   };
 
+  const goToPermissions = (row: IRoleDetails) => {
+    // Pre-fetch the role's permissions so the page can render its checkboxes
+    // immediately on mount instead of waiting for the in-page useEffect.
+    dispatch(getRolePermissions(row.id));
+    navigate(`/permissions/${row.id}`);
+  };
+
   const handleConfirmDelete = async () => {
     if (!confirmDeleteRow) return;
     const result = await dispatch(removeRoleById(confirmDeleteRow.id));
@@ -406,12 +418,6 @@ export const RolesPage = () => {
         </div>
 
         <div className="flex-1 overflow-auto relative">
-          {isLoading && (
-            <div className="absolute inset-0 z-20 bg-white/60 flex items-center justify-center pointer-events-none">
-              <Loader2 size={28} className="text-emerald-600 animate-spin" />
-            </div>
-          )}
-
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
@@ -447,6 +453,18 @@ export const RolesPage = () => {
               </tr>
             </thead>
             <tbody>
+              {isLoading && rows.length === 0 && (
+                <TableRowSkeleton
+                  rows={Math.min(pageSize, 10)}
+                  columns={[
+                    { key: 'name', width: 'w-40' },
+                    { key: 'description', width: 'w-64' },
+                    { key: 'type', width: 'w-20' },
+                    { key: 'created', width: 'w-24' },
+                    { key: 'status', width: 'w-20' },
+                  ]}
+                />
+              )}
               {rows.map((row, index) => (
                 <tr key={row.id} className="transition hover:bg-slate-50/60">
                   <td className="w-16 pl-6 pr-4 py-4 text-sm font-medium text-gray-500 border-b border-slate-100/80">
@@ -507,6 +525,20 @@ export const RolesPage = () => {
                           className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
                         >
                           <Pencil size={14} />
+                        </button>
+                      </Can>
+                      <Can
+                        I={Common.Actions.CAN_ASSIGN_PERMISSION}
+                        a={Common.Modules.USER_CONFIGURATION.ROLES}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => goToPermissions(row)}
+                          aria-label={`Manage permissions for ${row.name}`}
+                          title="Manage permissions"
+                          className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
+                        >
+                          <KeyRound size={14} />
                         </button>
                       </Can>
                       <Can I={Common.Actions.CAN_DELETE} a={Common.Modules.USER_CONFIGURATION.ROLES}>

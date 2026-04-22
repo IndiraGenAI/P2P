@@ -61,6 +61,21 @@ export class RolesController {
   }
 
   @SkipAuth()
+  @Get('permissions/:id')
+  async getPermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const result = await this.rolesService.getRolePermissionsById(id);
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'Role permissions fetched successfully',
+    );
+  }
+
+  @SkipAuth()
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,

@@ -15,8 +15,17 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UsersRepository } from './users.repository';
 
+interface UserRoleSummary {
+  id: number;
+  name: string;
+}
+
+export interface UserWithRoles extends Users {
+  roles: UserRoleSummary[];
+}
+
 interface UserListResponse {
-  rows: Users[];
+  rows: UserWithRoles[];
   count: number;
 }
 
@@ -28,12 +37,54 @@ const stripHash = (user: Users): Users => {
   return rest as Users;
 };
 
+interface UserRoleJoinRow {
+  user_id: number;
+  id: number;
+  name: string;
+}
+
+/**
+ * Loads the role assignments for the supplied user ids in a single query and
+ * returns a `Map<userId, roles[]>` so callers can stitch the relation onto
+ * `Users` rows without per-user round-trips.
+ */
+const loadRolesForUsers = async (
+  userIds: number[],
+): Promise<Map<number, UserRoleSummary[]>> => {
+  const map = new Map<number, UserRoleSummary[]>();
+  if (userIds.length === 0) {
+    return map;
+  }
+  const rows: UserRoleJoinRow[] = await UsersRepository.query(
+    `SELECT ur.user_id, r.id, r.name
+       FROM user_roles ur
+       INNER JOIN roles r ON r.id = ur.role_id
+      WHERE ur.user_id = ANY($1::int[])
+      ORDER BY r.name ASC`,
+    [userIds],
+  );
+  for (const row of rows) {
+    const list = map.get(row.user_id) ?? [];
+    list.push({ id: row.id, name: row.name });
+    map.set(row.user_id, list);
+  }
+  return map;
+};
+
+const attachRoles = (
+  user: Users,
+  roleMap: Map<number, UserRoleSummary[]>,
+): UserWithRoles => ({
+  ...user,
+  roles: roleMap.get(user.id) ?? [],
+});
+
 @Injectable()
 export class UsersService {
   async createUser(
     createUserDto: CreateUserDto,
     userEmailId: string | null,
-  ): Promise<Users> {
+  ): Promise<UserWithRoles> {
     const email = createUserDto.email?.trim().toLowerCase();
     if (!email) {
       throw new ConflictException('Email is required');
@@ -59,12 +110,18 @@ export class UsersService {
     });
 
     const saved = await UsersRepository.save(user);
-    return stripHash(saved);
+
+    if (createUserDto.role_ids !== undefined) {
+      await this.assignUserRoles(saved.id, createUserDto.role_ids, userEmailId);
+    }
+
+    const roleMap = await loadRolesForUsers([saved.id]);
+    return attachRoles(stripHash(saved), roleMap);
   }
 
   async findAllWithFilter(
     filterDto: GetUserFilterDto,
-  ): Promise<PageDto<Users> | UserListResponse> {
+  ): Promise<PageDto<UserWithRoles> | UserListResponse> {
     const { first_name, last_name, email, phone, status, orderBy, order } =
       filterDto;
 
@@ -113,12 +170,19 @@ export class UsersService {
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
-      return { rows, count };
+      const roleMap = await loadRolesForUsers(rows.map((u) => u.id));
+      return {
+        rows: rows.map((u) => attachRoles(u, roleMap)),
+        count,
+      };
     }
 
     query.skip(filterDto.skip).take(filterDto.take);
     const itemCount = await query.getCount();
     const { entities } = await query.getRawAndEntities();
+
+    const roleMap = await loadRolesForUsers(entities.map((u) => u.id));
+    const withRoles = entities.map((u) => attachRoles(u, roleMap));
 
     const pageOptionsDto: PageOptionsDto = {
       take: filterDto.take,
@@ -128,22 +192,23 @@ export class UsersService {
     } as PageOptionsDto;
     const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto });
 
-    return new PageDto(entities, pageMetaDto);
+    return new PageDto(withRoles, pageMetaDto);
   }
 
-  async findOne(id: number): Promise<Users> {
+  async findOne(id: number): Promise<UserWithRoles> {
     const user = await UsersRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return stripHash(user);
+    const roleMap = await loadRolesForUsers([id]);
+    return attachRoles(stripHash(user), roleMap);
   }
 
   async updateUser(
     id: number,
     updateUserDto: UpdateUserDto,
     userEmailId: string | null,
-  ): Promise<Users> {
+  ): Promise<UserWithRoles> {
     const user = await UsersRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -184,7 +249,34 @@ export class UsersService {
     user.modified_date = new Date();
 
     const saved = await UsersRepository.save(user);
-    return stripHash(saved);
+
+    if (updateUserDto.role_ids !== undefined) {
+      await this.assignUserRoles(saved.id, updateUserDto.role_ids, userEmailId);
+    }
+
+    const roleMap = await loadRolesForUsers([saved.id]);
+    return attachRoles(stripHash(saved), roleMap);
+  }
+
+  /**
+   * Replace the user's role assignments with the supplied list. Delegates to
+   * the `assign_user_roles` Postgres function so the delete + insert run
+   * atomically inside the database (mirrors `assign_role_permissions`).
+   *
+   * NOTE: the explicit `::int` / `::text` casts on the placeholders are
+   * required because `pg` sends bound params as `unknown` and Postgres
+   * cannot implicitly resolve `unknown -> varchar(N)`. Casting here makes
+   * the call resilient even if the function signature changes later.
+   */
+  private async assignUserRoles(
+    userId: number,
+    roleIds: number[],
+    userEmailId: string | null,
+  ): Promise<void> {
+    await UsersRepository.query(
+      `SELECT assign_user_roles($1::int, $2::int[], $3::text) AS success`,
+      [userId, roleIds ?? [], userEmailId],
+    );
   }
 
   async remove(id: number): Promise<DeleteResult> {

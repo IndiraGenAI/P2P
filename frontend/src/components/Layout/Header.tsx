@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  Bell,
-  ChevronDown,
-  HelpCircle,
-  LogOut,
-  Menu,
-  Settings,
-  UserCircle,
-} from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/state/app.hooks';
 import { authSelector } from '@/state/auth/auth.reducer';
@@ -88,18 +80,6 @@ export function Header({
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <UserCircle size={18} /> Edit profile
-                </button>
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Settings size={18} /> Account settings
-                </button>
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <HelpCircle size={18} /> Support
                 </button>
               </div>
               <div className="border-t border-gray-100 pt-2">

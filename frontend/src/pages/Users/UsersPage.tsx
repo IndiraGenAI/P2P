@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { message } from 'antd';
 import {
+  Check,
   ChevronsUpDown,
   Filter,
   Loader2,
   Pencil,
   Plus,
   Search,
+  ShieldCheck,
   Trash2,
   Users as UsersIcon,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
+import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
+import { searchRoleData } from '@/state/role/role.action';
+import { roleSelector } from '@/state/role/role.reducer';
 import {
   createNewUser,
   editUserById,
@@ -54,6 +59,7 @@ interface UserFormState {
   phone: string;
   password: string;
   status: UserStatus;
+  role_ids: number[];
 }
 
 const EMPTY_FILTERS: FilterState = {
@@ -72,6 +78,7 @@ const EMPTY_FORM: UserFormState = {
   phone: '',
   password: '',
   status: 'PENDING',
+  role_ids: [],
 };
 
 const STATUS_FORM_OPTIONS = [
@@ -99,6 +106,10 @@ const TABLE_COLUMNS: { key: Exclude<SortKey, null>; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'created_date', label: 'Created Date' },
 ];
+
+// `Roles` is a derived/joined column; it's rendered between the sortable
+// table columns and the Action column but isn't sortable on the server.
+const EXTRA_COLUMN_COUNT = 1;
 
 const STATUS_BADGE: Record<UserStatus, string> = {
   ENABLE: 'bg-emerald-100 text-emerald-700',
@@ -155,6 +166,8 @@ const PHONE_REGEX = /^[0-9+\-()\s]{6,20}$/;
 export const UsersPage = () => {
   const dispatch = useAppDispatch();
   const userState = useAppSelector(userSelector);
+  const roleState = useAppSelector(roleSelector);
+  const allRoles = roleState.rolesData.data?.rows ?? [];
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -207,6 +220,17 @@ export const UsersPage = () => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFilters, sort, page, pageSize, quickSearch]);
+
+  // One-shot fetch of the active role list so the create/edit drawer can
+  // render its multi-select picker. We pull a generous page size up-front so
+  // the picker does not need to lazy-load while the user is filling the form.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('skip', '0');
+    params.set('take', '100');
+    params.set('status', 'true');
+    dispatch(searchRoleData(params));
+  }, [dispatch]);
 
   // One useEffect per Redux slice — same pattern as RolesPage / WEB project.
   useEffect(() => {
@@ -295,9 +319,19 @@ export const UsersPage = () => {
       phone: row.phone ?? '',
       password: '',
       status: row.status ?? 'PENDING',
+      role_ids: (row.roles ?? []).map((r) => r.id),
     });
     setFormError(null);
     setIsFormDrawerOpen(true);
+  };
+
+  const toggleFormRole = (roleId: number) => {
+    setForm((prev) => {
+      const existing = new Set(prev.role_ids);
+      if (existing.has(roleId)) existing.delete(roleId);
+      else existing.add(roleId);
+      return { ...prev, role_ids: Array.from(existing) };
+    });
   };
 
   const handleSubmitForm = async () => {
@@ -352,6 +386,7 @@ export const UsersPage = () => {
         phone: string;
         status: UserStatus;
         password?: string;
+        role_ids: number[];
       } = {
         id: trimmed.id,
         first_name: trimmed.first_name,
@@ -359,6 +394,7 @@ export const UsersPage = () => {
         email: trimmed.email,
         phone: trimmed.phone,
         status: trimmed.status,
+        role_ids: trimmed.role_ids,
       };
       if (trimmed.password) payload.password = trimmed.password;
 
@@ -376,6 +412,7 @@ export const UsersPage = () => {
           phone: trimmed.phone,
           password: trimmed.password,
           status: trimmed.status,
+          role_ids: trimmed.role_ids,
         }),
       );
       if (createNewUser.fulfilled.match(result)) {
@@ -467,12 +504,6 @@ export const UsersPage = () => {
         </div>
 
         <div className="flex-1 overflow-auto relative">
-          {isLoading && (
-            <div className="absolute inset-0 z-20 bg-white/60 flex items-center justify-center pointer-events-none">
-              <Loader2 size={28} className="text-emerald-600 animate-spin" />
-            </div>
-          )}
-
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
@@ -503,11 +534,27 @@ export const UsersPage = () => {
                   );
                 })}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+                  Roles
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
                   Action
                 </th>
               </tr>
             </thead>
             <tbody>
+              {isLoading && rows.length === 0 && (
+                <TableRowSkeleton
+                  rows={Math.min(pageSize, 10)}
+                  columns={[
+                    { key: 'name', width: 'w-40' },
+                    { key: 'email', width: 'w-56' },
+                    { key: 'phone', width: 'w-32' },
+                    { key: 'status', width: 'w-20' },
+                    { key: 'created', width: 'w-24' },
+                    { key: 'roles', width: 'w-40' },
+                  ]}
+                />
+              )}
               {rows.map((row, index) => {
                 const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ');
                 const initials =
@@ -547,6 +594,26 @@ export const UsersPage = () => {
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
                       {formatDate(row.created_date)}
+                    </td>
+                    <td className="px-4 py-4 border-b border-slate-100/80">
+                      {row.roles && row.roles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {row.roles.map((r) => (
+                            <span
+                              key={r.id}
+                              title={r.name}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100"
+                            >
+                              <ShieldCheck size={10} />
+                              {r.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">
+                          No roles
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80">
                       <div className="flex items-center gap-2">
@@ -605,7 +672,7 @@ export const UsersPage = () => {
               {!isLoading && rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={TABLE_COLUMNS.length + 2}
+                    colSpan={TABLE_COLUMNS.length + EXTRA_COLUMN_COUNT + 2}
                     className="px-6 py-16 text-center text-sm text-gray-400"
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -893,6 +960,52 @@ export const UsersPage = () => {
               options={STATUS_FORM_OPTIONS}
               placeholder="Select status"
             />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Assigned Roles
+              </label>
+              <span className="text-[11px] text-gray-400">
+                {form.role_ids.length} selected
+              </span>
+            </div>
+            {allRoles.length === 0 ? (
+              <p className="text-xs text-gray-400 italic px-3 py-2 rounded-lg bg-slate-50 border border-dashed border-slate-200">
+                No active roles available. Create a role first to assign it
+                here.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {allRoles.map((role) => {
+                  const checked = form.role_ids.includes(role.id);
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      aria-pressed={checked}
+                      onClick={() => toggleFormRole(role.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                        checked
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                          : 'bg-white border-slate-200 text-gray-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {checked ? (
+                        <Check size={12} />
+                      ) : (
+                        <ShieldCheck size={12} />
+                      )}
+                      {role.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              Permissions for this user are derived from the assigned roles.
+            </p>
           </div>
         </div>
       </Drawer>

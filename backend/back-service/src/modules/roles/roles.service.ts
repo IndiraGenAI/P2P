@@ -11,13 +11,26 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { GetRoleFilterDto } from './dto/role-filter.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateRoleStatusDto } from './dto/update-status.dto';
-import { Roles } from 'erp-db';
-import { RolesRepository } from './roles.repository';
+import { Pages, Roles } from 'erp-db';
+import { PagesRepository, RolesRepository } from './roles.repository';
 
 interface RoleListResponse {
   rows: Roles[];
   count: number;
 }
+
+export interface RoleWithPermissions extends Roles {
+  pages: Pages[];
+}
+
+const sortByAsc = <T>(arr: T[], pick: (item: T) => number | string): T[] =>
+  [...arr].sort((a, b) => {
+    const av = pick(a) ?? 0;
+    const bv = pick(b) ?? 0;
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+    return 0;
+  });
 
 @Injectable()
 export class RolesService {
@@ -152,5 +165,43 @@ export class RolesService {
       return result;
     }
     throw new NotFoundException('Role not found');
+  }
+
+  /**
+   * Returns the role's data + its current role_permissions (so the UI can pre-
+   * tick the assigned page_actions) + the full pages tree (each page including
+   * its page_actions joined to actions). Ordering matches what the legacy WEB
+   * permission screen expected: pages by `sequence`, page_actions by id.
+   */
+  async getRolePermissionsById(id: number): Promise<RoleWithPermissions> {
+    const role = await RolesRepository.findOne({
+      where: { id },
+      relations: {
+        role_permissions: {
+          page_action: { action: true, page: true },
+        },
+      },
+    });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const pages = await PagesRepository.find({
+      where: { active: true },
+      relations: { page_actions: { action: true } },
+    });
+
+    pages.forEach((page) => {
+      page.page_actions = sortByAsc(
+        page.page_actions ?? [],
+        (pa) => pa.action_id,
+      );
+    });
+    const sortedPages = sortByAsc(
+      pages,
+      (page) => page.sequence ?? Number.MAX_SAFE_INTEGER,
+    );
+
+    return { ...role, pages: sortedPages };
   }
 }

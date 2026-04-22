@@ -57,9 +57,15 @@ interface SidebarGroupProps {
   item: MenuItem;
   isSidebarOpen: boolean;
   onNavigate: () => void;
+  onExpandSidebar: () => void;
 }
 
-function SidebarGroup({ item, isSidebarOpen, onNavigate }: Readonly<SidebarGroupProps>) {
+function SidebarGroup({
+  item,
+  isSidebarOpen,
+  onNavigate,
+  onExpandSidebar,
+}: Readonly<SidebarGroupProps>) {
   const { pathname } = useLocation();
   const Icon = item.icon;
   const childActive = item.children?.some((c) => c.to && pathname.startsWith(c.to));
@@ -75,6 +81,14 @@ function SidebarGroup({ item, isSidebarOpen, onNavigate }: Readonly<SidebarGroup
         <button
           type="button"
           title={item.label}
+          aria-label={`Expand ${item.label}`}
+          onClick={() => {
+            // When the sidebar is collapsed, clicking a group icon should
+            // expand the sidebar AND auto-open this group so the user can
+            // immediately see the children they were reaching for.
+            onExpandSidebar();
+            setOpen(true);
+          }}
           className={`w-full flex items-center rounded-lg text-sm transition px-3 py-2.5 overflow-hidden ${
             childActive
               ? 'bg-emerald-50 text-emerald-600 font-medium'
@@ -146,6 +160,8 @@ export function Sidebar({
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
+  const handleExpandSidebar = () => setIsSidebarOpen(true);
+
   return (
     <>
       {isSidebarOpen && (
@@ -176,7 +192,7 @@ export function Sidebar({
 
         <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4">
           {visibleItems.length === 0 && (
-            <p className="px-3 py-2 text-xs text-gray-400">No accessible pages.</p>
+            <p className="px-3 py-2 text-xs text-gray-400">-</p>
           )}
           {visibleItems.map((item) =>
             item.children?.length ? (
@@ -185,6 +201,7 @@ export function Sidebar({
                 item={item}
                 isSidebarOpen={isSidebarOpen}
                 onNavigate={handleNavigate}
+                onExpandSidebar={handleExpandSidebar}
               />
             ) : (
               <SidebarLeaf

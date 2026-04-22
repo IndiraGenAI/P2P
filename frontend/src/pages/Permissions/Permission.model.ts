@@ -49,8 +49,10 @@ export interface IPage {
   id: number;
   page_code: string;
   name: string;
-  parent_page_id: number;
+  parent_page_id: number | null;
   active: boolean;
+  sequence?: number | null;
+  page_actions: IPageAction[];
 }
 
 export interface IAction {

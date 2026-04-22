@@ -1,3 +1,12 @@
+export interface IAuthRolePermission {
+  page_action?: {
+    id?: number;
+    tag?: string;
+    page?: { id?: number; page_code?: string; name?: string };
+    action?: { id?: number; action_code?: string; name?: string };
+  };
+}
+
 export interface IAuthUser {
   id: number;
   first_name: string;
@@ -5,6 +14,7 @@ export interface IAuthUser {
   email: string;
   phone: string | null;
   status: string;
+  role_permissions?: IAuthRolePermission[];
 }
 
 export interface IAuthTokenPair {

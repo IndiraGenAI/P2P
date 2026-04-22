@@ -1,3 +1,58 @@
+-- ----------------------------------------------------------------------------
+-- assign_role_permissions: replace the role's permission list with the
+-- supplied page_action_ids. Mirrors the legacy WEB project helper that the
+-- frontend's "Save Permissions" action calls.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION assign_role_permissions(
+    p_role_id INTEGER,
+    p_page_action_ids INTEGER[],
+    p_created_by INTEGER
+) RETURNS BOOLEAN AS $$
+BEGIN
+    DELETE FROM role_permissions WHERE role_id = p_role_id;
+
+    IF p_page_action_ids IS NOT NULL AND array_length(p_page_action_ids, 1) > 0 THEN
+        INSERT INTO role_permissions (role_id, page_action_id, created_by, created_date)
+        SELECT p_role_id, page_action_id, p_created_by, CURRENT_TIMESTAMP
+        FROM unnest(p_page_action_ids) AS page_action_id
+        ON CONFLICT (role_id, page_action_id) DO NOTHING;
+    END IF;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ----------------------------------------------------------------------------
+-- assign_user_roles: replace the user's assigned roles with the supplied
+-- role_ids list. Mirrors `assign_role_permissions` so create/edit user form
+-- can persist a multi-select role picker atomically (delete + insert).
+-- ----------------------------------------------------------------------------
+-- Drop any prior signature first so re-running this script always re-creates
+-- the function cleanly (CREATE OR REPLACE alone cannot change argument types
+-- on an existing function, which would otherwise leave a stale VARCHAR(100)
+-- variant resolved over this one).
+DROP FUNCTION IF EXISTS assign_user_roles(INTEGER, INTEGER[], VARCHAR);
+DROP FUNCTION IF EXISTS assign_user_roles(INTEGER, INTEGER[], TEXT);
+
+CREATE OR REPLACE FUNCTION assign_user_roles(
+    p_user_id INTEGER,
+    p_role_ids INTEGER[],
+    p_created_by TEXT
+) RETURNS BOOLEAN AS $$
+BEGIN
+    DELETE FROM user_roles WHERE user_id = p_user_id;
+
+    IF p_role_ids IS NOT NULL AND array_length(p_role_ids, 1) > 0 THEN
+        INSERT INTO user_roles (user_id, role_id, created_by, created_date)
+        SELECT p_user_id, role_id, p_created_by, CURRENT_TIMESTAMP
+        FROM unnest(p_role_ids) AS role_id
+        ON CONFLICT (user_id, role_id) DO NOTHING;
+    END IF;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION set_created_date() RETURNS trigger AS $$
 /* ------------------------------------------------------------------------------------
 FUNCTION: set_created_date

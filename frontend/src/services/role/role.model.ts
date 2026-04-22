@@ -1,5 +1,8 @@
 import type { IMetaProps } from "@/components/Pagination/Pagination.model";
-import type { IRolePermission } from "@/pages/Permissions/Permission.model";
+import type {
+  IPage,
+  IRolePermission,
+} from "@/pages/Permissions/Permission.model";
 
 export interface IRole {
   rows: IRoleDetails[];
@@ -21,6 +24,6 @@ export interface IRoleStatus {
 }
 
 export interface IGetRolePermissions extends IRoleDetails {
-  pages: [];
-  role_permissions: [];
+  pages: IPage[];
+  role_permissions: IRolePermission[];
 }

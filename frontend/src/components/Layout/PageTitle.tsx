@@ -10,6 +10,10 @@ interface Crumb {
 
 const HIDDEN_PATHS = new Set(['/dashboard', '/profile', '/login']);
 
+// Routes whose pages render their own header/breadcrumb and want the full
+// height. Matches both the bare prefix and any `/prefix/...` sub-path.
+const HIDDEN_PREFIXES = ['/permissions'];
+
 function findTrail(items: MenuItem[], pathname: string, trail: MenuItem[] = []): MenuItem[] | null {
   for (const item of items) {
     const next = [...trail, item];
@@ -27,6 +31,13 @@ function findTrail(items: MenuItem[], pathname: string, trail: MenuItem[] = []):
 export function PageTitle() {
   const { pathname } = useLocation();
   if (HIDDEN_PATHS.has(pathname)) return null;
+  if (
+    HIDDEN_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(prefix + '/'),
+    )
+  ) {
+    return null;
+  }
 
   const trail = findTrail(APP_MENU_ITEMS, pathname);
   const title = trail?.[trail.length - 1]?.label ?? 'Page';

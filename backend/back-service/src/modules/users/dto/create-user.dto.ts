@@ -1,12 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { UserStatus } from 'erp-db';
@@ -52,6 +57,19 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @ApiPropertyOptional({
+    type: [Number],
+    example: [1, 2],
+    description: 'IDs of roles to assign to the new user.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  role_ids?: number[];
 
   created_by?: string | null;
 }

@@ -11,31 +11,20 @@ import { EcommerceDashboard } from '@/pages/EcommerceDashboard';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { RolesPage } from '@/pages/RolesPage';
+import { PermissionsPage } from '@/pages/PermissionsPage';
 import { UsersPage } from '@/pages/Users';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { ability, grantAllAbility } from '@/ability';
+import { ability, applyAbility, pageCodesFrom } from '@/ability';
 import { AbilityContext } from '@/ability/can';
 import {
   SidebarPermissionCodeProvider,
   useSidebarPermissionCodes,
 } from '@/contexts/SidebarPermissionCodeContext';
 import { Common } from '@/utils/constants/constant';
-import { APP_MENU_LEAVES } from '@/data';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import { fetchProfile } from '@/state/auth/auth.action';
 import { authSelector, signOut as signOutAction } from '@/state/auth/auth.reducer';
-
-function collectAllPageCodes(): string[] {
-  const codes = new Set<string>();
-  Object.values(Common.Modules).forEach((group) => {
-    Object.values(group).forEach((code) => codes.add(code as string));
-  });
-  APP_MENU_LEAVES.forEach((leaf) => {
-    if (leaf.pageCode) codes.add(leaf.pageCode);
-  });
-  return [...codes];
-}
 
 interface ProtectedLayoutProps {
   isSidebarOpen: boolean;
@@ -125,6 +114,16 @@ function AppRoutes({
         <Route element={<RequirePage pageCode={Modules.USER_CONFIGURATION.ROLES} />}>
           <Route path="/roles" element={<RolesPage />} />
         </Route>
+        <Route
+          element={
+            <RequirePage
+              pageCode={Modules.USER_CONFIGURATION.ROLES}
+              action={Common.Actions.CAN_ASSIGN_PERMISSION}
+            />
+          }
+        >
+          <Route path="/permissions/:id" element={<PermissionsPage />} />
+        </Route>
 
         <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V1} />}>
           <Route path="/workflows" element={<PlaceholderPage title="Workflows" />} />
@@ -210,18 +209,20 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  // Bootstrap permissions whenever the user becomes logged in.
+  // Bootstrap permissions whenever the user becomes logged in OR whenever
+  // /auth/me returns a fresh profile (which carries the user's role_permissions
+  // joined to page+action). Drives both CASL ability and the sidebar `isCode`
+  // allow-list so the menu always reflects what the backend actually grants.
   useEffect(() => {
     if (!isLoggedIn) {
       ability.update([]);
       setIsCode([]);
       return;
     }
-    // Dev shortcut while the backend `/users/me` + role-permissions wiring isn't
-    // ready: grant the catch-all CASL ability and unlock every known page code.
-    grantAllAbility();
-    setIsCode(collectAllPageCodes());
-  }, [isLoggedIn, setIsCode]);
+    const rolePermissions = profile.data?.role_permissions ?? [];
+    applyAbility(rolePermissions);
+    setIsCode(pageCodesFrom(rolePermissions));
+  }, [isLoggedIn, profile.data, setIsCode]);
 
   const handleLogin = () => {
     navigate('/dashboard', { replace: true });

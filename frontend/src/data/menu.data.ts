@@ -29,12 +29,14 @@ const { Actions, Modules } = Common;
  */
 export const APP_MENU_ITEMS: MenuItem[] = [
   {
+    // Dashboard is always shown — it matches the always-on `/dashboard` route
+    // in App.tsx, so users see something useful even before any role
+    // permissions have been assigned. Omitting `pageCode`/`action` makes
+    // `canShowMenuItem` short-circuit to true.
     key: 'dashboard',
     label: 'Dashboard',
     icon: LayoutGrid,
     to: '/dashboard',
-    pageCode: Modules.DASHBOARD.DASHBOARD,
-    action: Actions.CAN_VIEW,
   },
   {
     key: 'user-config',
