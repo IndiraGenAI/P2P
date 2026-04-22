@@ -36,10 +36,37 @@ export const Common = {
     },
     MASTER: {
       MASTER: 'MASTER',
-      VENDORS: 'MASTER_VENDORS',
+      // Sub-group codes (used for the sidebar tree, no CRUD page actions).
+      PURCHASING: 'MASTER_PURCHASING',
+      ORGANIZATION: 'MASTER_ORGANIZATION',
+      FINANCE_TAX: 'MASTER_FINANCE_TAX',
+      GEOGRAPHY: 'MASTER_GEOGRAPHY',
+      // Purchasing leaves
+      VENDOR: 'MASTER_VENDOR',
+      VENDOR_SITE: 'MASTER_VENDOR_SITE',
+      VENDOR_CATEGORY: 'MASTER_VENDOR_CATEGORY',
+      APPLICANT_TYPE: 'MASTER_APPLICANT_TYPE',
+      ITEM: 'MASTER_ITEM',
+      ITEM_TYPE: 'MASTER_ITEM_TYPE',
+      ITEM_CATEGORY: 'MASTER_ITEM_CATEGORY',
+      UOM: 'MASTER_UOM',
+      PAYMENT_TERMS: 'MASTER_PAYMENT_TERMS',
+      // Organization leaves
+      DEPARTMENT: 'MASTER_DEPARTMENT',
+      SUBDEPARTMENT: 'MASTER_SUBDEPARTMENT',
       COST_CENTER: 'MASTER_COST_CENTER',
-      ITEMS: 'MASTER_ITEMS',
-      CATEGORIES: 'MASTER_CATEGORIES',
+      ENTITY: 'MASTER_ENTITY',
+      CENTER: 'MASTER_CENTER',
+      // Finance & Tax leaves
+      COA: 'MASTER_COA',
+      TDS: 'MASTER_TDS',
+      GST: 'MASTER_GST',
+      VOUCHER: 'MASTER_VOUCHER',
+      // Geography leaves
+      COUNTRY: 'MASTER_COUNTRY',
+      ZONE: 'MASTER_ZONE',
+      STATE: 'MASTER_STATE',
+      CITY: 'MASTER_CITY',
     },
     WORKFLOW: {
       WORKFLOW: 'WORKFLOW',

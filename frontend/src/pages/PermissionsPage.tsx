@@ -20,20 +20,78 @@ import type {
 } from '@/pages/Permissions/Permission.model';
 import { ActionType } from '@/utils/constants/constant';
 
-interface ModuleGroup {
-  module: IPage;
-  children: IPage[];
+interface ModuleChild {
+  page: IPage;
+  depth: number;
+  // For container pages (no page_actions of their own): every page_action id
+  // belonging to descendants. Lets section headers offer bulk All/None toggles.
+  descendantActionIds: number[];
 }
 
+interface ModuleGroup {
+  module: IPage;
+  children: ModuleChild[];
+}
+
+const sortBySeq = (a: IPage, b: IPage) =>
+  (a.sequence ?? 0) - (b.sequence ?? 0) || a.id - b.id;
+
+const gatherActionIds = (pages: IPage[], rootId: number): number[] => {
+  const ids: number[] = [];
+  const stack: number[] = [rootId];
+  while (stack.length) {
+    const id = stack.pop();
+    if (id === undefined) continue;
+    const page = pages.find((p) => p.id === id);
+    if (page) {
+      (page.page_actions ?? []).forEach((pa) => ids.push(pa.id));
+    }
+    pages
+      .filter((p) => p.parent_page_id === id)
+      .forEach((c) => stack.push(c.id));
+  }
+  return ids;
+};
+
+// Walks the page tree depth-first under `parentId` and returns every
+// descendant in display order, tagged with its depth so the UI can indent
+// sub-groups (Masters > Purchasing > Vendor) correctly.
+const collectDescendants = (
+  pages: IPage[],
+  parentId: number,
+  depth: number,
+): ModuleChild[] => {
+  const direct = pages
+    .filter((p) => p.parent_page_id === parentId)
+    .sort(sortBySeq);
+
+  const out: ModuleChild[] = [];
+  for (const page of direct) {
+    const isContainer = (page.page_actions?.length ?? 0) === 0;
+    out.push(
+      {
+        page,
+        depth,
+        descendantActionIds: isContainer ? gatherActionIds(pages, page.id) : [],
+      },
+      ...collectDescendants(pages, page.id, depth + 1),
+    );
+  }
+  return out;
+};
+
 const groupPages = (pages: IPage[]): ModuleGroup[] => {
-  const parents = pages.filter((p) => p.parent_page_id == null);
-  const children = pages.filter((p) => p.parent_page_id != null);
-  return parents
+  const topLevel = pages.filter((p) => p.parent_page_id == null).sort(sortBySeq);
+  return topLevel
     .map((module) => ({
       module,
-      children: children.filter((c) => c.parent_page_id === module.id),
+      children: collectDescendants(pages, module.id, 0),
     }))
-    .filter((g) => g.children.length > 0 || (g.module.page_actions?.length ?? 0) > 0);
+    .filter(
+      (g) =>
+        g.children.length > 0 ||
+        (g.module.page_actions?.length ?? 0) > 0,
+    );
 };
 
 interface CheckboxPillProps {
@@ -81,6 +139,7 @@ interface PageRowProps {
   page: IPage;
   selected: Set<number>;
   onChange: (next: Set<number>) => void;
+  depth?: number;
 }
 
 const NON_VIEW_ACTIONS: ReadonlySet<string> = new Set([
@@ -92,7 +151,12 @@ const NON_VIEW_ACTIONS: ReadonlySet<string> = new Set([
   ActionType.ASSIGN_PERMISSION,
 ]);
 
-function PageRow({ page, selected, onChange }: Readonly<PageRowProps>) {
+function PageRow({
+  page,
+  selected,
+  onChange,
+  depth = 0,
+}: Readonly<PageRowProps>) {
   const actions = page.page_actions ?? [];
   const viewAction = actions.find(
     (pa) => pa.action.action_code === ActionType.VIEW,
@@ -137,15 +201,18 @@ function PageRow({ page, selected, onChange }: Readonly<PageRowProps>) {
   };
 
   return (
-    <div className="px-4 py-3 border-b border-slate-100/80 last:border-b-0 grid grid-cols-1 md:grid-cols-[minmax(0,200px)_1fr_auto] gap-3 md:items-center">
-      <div className="text-sm font-medium text-gray-800 truncate" title={page.name}>
+    <div
+      className="px-4 py-3 border-b border-slate-100/80 last:border-b-0 grid grid-cols-1 md:grid-cols-[minmax(0,220px)_1fr_auto] gap-3 md:items-center"
+      style={depth > 0 ? { paddingLeft: 16 + depth * 18 } : undefined}
+    >
+      <div
+        className="text-sm font-medium text-gray-800 truncate"
+        title={page.name}
+      >
         {page.name}
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {actions.length === 0 && (
-          <span className="text-xs text-gray-400">No actions configured.</span>
-        )}
         {actions.map((pa) => (
           <CheckboxPill
             key={pa.id}
@@ -180,6 +247,72 @@ function PageRow({ page, selected, onChange }: Readonly<PageRowProps>) {
   );
 }
 
+interface SectionHeaderProps {
+  page: IPage;
+  depth: number;
+  descendantActionIds: number[];
+  selected: Set<number>;
+  onChange: (next: Set<number>) => void;
+}
+
+function SectionHeader({
+  page,
+  depth,
+  descendantActionIds,
+  selected,
+  onChange,
+}: Readonly<SectionHeaderProps>) {
+  const total = descendantActionIds.length;
+  const grantedCount = descendantActionIds.filter((id) => selected.has(id)).length;
+  const allOn = total > 0 && grantedCount === total;
+  const allOff = grantedCount === 0;
+
+  const setAll = (value: boolean) => {
+    const next = new Set(selected);
+    descendantActionIds.forEach((id) => (value ? next.add(id) : next.delete(id)));
+    onChange(next);
+  };
+
+  return (
+    <div
+      className="flex items-center gap-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-slate-50 to-white py-2.5 pr-4"
+      style={{ paddingLeft: 16 + depth * 18 }}
+    >
+      <span className="h-4 w-1 rounded-full bg-emerald-400 flex-shrink-0" />
+      <div className="flex-1 min-w-0 flex items-baseline gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-700 truncate">
+          {page.name}
+        </span>
+        {total > 0 && (
+          <span className="text-[10px] font-medium text-slate-500">
+            {grantedCount}/{total}
+          </span>
+        )}
+      </div>
+      {total > 0 && (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            disabled={allOn}
+            className="px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setAll(false)}
+            disabled={allOff}
+            className="px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            None
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ModulePanelProps {
   group: ModuleGroup;
   selected: Set<number>;
@@ -191,8 +324,8 @@ function ModulePanel({ group, selected, onChange }: Readonly<ModulePanelProps>) 
 
   const allChildIds = useMemo(() => {
     const ids: number[] = [];
-    group.children.forEach((p) =>
-      (p.page_actions ?? []).forEach((pa) => ids.push(pa.id)),
+    group.children.forEach(({ page }) =>
+      (page.page_actions ?? []).forEach((pa) => ids.push(pa.id)),
     );
     (group.module.page_actions ?? []).forEach((pa) => ids.push(pa.id));
     return ids;
@@ -232,14 +365,30 @@ function ModulePanel({ group, selected, onChange }: Readonly<ModulePanelProps>) 
               onChange={onChange}
             />
           )}
-          {group.children.map((child) => (
-            <PageRow
-              key={child.id}
-              page={child}
-              selected={selected}
-              onChange={onChange}
-            />
-          ))}
+          {group.children.map(({ page, depth, descendantActionIds }) => {
+            const isContainer = (page.page_actions?.length ?? 0) === 0;
+            if (isContainer) {
+              return (
+                <SectionHeader
+                  key={page.id}
+                  page={page}
+                  depth={depth}
+                  descendantActionIds={descendantActionIds}
+                  selected={selected}
+                  onChange={onChange}
+                />
+              );
+            }
+            return (
+              <PageRow
+                key={page.id}
+                page={page}
+                selected={selected}
+                onChange={onChange}
+                depth={depth}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -271,16 +271,6 @@ const Role = () => {
       },
     },
     {
-      title: "Created Date",
-      dataIndex: "created_date",
-      sorter: true,
-      width: "10%",
-      align: "center",
-      render: (record) => {
-        return <>{dateFormate(record)}</>;
-      },
-    },
-    {
       title: "Status",
       dataIndex: "status",
       sorter: true,
@@ -316,7 +306,17 @@ const Role = () => {
       },
     },
     {
-      title: "Action",
+      title: "Created Date",
+      dataIndex: "created_date",
+      sorter: true,
+      width: "10%",
+      align: "center",
+      render: (record) => {
+        return <>{dateFormate(record)}</>;
+      },
+    },
+    {
+      title: "Actions",
       key: "action",
       width: "10%",
       align: "center",

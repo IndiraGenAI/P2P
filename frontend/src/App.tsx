@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { LoginPage } from '@/components/auth/LoginPage';
 import { RegisterPage } from '@/components/auth/RegisterPage';
@@ -13,14 +13,15 @@ import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { RolesPage } from '@/pages/RolesPage';
 import { PermissionsPage } from '@/pages/PermissionsPage';
 import { UsersPage } from '@/pages/Users';
+import { CountryPage } from '@/pages/Country';
+import { StatePage } from '@/pages/State';
+import { CityPage } from '@/pages/City';
+import { ZonePage } from '@/pages/Zone';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { ability, applyAbility, pageCodesFrom } from '@/ability';
+import { ability } from '@/ability';
 import { AbilityContext } from '@/ability/can';
-import {
-  SidebarPermissionCodeProvider,
-  useSidebarPermissionCodes,
-} from '@/contexts/SidebarPermissionCodeContext';
+import { SidebarPermissionCodeProvider } from '@/contexts/SidebarPermissionCodeContext';
 import { Common } from '@/utils/constants/constant';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import { fetchProfile } from '@/state/auth/auth.action';
@@ -155,6 +156,110 @@ function AppRoutes({
           />
         </Route>
 
+        {/* Masters - Purchasing */}
+        <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR} />}>
+          <Route path="/masters/vendor" element={<PlaceholderPage title="Vendor" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR_SITE} />}>
+          <Route
+            path="/masters/vendor-site"
+            element={<PlaceholderPage title="Vendor Site" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR_CATEGORY} />}>
+          <Route
+            path="/masters/vendor-category"
+            element={<PlaceholderPage title="Vendor Category" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.APPLICANT_TYPE} />}>
+          <Route
+            path="/masters/applicant-type"
+            element={<PlaceholderPage title="Applicant Type" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.ITEM} />}>
+          <Route path="/masters/item" element={<PlaceholderPage title="Item" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.ITEM_TYPE} />}>
+          <Route
+            path="/masters/item-type"
+            element={<PlaceholderPage title="Item Type" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.ITEM_CATEGORY} />}>
+          <Route
+            path="/masters/item-category"
+            element={<PlaceholderPage title="Item Category" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.UOM} />}>
+          <Route path="/masters/uom" element={<PlaceholderPage title="UOM" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.PAYMENT_TERMS} />}>
+          <Route
+            path="/masters/payment-terms"
+            element={<PlaceholderPage title="Payment Terms" />}
+          />
+        </Route>
+
+        {/* Masters - Organization */}
+        <Route element={<RequirePage pageCode={Modules.MASTER.DEPARTMENT} />}>
+          <Route
+            path="/masters/department"
+            element={<PlaceholderPage title="Department" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.SUBDEPARTMENT} />}>
+          <Route
+            path="/masters/subdepartment"
+            element={<PlaceholderPage title="Subdepartment" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.COST_CENTER} />}>
+          <Route
+            path="/masters/cost-center"
+            element={<PlaceholderPage title="Cost Center" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.ENTITY} />}>
+          <Route path="/masters/entity" element={<PlaceholderPage title="Entity" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.CENTER} />}>
+          <Route path="/masters/center" element={<PlaceholderPage title="Center" />} />
+        </Route>
+
+        {/* Masters - Finance & Tax */}
+        <Route element={<RequirePage pageCode={Modules.MASTER.COA} />}>
+          <Route path="/masters/coa" element={<PlaceholderPage title="COA" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.TDS} />}>
+          <Route path="/masters/tds" element={<PlaceholderPage title="TDS" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.GST} />}>
+          <Route path="/masters/gst" element={<PlaceholderPage title="GST" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.VOUCHER} />}>
+          <Route
+            path="/masters/voucher"
+            element={<PlaceholderPage title="Voucher" />}
+          />
+        </Route>
+
+        {/* Masters - Geography */}
+        <Route element={<RequirePage pageCode={Modules.MASTER.COUNTRY} />}>
+          <Route path="/masters/country" element={<CountryPage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.ZONE} />}>
+          <Route path="/masters/zone" element={<ZonePage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.STATE} />}>
+          <Route path="/masters/state" element={<StatePage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.CITY} />}>
+          <Route path="/masters/city" element={<CityPage />} />
+        </Route>
+
         <Route element={<RequirePage pageCode={Modules.PROCUREMENT.PURCHASE_REQUEST} />}>
           <Route
             path="/purchase-request"
@@ -192,37 +297,38 @@ function AppRoutes({
 
 function AppShell() {
   const dispatch = useAppDispatch();
-  const { accessToken, profile } = useAppSelector(authSelector);
+  const { accessToken } = useAppSelector(authSelector);
   const isLoggedIn = !!accessToken;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const navigate = useNavigate();
-  const { setIsCode } = useSidebarPermissionCodes();
 
-
-
+  // Track which accessToken we've already fetched the profile for. Using a
+  // ref (instead of `profile.loading` / `profile.data`) is the only
+  // StrictMode-safe way to dedupe — under <StrictMode> the effect runs twice
+  // with the SAME render closure, so both invocations see the pre-dispatch
+  // Redux state and would both fire unless we guard with mutable state
+  // outside React state.
+  //
+  // We deliberately do NOT short-circuit on `profile.data` being truthy:
+  // after login the reducer pre-fills `profile.data` from the login response,
+  // but that payload doesn't include `role_permissions`. The `/me` call is
+  // what populates CASL + the sidebar, so it must run on every fresh token.
+  const fetchedProfileForToken = useRef<string | null>(null);
 
   useEffect(() => {
-    if (accessToken && !profile.data && !profile.loading) {
-      dispatch(fetchProfile());
+    if (!accessToken) {
+      fetchedProfileForToken.current = null;
+      return;
     }
-
+    if (fetchedProfileForToken.current === accessToken) return;
+    fetchedProfileForToken.current = accessToken;
+    dispatch(fetchProfile());
   }, [accessToken]);
 
 
 
 
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      ability.update([]);
-      setIsCode([]);
-      return;
-    }
-    const rolePermissions = profile.data?.role_permissions ?? [];
-    applyAbility(rolePermissions);
-    setIsCode(pageCodesFrom(rolePermissions));
-  }, [isLoggedIn, profile.data, setIsCode]);
 
   const handleLogin = () => {
     navigate('/dashboard', { replace: true });
@@ -231,7 +337,6 @@ function AppShell() {
   const handleSignOut = () => {
     dispatch(signOutAction());
     ability.update([]);
-    setIsCode([]);
     navigate('/login', { replace: true });
   };
 

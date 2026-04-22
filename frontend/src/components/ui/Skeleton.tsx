@@ -46,7 +46,7 @@ const slotKey = (idx: number) => SKELETON_SLOTS[idx % SKELETON_SLOTS.length];
 interface TableRowSkeletonProps {
   /** How many shimmer rows to render. Default 5. */
   rows?: number;
-  /** Cell descriptors. The first cell renders the Sr No bubble; the rest are
+  /** Cell descriptors. The first cell renders the No bubble; the rest are
    *  flexible. Width is a Tailwind utility (e.g. `w-32`, `w-1/2`). */
   columns: ReadonlyArray<{ key: string; width?: string }>;
   /** Whether to render the trailing Action column (defaults to true). */
@@ -55,7 +55,7 @@ interface TableRowSkeletonProps {
 
 /**
  * Renders shimmer `<tr>` rows that match the layout of the listings in this
- * project (Sr No · data columns · Action). Drop it inside `<tbody>` while a
+ * project (No · data columns · Action). Drop it inside `<tbody>` while a
  * fetch is pending instead of using a centred spinner.
  */
 export function TableRowSkeleton({

@@ -87,8 +87,8 @@ const TABLE_COLUMNS: { key: Exclude<SortKey, null>; label: string }[] = [
   { key: 'name', label: 'Role Name' },
   { key: 'description', label: 'Description' },
   { key: 'type', label: 'Type' },
-  { key: 'created_date', label: 'Created Date' },
   { key: 'status', label: 'Status' },
+  { key: 'created_date', label: 'Created Date' },
 ];
 
 const formatDate = (value: unknown): string => {
@@ -422,7 +422,7 @@ export const RolesPage = () => {
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Sr No
+                  No
                 </th>
                 {TABLE_COLUMNS.map((col) => {
                   const active = sort.key === col.key;
@@ -448,7 +448,7 @@ export const RolesPage = () => {
                   );
                 })}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                  Action
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -460,8 +460,8 @@ export const RolesPage = () => {
                     { key: 'name', width: 'w-40' },
                     { key: 'description', width: 'w-64' },
                     { key: 'type', width: 'w-20' },
-                    { key: 'created', width: 'w-24' },
                     { key: 'status', width: 'w-20' },
+                    { key: 'created', width: 'w-24' },
                   ]}
                 />
               )}
@@ -483,12 +483,6 @@ export const RolesPage = () => {
                       </span>
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                    {formatDate(
-                      (row as unknown as Record<string, unknown>).created_date ??
-                        (row as unknown as Record<string, unknown>).createdDate,
                     )}
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
@@ -514,6 +508,12 @@ export const RolesPage = () => {
                     >
                       {row.status ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
+                    {formatDate(
+                      (row as unknown as Record<string, unknown>).created_date ??
+                        (row as unknown as Record<string, unknown>).createdDate,
+                    )}
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <div className="flex items-center gap-2">

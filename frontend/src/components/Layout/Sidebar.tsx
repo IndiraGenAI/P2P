@@ -18,9 +18,15 @@ interface SidebarLeafProps {
   item: MenuItem;
   isSidebarOpen: boolean;
   onNavigate: () => void;
+  depth?: number;
 }
 
-function SidebarLeaf({ item, isSidebarOpen, onNavigate }: Readonly<SidebarLeafProps>) {
+function SidebarLeaf({
+  item,
+  isSidebarOpen,
+  onNavigate,
+  depth = 0,
+}: Readonly<SidebarLeafProps>) {
   if (!item.to) return null;
   const Icon = item.icon;
   return (
@@ -33,11 +39,11 @@ function SidebarLeaf({ item, isSidebarOpen, onNavigate }: Readonly<SidebarLeafPr
           isActive
             ? 'bg-emerald-50 text-emerald-600 font-medium'
             : 'text-gray-600 hover:bg-gray-50'
-        }`
+        } ${depth > 1 ? 'py-2' : ''}`
       }
     >
       <Icon
-        size={18}
+        size={depth > 1 ? 16 : 18}
         className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
           isSidebarOpen ? '' : 'mx-auto'
         }`}
@@ -58,6 +64,14 @@ interface SidebarGroupProps {
   isSidebarOpen: boolean;
   onNavigate: () => void;
   onExpandSidebar: () => void;
+  depth?: number;
+}
+
+function isAnyDescendantActive(item: MenuItem, pathname: string): boolean {
+  if (item.to && (pathname === item.to || pathname.startsWith(item.to + '/'))) {
+    return true;
+  }
+  return !!item.children?.some((c) => isAnyDescendantActive(c, pathname));
 }
 
 function SidebarGroup({
@@ -65,17 +79,20 @@ function SidebarGroup({
   isSidebarOpen,
   onNavigate,
   onExpandSidebar,
+  depth = 0,
 }: Readonly<SidebarGroupProps>) {
   const { pathname } = useLocation();
   const Icon = item.icon;
-  const childActive = item.children?.some((c) => c.to && pathname.startsWith(c.to));
-  const [open, setOpen] = useState<boolean>(!!childActive);
+  const childActive = !!item.children?.some((c) =>
+    isAnyDescendantActive(c, pathname),
+  );
+  const [open, setOpen] = useState<boolean>(childActive);
 
   useEffect(() => {
     if (childActive) setOpen(true);
   }, [childActive]);
 
-  if (!isSidebarOpen) {
+  if (!isSidebarOpen && depth === 0) {
     return (
       <div className="mb-0.5">
         <button
@@ -102,18 +119,20 @@ function SidebarGroup({
   }
 
   return (
-    <div className="mb-1">
+    <div className={depth === 0 ? 'mb-1' : 'mb-0.5'}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-lg text-sm transition px-3 py-2.5 ${
+        className={`w-full flex items-center justify-between rounded-lg text-sm transition px-3 ${
+          depth > 0 ? 'py-2' : 'py-2.5'
+        } ${
           childActive
             ? 'text-emerald-700 font-medium'
             : 'text-gray-600 hover:bg-gray-50'
         }`}
       >
         <span className="flex items-center min-w-0">
-          <Icon size={18} className="flex-shrink-0" />
+          <Icon size={depth > 0 ? 16 : 18} className="flex-shrink-0" />
           <span className="ml-3 truncate">{item.label}</span>
         </span>
         <ChevronDown
@@ -126,14 +145,26 @@ function SidebarGroup({
 
       {open && (
         <div className="ml-4 mt-1 border-l border-gray-100 pl-2">
-          {item.children?.map((child) => (
-            <SidebarLeaf
-              key={child.key}
-              item={child}
-              isSidebarOpen={isSidebarOpen}
-              onNavigate={onNavigate}
-            />
-          ))}
+          {item.children?.map((child) =>
+            child.children?.length ? (
+              <SidebarGroup
+                key={child.key}
+                item={child}
+                isSidebarOpen={isSidebarOpen}
+                onNavigate={onNavigate}
+                onExpandSidebar={onExpandSidebar}
+                depth={depth + 1}
+              />
+            ) : (
+              <SidebarLeaf
+                key={child.key}
+                item={child}
+                isSidebarOpen={isSidebarOpen}
+                onNavigate={onNavigate}
+                depth={depth + 1}
+              />
+            ),
+          )}
         </div>
       )}
     </div>

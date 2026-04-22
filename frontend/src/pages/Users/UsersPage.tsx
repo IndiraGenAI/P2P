@@ -222,7 +222,13 @@ export const UsersPage = () => {
 
 
 
+  // StrictMode-safe one-shot dispatch — without the ref, both StrictMode
+  // invocations of this effect see the initial render's closure and would
+  // each fire `searchRoleData`, causing a duplicate /roles request in dev.
+  const rolesFetchedRef = useRef(false);
   useEffect(() => {
+    if (rolesFetchedRef.current) return;
+    rolesFetchedRef.current = true;
     const params = new URLSearchParams();
     params.set('skip', '0');
     params.set('take', '100');
@@ -506,7 +512,7 @@ export const UsersPage = () => {
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Sr No
+                  No
                 </th>
                 {TABLE_COLUMNS.map((col) => {
                   const active = sort.key === col.key;
@@ -535,7 +541,7 @@ export const UsersPage = () => {
                   Roles
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                  Action
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -573,7 +579,6 @@ export const UsersPage = () => {
                           <p className="font-semibold text-gray-900 text-sm">
                             {fullName || '—'}
                           </p>
-                          <p className="text-xs text-gray-500">ID #{row.id}</p>
                         </div>
                       </div>
                     </td>

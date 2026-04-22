@@ -64,6 +64,66 @@ CREATE TABLE IF NOT EXISTS role_permissions (
     UNIQUE (role_id, page_action_id)
 );
 
+-- ----------------------------------------------------------------------------
+-- Geography masters: country (more to come — state/city/zone).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS country (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS country_name_lower_uniq
+    ON country (LOWER(name));
+
+CREATE TABLE IF NOT EXISTS state (
+    id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES country(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+    name VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS state_country_name_lower_uniq
+    ON state (country_id, LOWER(name));
+
+CREATE TABLE IF NOT EXISTS city (
+    id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES country(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+    state_id INTEGER NOT NULL REFERENCES state(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+    name VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS city_state_name_lower_uniq
+    ON city (state_id, LOWER(name));
+
+CREATE TABLE IF NOT EXISTS zone (
+    id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES country(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+    name VARCHAR(100),
+    code VARCHAR(50),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS zone_country_name_lower_uniq
+    ON zone (country_id, LOWER(name));
+
 -- Lightweight user-to-role link. The legacy `erp-db` UserRoles entity
 -- requires zone_id/reporting_user_id which are not yet modelled in this
 -- service; we only need the (user_id, role_id) pair to drive permissions.

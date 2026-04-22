@@ -193,3 +193,15 @@ body {
 .soft-pill-amber {
   background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
 }
+
+/* Normalize table headers across the app:
+   show source text as written (Title / Sentence case — first letter capital,
+   rest small) instead of forcing ALL CAPS via the Tailwind `uppercase` class
+   or antd defaults. */
+table thead th,
+.ant-table-thead > tr > th,
+.ant-table-thead > tr > th.ant-table-cell,
+.ant-table-thead > tr > th .ant-table-column-title {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}

@@ -48,10 +48,11 @@ SELECT v.page_code, v.name, parent.id, v.sequence FROM (
         ('USERS_ROLES',                    'Role Config',         'USER_CONFIGURATION', 2),
         ('CONFIGURATION_LIST',             'Configuration List',  'USER_CONFIGURATION', 3),
 
-        ('MASTER_VENDORS',                 'Vendors',             'MASTER',             1),
-        ('MASTER_COST_CENTER',             'Cost Center',         'MASTER',             2),
-        ('MASTER_ITEMS',                   'Items',               'MASTER',             3),
-        ('MASTER_CATEGORIES',              'Categories',          'MASTER',             4),
+        -- Masters: 4 sub-group containers (no CRUD actions of their own).
+        ('MASTER_PURCHASING',              'Purchasing',          'MASTER',             1),
+        ('MASTER_ORGANIZATION',            'Organization',        'MASTER',             2),
+        ('MASTER_FINANCE_TAX',             'Finance & Tax',       'MASTER',             3),
+        ('MASTER_GEOGRAPHY',               'Geography',           'MASTER',             4),
 
         ('WORKFLOW_V1',                    'Workflows',           'WORKFLOW',           1),
         ('WORKFLOW_V2',                    'Workflow (V2)',       'WORKFLOW',           2),
@@ -70,15 +71,75 @@ SELECT v.page_code, v.name, parent.id, v.sequence FROM (
 JOIN pages parent ON parent.page_code = v.parent_code
 ON CONFLICT (page_code) DO NOTHING;
 
--- 3) page_actions: every leaf page gets the standard CRUD actions; the Roles
---    page additionally gets ASSIGN_PERMISSION so the new icon can be gated.
+-- ----------------------------------------------------------------------------
+-- One-time cleanup of the old MASTER children that have been superseded by
+-- the new sub-group tree below. Safe to re-run: the DELETE no-ops once the
+-- rows are gone, and the UPDATE no-ops once MASTER_COST_CENTER is already
+-- under MASTER_ORGANIZATION.
+-- ----------------------------------------------------------------------------
+DELETE FROM pages
+WHERE page_code IN ('MASTER_VENDORS', 'MASTER_ITEMS', 'MASTER_CATEGORIES');
+
+-- MASTER_COST_CENTER existed in the old seed as a direct child of MASTER.
+-- The new tree re-uses the same page_code under MASTER_ORGANIZATION, but the
+-- INSERT below uses ON CONFLICT DO NOTHING and won't fix the parent. Force it
+-- here so existing role_permissions rows are preserved.
+UPDATE pages
+   SET parent_page_id = (SELECT id FROM pages WHERE page_code = 'MASTER_ORGANIZATION'),
+       sequence       = 3
+ WHERE page_code = 'MASTER_COST_CENTER'
+   AND parent_page_id <> (SELECT id FROM pages WHERE page_code = 'MASTER_ORGANIZATION');
+
+-- Masters leaves under their respective sub-group parents.
+INSERT INTO pages (page_code, name, parent_page_id, sequence)
+SELECT v.page_code, v.name, parent.id, v.sequence FROM (
+    VALUES
+        -- Purchasing
+        ('MASTER_VENDOR',          'Vendor',           'MASTER_PURCHASING',  1),
+        ('MASTER_VENDOR_SITE',     'Vendor Site',      'MASTER_PURCHASING',  2),
+        ('MASTER_VENDOR_CATEGORY', 'Vendor Category',  'MASTER_PURCHASING',  3),
+        ('MASTER_APPLICANT_TYPE',  'Applicant Type',   'MASTER_PURCHASING',  4),
+        ('MASTER_ITEM',            'Item',             'MASTER_PURCHASING',  5),
+        ('MASTER_ITEM_TYPE',       'Item Type',        'MASTER_PURCHASING',  6),
+        ('MASTER_ITEM_CATEGORY',   'Item Category',    'MASTER_PURCHASING',  7),
+        ('MASTER_UOM',             'UOM',              'MASTER_PURCHASING',  8),
+        ('MASTER_PAYMENT_TERMS',   'Payment Terms',    'MASTER_PURCHASING',  9),
+
+        -- Organization
+        ('MASTER_DEPARTMENT',      'Department',       'MASTER_ORGANIZATION', 1),
+        ('MASTER_SUBDEPARTMENT',   'Subdepartment',    'MASTER_ORGANIZATION', 2),
+        ('MASTER_COST_CENTER',     'Cost Center',      'MASTER_ORGANIZATION', 3),
+        ('MASTER_ENTITY',          'Entity',           'MASTER_ORGANIZATION', 4),
+        ('MASTER_CENTER',          'Center',           'MASTER_ORGANIZATION', 5),
+
+        -- Finance & Tax
+        ('MASTER_COA',             'COA',              'MASTER_FINANCE_TAX',  1),
+        ('MASTER_TDS',             'TDS',              'MASTER_FINANCE_TAX',  2),
+        ('MASTER_GST',             'GST',              'MASTER_FINANCE_TAX',  3),
+        ('MASTER_VOUCHER',         'Voucher',          'MASTER_FINANCE_TAX',  4),
+
+        -- Geography
+        ('MASTER_COUNTRY',         'Country',          'MASTER_GEOGRAPHY',    1),
+        ('MASTER_ZONE',            'Zone',             'MASTER_GEOGRAPHY',    2),
+        ('MASTER_STATE',           'State',            'MASTER_GEOGRAPHY',    3),
+        ('MASTER_CITY',            'City',             'MASTER_GEOGRAPHY',    4)
+) AS v(page_code, name, parent_code, sequence)
+JOIN pages parent ON parent.page_code = v.parent_code
+ON CONFLICT (page_code) DO NOTHING;
+
+-- 3) page_actions: every TRUE leaf (no children of its own) gets the standard
+--    CRUD actions. We exclude container pages like MASTER_PURCHASING so they
+--    don't end up with phantom CRUD perms.
 INSERT INTO page_actions (page_id, action_id, tag)
 SELECT p.id,
        a.id,
        p.page_code || '_' || a.action_code AS tag
 FROM pages p
 CROSS JOIN actions a
-WHERE p.parent_page_id IS NOT NULL  -- leaves only
+WHERE p.parent_page_id IS NOT NULL  -- not top-level
+  AND NOT EXISTS (                  -- no children = real leaf
+      SELECT 1 FROM pages c WHERE c.parent_page_id = p.id
+  )
   AND a.action_code IN ('VIEW', 'CREATE', 'UPDATE', 'DELETE')
 ON CONFLICT (page_id, action_id) DO NOTHING;
 

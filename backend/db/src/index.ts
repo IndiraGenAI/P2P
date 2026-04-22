@@ -5,6 +5,7 @@ export { Country } from './entities/country';
 export { State } from './entities/state';
 export { City } from './entities/city';
 export { Area } from './entities/area';
+export { Zone } from './entities/zone';
 export { PaymentMode } from './entities/payment-mode';
 export { Source } from './entities/source';
 export { LabelRemarks } from './entities/label-remarks';

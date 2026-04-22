@@ -137,7 +137,7 @@ export function DataTablePage() {
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Sr No
+                  No
                 </th>
                 {TABLE_COLUMNS.map((column) => (
                   <th

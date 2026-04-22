@@ -27,9 +27,7 @@ export function filterMenuTree(
       item.children?.length
         ? {
             ...item,
-            children: item.children.filter((child) =>
-              canShowMenuItem(child, ability, isCode),
-            ),
+            children: filterMenuTree(item.children, ability, isCode),
           }
         : item,
     );
