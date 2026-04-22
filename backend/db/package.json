@@ -16,11 +16,8 @@
     "db:dev": "typeorm-model-generator -h 103.154.233.221 -p 5432 -d erp_db -u erp_user -x ERP@100491 -e postgres -o output --cf param --noConfig true"
   },
   "devDependencies": {
-    "tsconfig-paths": "4.0.0",
     "typeorm-model-generator": "^0.4.6",
     "typescript": "^4.3.5"
   },
-  "dependencies": {
-    "nodemailer": "^6.9.1"
-  }
+  "dependencies": {}
 }

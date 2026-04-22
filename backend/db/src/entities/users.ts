@@ -5,15 +5,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { AdmissionSubcourse } from './admission-subcourse';
-import { Admissions } from './admissions';
-import { BatchFacultyAttendances } from './batch-faculty-attendances';
-import { Batches } from './batches';
 import { RolePermissions } from './role-permissions';
-import { UserRoles } from './user-roles';
-import { CvVolunteers } from './cv-volunteers';
-import { CvPlanings } from './cv-planings';
-import { AdmissionRecurings } from './admission-recurings';
 
 export enum UserStatus {
   ENABLE = 'ENABLE',
@@ -83,41 +75,8 @@ export class Users {
   status: UserStatus;
 
   @OneToMany(
-    () => AdmissionSubcourse,
-    (admission_subcourse) => admission_subcourse.user,
-  )
-  admission_subcourses: AdmissionSubcourse[];
-
-  @OneToMany(() => Admissions, (admissions) => admissions.user)
-  admissions: Admissions[];
-
-  @OneToMany(() => Batches, (batches) => batches.user)
-  batches: Batches[];
-
-  @OneToMany(
-    () => BatchFacultyAttendances,
-    (batchFacultyAttendances) => batchFacultyAttendances.user,
-  )
-  batchFacultyAttendances: BatchFacultyAttendances[];
-
-  @OneToMany(() => CvPlanings, (cvPlanings) => cvPlanings.executeByUser)
-  cvPlanings: CvPlanings[];
-
-  @OneToMany(() => CvVolunteers, (cvVolunteers) => cvVolunteers.user)
-  cvVolunteers: CvVolunteers[];
-
-  @OneToMany(() => UserRoles, (user_roles) => user_roles.user)
-  user_roles: UserRoles[];
-
-  @OneToMany(
     () => RolePermissions,
     (rolePermissions) => rolePermissions.created_by2,
   )
   role_permissions: RolePermissions[];
-
-  @OneToMany(
-    () => AdmissionRecurings,
-    (admissionRecurings) => admissionRecurings.faculty,
-  )
-  admissionRecurings: AdmissionRecurings[];
 }

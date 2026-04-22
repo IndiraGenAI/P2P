@@ -6,7 +6,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { RolePermissions } from './role-permissions';
-import { UserRoles } from './user-roles';
 
 export enum RoleType {
   SUPER_ADMIN = 'SUPER_ADMIN',
@@ -64,9 +63,6 @@ export class Roles {
     nullable: true,
   })
   updated_date: Date | null;
-
-  @OneToMany(() => UserRoles, (user_roles) => user_roles.role)
-  user_roles: UserRoles[];
 
   @OneToMany(() => RolePermissions, (role_permissions) => role_permissions.role)
   role_permissions: RolePermissions[];

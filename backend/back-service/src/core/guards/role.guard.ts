@@ -1,7 +1,5 @@
 import { CanActivate, Injectable, SetMetadata } from '@nestjs/common';
 
-
-
 @Injectable()
 export class RolesGuard implements CanActivate {
   canActivate(): boolean {
