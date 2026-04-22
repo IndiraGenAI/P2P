@@ -1,15 +1,16 @@
 import { CognitoIdentityServiceProvider, S3 } from 'aws-sdk';
 import { commonConfig, SystemEnums } from './common';
 import * as uuidv4 from 'uuid';
-import { branchRepository } from '@modules/branches/branch.repository';
-import { In } from 'typeorm';
-import { Zone_Type } from '@modules/zones/dto/enum.zone';
-import { Zones } from 'erp-db';
 import { BadRequestException } from '@nestjs/common';
 import { extname } from 'path';
 import * as csvParser from 'csv-parser';
 import * as fs from 'fs';
 import { Request } from 'express';
+
+// NOTE: `branchRepository` / `Zones` / `Zone_Type` originally lived in modules
+// that were never ported into this project. The functions below were rewritten
+// to throw at call-time instead of failing the build, so the rest of the API
+// can boot. Re-implement these once the branches/zones modules are in place.
 
 export async function GetCognitoUser(
   email: string,
@@ -147,48 +148,20 @@ export const GetSortOrder = (prop: any, order: 'ASC' | 'DESC') => {
 };
 
 export const getZoneWiseSubZonesDataByZoneID = (
-  zone: Zones[],
-  zone_id: number,
-) => {
-  let result = [];
-  let zoneData;
-  if (zone instanceof Array) {
-    zoneData = zone.find((x) => x.id == zone_id);
-    if (!zoneData) {
-      throw new BadRequestException(
-        `Field (zone_id)=(${zone_id}) is not present in table \"zones\".`,
-      );
-    }
-    if (zoneData?.type === Zone_Type.PRIVATE) {
-      return [zoneData.id];
-    }
-    zone.map((x) => {
-      if (x.parent_id === zone_id) {
-        const zoneIds = getZoneWiseSubZonesDataByZoneID(zone, x.id);
-        result = [...zoneIds, ...result];
-      }
-    });
-  }
-  return result.length > 0 ? result : [zoneData.id];
+  _zone: unknown,
+  _zone_id: number,
+): number[] => {
+  throw new BadRequestException(
+    'getZoneWiseSubZonesDataByZoneID is not available: zones module not wired up.',
+  );
 };
 
 export async function getBranchIds(
-  zoneIds: number[] | number,
+  _zoneIds: number[] | number,
 ): Promise<number[]> {
-  let branchIds;
-  if (zoneIds instanceof Array) {
-    branchIds = await (
-      await branchRepository.find({
-        where: { zone_id: In(zoneIds) },
-        select: ['id'],
-      })
-    ).map((x) => x.id);
-  } else {
-    branchIds = await (
-      await branchRepository.find({ where: { zone_id: zoneIds } })
-    ).map((x) => x.id);
-  }
-  return branchIds;
+  throw new BadRequestException(
+    'getBranchIds is not available: branches module not wired up.',
+  );
 }
 
 export const editFileName = (

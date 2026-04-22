@@ -5,7 +5,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PageActions } from './-actions';
+import { PageActions } from './page-actions';
 
 @Index('actions_action_code_key', ['action_code'], { unique: true })
 @Index('actions_pkey', ['id'], { unique: true })

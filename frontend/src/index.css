@@ -14,6 +14,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Force antd success message icon (and any anticon-check-circle) to use the
+   brand accent emerald (#10B981 — same green as the active status switch)
+   instead of antd's default #52c41a / themed token fallback. */
+.ant-message-success .anticon,
+.ant-message-success .anticon svg,
+.ant-message-notice-success .anticon,
+.ant-message-notice-success .anticon svg {
+  color: #10B981 !important;
+  fill: #10B981 !important;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -1,0 +1,40 @@
+# ----------------------------------------------------------------------------
+# Root .gitignore  ·  P2P-ORG monorepo
+# ----------------------------------------------------------------------------
+# Per-package .gitignore files exist in frontend/ and backend/back-service/.
+# This file is the project-wide safety net.
+# ----------------------------------------------------------------------------
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files (NEVER commit) — keep .env.example tracked
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo

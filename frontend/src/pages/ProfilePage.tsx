@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Camera, Check, ChevronRight, Pencil, Upload } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
@@ -8,28 +8,64 @@ import {
   LinkedinIcon,
   TwitterIcon,
 } from '@/components/ui/BrandIcons';
-import type { ProfileData } from '@/types';
+import type { Profile } from '@/common/models';
+import { useAppSelector } from '@/state/app.hooks';
+import { authSelector } from '@/state/auth/auth.reducer';
+import type { IAuthUser } from '@/services/auth/auth.model';
 
-const initialProfile: ProfileData = {
-  firstName: 'Chowdury',
-  lastName: 'Musharof',
-  email: 'randomuser@pimjo.com',
-  phone: '+09 363 398 46',
-  bio: 'Team Manager',
-  role: 'Team Manager',
-  location: 'Arizona, United States.',
-  facebook: 'https://facebook.com/musharof',
-  twitter: 'https://x.com/musharof',
-  linkedin: 'https://linkedin.com/in/musharof',
-  instagram: 'https://instagram.com/musharof',
+// Fields like role / bio / location / social handles aren't stored on the
+// Users entity yet — they remain client-only defaults until the schema is
+// extended. The core identity fields (name, email, phone) are sourced from
+// the logged-in auth user.
+const PLACEHOLDER_PROFILE: Profile = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  bio: '',
+  role: 'Team Member',
+  location: '',
+  facebook: '',
+  twitter: '',
+  linkedin: '',
+  instagram: '',
+};
+
+const buildProfileFromUser = (user: IAuthUser | null): Profile => {
+  if (!user) return PLACEHOLDER_PROFILE;
+  return {
+    ...PLACEHOLDER_PROFILE,
+    firstName: user.first_name ?? '',
+    lastName: user.last_name ?? '',
+    email: user.email ?? '',
+    phone: user.phone ?? '',
+  };
 };
 
 export function ProfilePage() {
-  const [profile, setProfile] = useState<ProfileData>(initialProfile);
+  const { profile: authProfile } = useAppSelector(authSelector);
+  const authUser = authProfile.data;
+
+  const [profile, setProfile] = useState<Profile>(() =>
+    buildProfileFromUser(authUser),
+  );
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [personalModalOpen, setPersonalModalOpen] = useState(false);
-  const [draft, setDraft] = useState<ProfileData>(profile);
+  const [draft, setDraft] = useState<Profile>(profile);
   const [toast, setToast] = useState('');
+
+  // Re-sync the displayed profile whenever the underlying auth user changes
+  // (e.g. after a fresh login or /auth/me hydration on app start).
+  useEffect(() => {
+    if (!authUser) return;
+    setProfile((prev) => ({
+      ...prev,
+      firstName: authUser.first_name ?? '',
+      lastName: authUser.last_name ?? '',
+      email: authUser.email ?? '',
+      phone: authUser.phone ?? '',
+    }));
+  }, [authUser?.id, authUser?.first_name, authUser?.last_name, authUser?.email, authUser?.phone]);
 
   const openProfileModal = () => {
     setDraft(profile);

@@ -1,11 +1,9 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { SelectOption } from '@/common/models';
 
-export interface SelectOption {
-  value: string;
-  label: string;
-}
+export type { SelectOption } from '@/common/models';
 
 interface SelectProps {
   value: string;

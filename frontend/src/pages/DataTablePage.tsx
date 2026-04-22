@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react';
 import { ChevronsUpDown, Download, Filter, Pencil, Trash2 } from 'lucide-react';
-import { tableData } from '@/data/mockData';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
+import { MOCK_USERS } from '@/data';
+import { UserStatus } from '@/common/enums';
+import {
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  STATUS_COLORS,
+} from '@/common/constants';
+import { padNumber, parseSalary } from '@/common/utils';
+import type { UserFilters } from '@/common/models';
 
-interface Filters {
-  position: string;
-  office: string;
-  status: string;
-  minSalary: string;
-  maxSalary: string;
-}
-
-const emptyFilters: Filters = {
+const EMPTY_FILTERS: UserFilters = {
   position: '',
   office: '',
   status: '',
@@ -20,54 +20,83 @@ const emptyFilters: Filters = {
   maxSalary: '',
 };
 
-const parseSalary = (s: string) => Number(s.replaceAll(/[^0-9.]/g, '')) || 0;
+const TABLE_COLUMNS = ['User', 'Position', 'Salary', 'Office', 'Status', 'Action'];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: UserStatus.Hired, label: 'Hired' },
+  { value: UserStatus.Pending, label: 'Pending' },
+];
+
+const TOTAL_TABLE_COLUMNS = TABLE_COLUMNS.length + 1;
 
 export function DataTablePage() {
-  const [pageSize, setPageSize] = useState(10);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [draft, setDraft] = useState<Filters>(emptyFilters);
-  const [applied, setApplied] = useState<Filters>(emptyFilters);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<UserFilters>(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<UserFilters>(EMPTY_FILTERS);
 
-  const positions = useMemo(
-    () => Array.from(new Set(tableData.map((r) => r.position))),
+  const positionOptions = useMemo(
+    () => [
+      { value: '', label: 'All positions' },
+      ...Array.from(new Set(MOCK_USERS.map((row) => row.position))).map((position) => ({
+        value: position,
+        label: position,
+      })),
+    ],
     [],
   );
-  const offices = useMemo(
-    () => Array.from(new Set(tableData.map((r) => r.office))),
+
+  const officeOptions = useMemo(
+    () => [
+      { value: '', label: 'All offices' },
+      ...Array.from(new Set(MOCK_USERS.map((row) => row.office))).map((office) => ({
+        value: office,
+        label: office,
+      })),
+    ],
     [],
   );
 
-  const filtered = useMemo(() => {
-    return tableData.filter((row) => {
-      if (applied.position && row.position !== applied.position) return false;
-      if (applied.office && row.office !== applied.office) return false;
-      if (applied.status && row.status !== applied.status) return false;
+  const filteredUsers = useMemo(() => {
+    return MOCK_USERS.filter((row) => {
+      if (appliedFilters.position && row.position !== appliedFilters.position) return false;
+      if (appliedFilters.office && row.office !== appliedFilters.office) return false;
+      if (appliedFilters.status && row.status !== appliedFilters.status) return false;
 
-      const sal = parseSalary(row.salary);
-      if (applied.minSalary && sal < Number(applied.minSalary)) return false;
-      if (applied.maxSalary && sal > Number(applied.maxSalary)) return false;
-
+      const salaryValue = parseSalary(row.salary);
+      if (appliedFilters.minSalary && salaryValue < Number(appliedFilters.minSalary)) {
+        return false;
+      }
+      if (appliedFilters.maxSalary && salaryValue > Number(appliedFilters.maxSalary)) {
+        return false;
+      }
       return true;
     });
-  }, [applied]);
+  }, [appliedFilters]);
 
-  const visible = filtered.slice(0, pageSize);
+  const visibleUsers = filteredUsers.slice(0, pageSize);
+  const activeFilterCount = Object.values(appliedFilters).filter(Boolean).length;
 
-  const activeFilterCount = Object.values(applied).filter(Boolean).length;
-
-  const openFilters = () => {
-    setDraft(applied);
-    setDrawerOpen(true);
+  const openFilterDrawer = () => {
+    setDraftFilters(appliedFilters);
+    setIsFilterDrawerOpen(true);
   };
 
-  const handleApply = () => {
-    setApplied(draft);
-    setDrawerOpen(false);
+  const handleApplyFilters = () => {
+    setAppliedFilters(draftFilters);
+    setIsFilterDrawerOpen(false);
   };
 
-  const handleReset = () => {
-    setDraft(emptyFilters);
-    setApplied(emptyFilters);
+  const handleResetFilters = () => {
+    setDraftFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+  };
+
+  const getStatusBadgeClasses = (status: UserStatus) => {
+    const palette =
+      status === UserStatus.Hired ? STATUS_COLORS.success : STATUS_COLORS.warning;
+    return `${palette.bg} ${palette.text}`;
   };
 
   return (
@@ -77,7 +106,7 @@ export function DataTablePage() {
           <div>
             <h3 className="text-base font-semibold text-gray-900">All Users</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              {filtered.length} record{filtered.length === 1 ? '' : 's'} found
+              {filteredUsers.length} record{filteredUsers.length === 1 ? '' : 's'} found
             </p>
           </div>
 
@@ -90,7 +119,7 @@ export function DataTablePage() {
             </button>
             <button
               type="button"
-              onClick={openFilters}
+              onClick={openFilterDrawer}
               className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 soft-btn"
             >
               Filter <Filter size={14} />
@@ -110,13 +139,13 @@ export function DataTablePage() {
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Sr No
                 </th>
-                {['User', 'Position', 'Salary', 'Office', 'Status', 'Action'].map((h) => (
+                {TABLE_COLUMNS.map((column) => (
                   <th
-                    key={h}
+                    key={column}
                     className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200"
                   >
                     <div className="flex items-center gap-1">
-                      {h}
+                      {column}
                       <ChevronsUpDown size={12} className="text-gray-400" />
                     </div>
                   </th>
@@ -124,58 +153,57 @@ export function DataTablePage() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((row, index) => {
-                return (
-                  <tr key={row.id} className="transition hover:bg-slate-50/50">
-                    <td className="w-16 pl-6 pr-4 py-4 text-sm font-medium text-gray-500 border-b border-slate-100/80">
-                      {String(index + 1).padStart(2, '0')}
-                    </td>
-                    <td className="px-4 py-4 border-b border-slate-100/80">
-                      <p className="font-semibold text-gray-900 text-sm">{row.user}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{row.email}</p>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                      {row.position}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                      {row.salary}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                      {row.office}
-                    </td>
-                    <td className="px-4 py-4 border-b border-slate-100/80">
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          row.status === 'Hired'
-                            ? 'soft-pill-emerald text-emerald-700'
-                            : 'soft-pill-amber text-amber-700'
-                        }`}
+              {visibleUsers.map((row, index) => (
+                <tr key={row.id} className="transition hover:bg-slate-50/50">
+                  <td className="w-16 pl-6 pr-4 py-4 text-sm font-medium text-gray-500 border-b border-slate-100/80">
+                    {padNumber(index + 1)}
+                  </td>
+                  <td className="px-4 py-4 border-b border-slate-100/80">
+                    <p className="font-semibold text-gray-900 text-sm">{row.user}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{row.email}</p>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
+                    {row.position}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
+                    {row.salary}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
+                    {row.office}
+                  </td>
+                  <td className="px-4 py-4 border-b border-slate-100/80">
+                    <span
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getStatusBadgeClasses(row.status)}`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 border-b border-slate-100/80">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="Delete row"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
                       >
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 border-b border-slate-100/80">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {visible.length === 0 && (
+                        <Trash2 size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit row"
+                        className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {visibleUsers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-400">
+                  <td
+                    colSpan={TOTAL_TABLE_COLUMNS}
+                    className="px-6 py-12 text-center text-sm text-gray-400"
+                  >
                     No matching records found
                   </td>
                 </tr>
@@ -190,13 +218,8 @@ export function DataTablePage() {
               <span>Show</span>
               <Select
                 value={String(pageSize)}
-                onChange={(v) => setPageSize(Number(v))}
-                options={[
-                  { value: '10', label: '10' },
-                  { value: '25', label: '25' },
-                  { value: '50', label: '50' },
-                  { value: '100', label: '100' },
-                ]}
+                onChange={(value) => setPageSize(Number(value))}
+                options={PAGE_SIZE_OPTIONS}
                 size="sm"
                 fullWidth={false}
                 className="w-20"
@@ -204,7 +227,7 @@ export function DataTablePage() {
               <span>entries</span>
             </div>
             <p className="text-sm text-gray-500">
-              Showing 1 to {visible.length} of {filtered.length} entries
+              Showing 1 to {visibleUsers.length} of {filteredUsers.length} entries
             </p>
           </div>
 
@@ -238,22 +261,22 @@ export function DataTablePage() {
       </div>
 
       <Drawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
         title="Filters"
         subtitle="Refine the records shown in the table"
         footer={
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={handleReset}
+              onClick={handleResetFilters}
               className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
             >
               Reset
             </button>
             <button
               type="button"
-              onClick={handleApply}
+              onClick={handleApplyFilters}
               className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition"
             >
               Apply Filters
@@ -267,13 +290,10 @@ export function DataTablePage() {
               Position
             </p>
             <Select
-              value={draft.position}
-              onChange={(v) => setDraft({ ...draft, position: v })}
+              value={draftFilters.position}
+              onChange={(value) => setDraftFilters({ ...draftFilters, position: value })}
               placeholder="All positions"
-              options={[
-                { value: '', label: 'All positions' },
-                ...positions.map((p) => ({ value: p, label: p })),
-              ]}
+              options={positionOptions}
             />
           </div>
 
@@ -282,13 +302,10 @@ export function DataTablePage() {
               Office
             </p>
             <Select
-              value={draft.office}
-              onChange={(v) => setDraft({ ...draft, office: v })}
+              value={draftFilters.office}
+              onChange={(value) => setDraftFilters({ ...draftFilters, office: value })}
               placeholder="All offices"
-              options={[
-                { value: '', label: 'All offices' },
-                ...offices.map((o) => ({ value: o, label: o })),
-              ]}
+              options={officeOptions}
             />
           </div>
 
@@ -297,21 +314,22 @@ export function DataTablePage() {
               Status
             </p>
             <div className="flex gap-2">
-              {['', 'Hired', 'Pending'].map((s) => {
-                const label = s || 'All';
-                const isActive = draft.status === s;
+              {STATUS_FILTER_OPTIONS.map((option) => {
+                const isActive = draftFilters.status === option.value;
                 return (
                   <button
-                    key={label}
+                    key={option.label}
                     type="button"
-                    onClick={() => setDraft({ ...draft, status: s })}
+                    onClick={() =>
+                      setDraftFilters({ ...draftFilters, status: option.value })
+                    }
                     className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition ${
                       isActive
                         ? 'bg-emerald-600 text-white'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    {label}
+                    {option.label}
                   </button>
                 );
               })}
@@ -331,8 +349,10 @@ export function DataTablePage() {
                   id="filter-min"
                   type="number"
                   placeholder="0"
-                  value={draft.minSalary}
-                  onChange={(e) => setDraft({ ...draft, minSalary: e.target.value })}
+                  value={draftFilters.minSalary}
+                  onChange={(e) =>
+                    setDraftFilters({ ...draftFilters, minSalary: e.target.value })
+                  }
                   className="w-full rounded-xl px-3 py-2.5 text-sm soft-input"
                 />
               </div>
@@ -344,8 +364,10 @@ export function DataTablePage() {
                   id="filter-max"
                   type="number"
                   placeholder="100000"
-                  value={draft.maxSalary}
-                  onChange={(e) => setDraft({ ...draft, maxSalary: e.target.value })}
+                  value={draftFilters.maxSalary}
+                  onChange={(e) =>
+                    setDraftFilters({ ...draftFilters, maxSalary: e.target.value })
+                  }
                   className="w-full rounded-xl px-3 py-2.5 text-sm soft-input"
                 />
               </div>

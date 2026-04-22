@@ -15,6 +15,12 @@ import { CvVolunteers } from './cv-volunteers';
 import { CvPlanings } from './cv-planings';
 import { AdmissionRecurings } from './admission-recurings';
 
+export enum UserStatus {
+  ENABLE = 'ENABLE',
+  DISABLE = 'DISABLE',
+  PENDING = 'PENDING',
+}
+
 @Index('users_email_key', ['email'], { unique: true })
 @Index('users_pkey', ['id'], { unique: true })
 @Entity('users', { schema: 'public' })
@@ -43,12 +49,14 @@ export class Users {
   @Column('timestamp without time zone', {
     name: 'created_date',
     nullable: true,
+    default: () => 'CURRENT_TIMESTAMP',
   })
   created_date: Date | null;
 
   @Column('timestamp without time zone', {
     name: 'modified_date',
     nullable: true,
+    default: () => 'CURRENT_TIMESTAMP',
   })
   modified_date: Date | null;
 
@@ -68,11 +76,11 @@ export class Users {
 
   @Column('enum', {
     name: 'status',
-    nullable: true,
-    enum: ['ENABLE', 'DISABLE', 'PENDING'],
+    enumName: 'user_status',
+    enum: UserStatus,
     default: () => "'PENDING'",
   })
-  status: 'ENABLE' | 'DISABLE' | 'PENDING' | null;
+  status: UserStatus;
 
   @OneToMany(
     () => AdmissionSubcourse,

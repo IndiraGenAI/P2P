@@ -38,7 +38,7 @@ export class PageActions {
     onDelete: 'CASCADE',
   })
   @JoinColumn([{ name: 'page_id', referencedColumnName: 'id' }])
-  : Pages;
+  page: Pages;
 
   @OneToMany(
     () => RolePermissions,

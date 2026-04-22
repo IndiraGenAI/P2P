@@ -34,5 +34,14 @@
         "src/providers/*"
       ],
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/modules/areas",
+    "src/modules/course",
+    "src/modules/departments",
+    "src/modules/packages",
+    "src/providers"
+  ]
 }

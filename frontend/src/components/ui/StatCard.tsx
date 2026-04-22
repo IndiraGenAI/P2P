@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, type LucideIcon } from 'lucide-react';
-import type { Trend } from '@/types';
+import { Trend } from '@/common/enums';
 
 interface StatCardProps {
   label: string;
@@ -9,7 +9,15 @@ interface StatCardProps {
   icon?: LucideIcon;
 }
 
-export function StatCard({ label, value, change, trend, icon: Icon }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  change,
+  trend,
+  icon: Icon,
+}: Readonly<StatCardProps>) {
+  const isUpward = trend === Trend.Up;
+
   return (
     <div className="soft-card p-6">
       {Icon && (
@@ -27,7 +35,7 @@ export function StatCard({ label, value, change, trend, icon: Icon }: StatCardPr
               <p className="text-sm text-gray-500">{label}</p>
               <span
                 className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
-                  trend === 'up'
+                  isUpward
                     ? 'soft-pill-emerald text-emerald-700'
                     : 'soft-pill-red text-red-700'
                 }`}
@@ -41,10 +49,10 @@ export function StatCard({ label, value, change, trend, icon: Icon }: StatCardPr
         {Icon && (
           <span
             className={`flex items-center gap-1 text-xs font-semibold ${
-              trend === 'up' ? 'text-emerald-600' : 'text-red-600'
+              isUpward ? 'text-emerald-600' : 'text-red-600'
             }`}
           >
-            {trend === 'up' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+            {isUpward ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
             {change}
           </span>
         )}

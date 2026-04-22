@@ -11,17 +11,23 @@ import {
 } from 'recharts';
 import { StatCard } from '@/components/ui/StatCard';
 import { GaugeChart } from '@/components/ui/GaugeChart';
-import { statsChartData } from '@/data/mockData';
+import { STATS_CHART_DATA } from '@/data';
+import { CHART_COLORS } from '@/common/constants';
+import { Trend } from '@/common/enums';
+
+type DateRange = 'Monthly' | 'Quarterly' | 'Annually';
+
+const DATE_RANGE_OPTIONS: readonly DateRange[] = ['Monthly', 'Quarterly', 'Annually'];
 
 export function CRMDashboard() {
-  const [range, setRange] = useState<'Monthly' | 'Quarterly' | 'Annually'>('Monthly');
+  const [selectedRange, setSelectedRange] = useState<DateRange>('Monthly');
 
   return (
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatCard label="Active Deal" value="$120,369" change="+20%" trend="up" />
-        <StatCard label="Revenue Total" value="$234,210" change="+9.0%" trend="up" />
-        <StatCard label="Closed Deals" value="874" change="-4.5%" trend="down" />
+        <StatCard label="Active Deal" value="$120,369" change="+20%" trend={Trend.Up} />
+        <StatCard label="Revenue Total" value="$234,210" change="+9.0%" trend={Trend.Up} />
+        <StatCard label="Closed Deals" value="874" change="-4.5%" trend={Trend.Down} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -32,15 +38,18 @@ export function CRMDashboard() {
               <p className="text-sm text-gray-500 mt-1">Target you've set for each month</p>
             </div>
             <div className="flex bg-gray-100 rounded-lg p-1">
-              {(['Monthly', 'Quarterly', 'Annually'] as const).map((r) => (
+              {DATE_RANGE_OPTIONS.map((range) => (
                 <button
-                  key={r}
-                  onClick={() => setRange(r)}
+                  key={range}
+                  type="button"
+                  onClick={() => setSelectedRange(range)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                    range === r ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                    selectedRange === range
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500'
                   }`}
                 >
-                  {r}
+                  {range}
                 </button>
               ))}
             </div>
@@ -69,15 +78,15 @@ export function CRMDashboard() {
 
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={statsChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={STATS_CHART_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6EE7B7" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#6EE7B7" stopOpacity={0} />
+                    <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
@@ -102,14 +111,14 @@ export function CRMDashboard() {
                 <Area
                   type="monotone"
                   dataKey="sales"
-                  stroke="#059669"
+                  stroke={CHART_COLORS.primary}
                   strokeWidth={2}
                   fill="url(#colorSales)"
                 />
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#6EE7B7"
+                  stroke={CHART_COLORS.secondary}
                   strokeWidth={2}
                   fill="url(#colorRev)"
                 />

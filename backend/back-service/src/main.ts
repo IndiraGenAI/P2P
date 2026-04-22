@@ -3,18 +3,17 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { APP_ENV } from './configs/env.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix(process.env.PREFIX || '/');
+  app.setGlobalPrefix(APP_ENV.prefix);
   app.useGlobalPipes(
     new ValidationPipe({ transform: true, forbidUnknownValues: false }),
   );
-  // remove CORS
   app.enableCors();
 
-  if (process.env.MODE === 'DEV') {
-    // Swagger
+  if (APP_ENV.isDev()) {
     const config = new DocumentBuilder()
       .addBasicAuth()
       .addBearerAuth()
@@ -26,10 +25,10 @@ async function bootstrap() {
     SwaggerModule.setup('swagger', app, document);
   }
 
-  // app.useGlobalFilters(new QueryFailedExceptionFilter());
-  const port = process.env.PORT || 3010;
-  console.log('port ', port);
   app.useGlobalFilters(new HttpExceptionFilter());
-  await app.listen(port);
+  await app.listen(APP_ENV.port);
+  console.log(
+    `[P2P-ORG] Backend listening on http://localhost:${APP_ENV.port}${APP_ENV.prefix} (mode=${APP_ENV.mode})`,
+  );
 }
 bootstrap();

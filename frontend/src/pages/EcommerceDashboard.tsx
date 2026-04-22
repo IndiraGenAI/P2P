@@ -12,14 +12,16 @@ import {
 } from 'recharts';
 import { StatCard } from '@/components/ui/StatCard';
 import { GaugeChart } from '@/components/ui/GaugeChart';
-import { monthlySalesData, statsChartData } from '@/data/mockData';
+import { MONTHLY_SALES_DATA, STATS_CHART_DATA } from '@/data';
+import { CHART_COLORS } from '@/common/constants';
+import { Trend } from '@/common/enums';
 
 export function EcommerceDashboard() {
   return (
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatCard label="Customers" value="3,782" change="11.01%" trend="up" icon={Users} />
-        <StatCard label="Orders" value="5,359" change="9.05%" trend="down" icon={Box} />
+        <StatCard label="Customers" value="3,782" change="11.01%" trend={Trend.Up} icon={Users} />
+        <StatCard label="Orders" value="5,359" change="9.05%" trend={Trend.Down} icon={Box} />
 
         <div className="soft-card p-6">
           <div className="flex items-start justify-between mb-2">
@@ -54,7 +56,7 @@ export function EcommerceDashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlySalesData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={MONTHLY_SALES_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
                 <XAxis
                   dataKey="month"
@@ -74,7 +76,7 @@ export function EcommerceDashboard() {
                     fontSize: '12px',
                   }}
                 />
-                <Bar dataKey="value" fill="#059669" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -134,11 +136,11 @@ export function EcommerceDashboard() {
         </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={statsChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={STATS_CHART_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorStat" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                  <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
@@ -163,7 +165,7 @@ export function EcommerceDashboard() {
               <Area
                 type="monotone"
                 dataKey="sales"
-                stroke="#059669"
+                stroke={CHART_COLORS.primary}
                 strokeWidth={2}
                 fill="url(#colorStat)"
               />

@@ -1,82 +1,256 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { LoginPage } from '@/components/auth/LoginPage';
+import { RegisterPage } from '@/components/auth/RegisterPage';
+import { RequirePage } from '@/components/auth/RequirePage';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PageTitle } from '@/components/layout/PageTitle';
 import { EcommerceDashboard } from '@/pages/EcommerceDashboard';
 import { ProfilePage } from '@/pages/ProfilePage';
-import { DataTablePage } from '@/pages/DataTablePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
-import type { PageKey } from '@/types';
+import { RolesPage } from '@/pages/RolesPage';
+import { UsersPage } from '@/pages/Users';
+import { NotAccessPage } from '@/pages/NotAccessPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
+import { ability, grantAllAbility } from '@/ability';
+import { AbilityContext } from '@/ability/can';
+import {
+  SidebarPermissionCodeProvider,
+  useSidebarPermissionCodes,
+} from '@/contexts/SidebarPermissionCodeContext';
+import { Common } from '@/utils/constants/constant';
+import { APP_MENU_LEAVES } from '@/data';
+import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
+import { fetchProfile } from '@/state/auth/auth.action';
+import { authSelector, signOut as signOutAction } from '@/state/auth/auth.reducer';
 
-const pageTitles: Record<string, string> = {
-  dashboard: 'Dashboard',
-  'user-management': 'User Management',
-  workflows: 'Workflows',
-  'workflows-v2': 'Workflow (V2)',
-  'item-approval': 'Item Approval',
-  'vendor-approval': 'Vendor Approval',
-  'budget-approval': 'Budget Approval',
-  'masters-control': 'Masters Control',
-  'role-config': 'Role Config',
-  'purchase-request': 'Purchase Request',
-  'rate-contract': 'Rate Contract',
-  'purchase-order': 'Purchase Order',
-  'direct-invoice': 'Direct Invoice',
-  budgets: 'Budgets',
-  profile: 'Profile',
-};
+function collectAllPageCodes(): string[] {
+  const codes = new Set<string>();
+  Object.values(Common.Modules).forEach((group) => {
+    Object.values(group).forEach((code) => codes.add(code as string));
+  });
+  APP_MENU_LEAVES.forEach((leaf) => {
+    if (leaf.pageCode) codes.add(leaf.pageCode);
+  });
+  return [...codes];
+}
 
-export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [currentPage, setCurrentPage] = useState<PageKey>('dashboard');
-  const [darkMode, setDarkMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+interface ProtectedLayoutProps {
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  onSignOut: () => void;
+}
 
-  if (!loggedIn) {
-    return <LoginPage onLogin={() => setLoggedIn(true)} />;
-  }
-
-  const handleSignOut = () => setLoggedIn(false);
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <EcommerceDashboard />;
-      case 'user-management':
-        return <DataTablePage />;
-      case 'profile':
-        return <ProfilePage />;
-      default:
-        return <PlaceholderPage title={pageTitles[currentPage] ?? 'Page'} />;
-    }
-  };
-
-  const showPageTitle = currentPage !== 'profile' && currentPage !== 'dashboard';
-
+function ProtectedLayout({
+  isSidebarOpen,
+  setIsSidebarOpen,
+  onSignOut,
+}: Readonly<ProtectedLayoutProps>) {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        onSignOut={handleSignOut}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        onSignOut={onSignOut}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-screen">
         <Header
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          onSignOut={handleSignOut}
-          setCurrentPage={setCurrentPage}
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onSignOut={onSignOut}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
-        {showPageTitle && <PageTitle title={pageTitles[currentPage] ?? 'Page'} />}
-        <main className="flex-1 overflow-y-auto">{renderPage()}</main>
+        <PageTitle />
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
         <Footer />
       </div>
     </div>
+  );
+}
+
+interface AppRoutesProps {
+  isLoggedIn: boolean;
+  onLogin: () => void;
+  onSignOut: () => void;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+}
+
+function AppRoutes({
+  isLoggedIn,
+  onLogin,
+  onSignOut,
+  isSidebarOpen,
+  setIsSidebarOpen,
+}: Readonly<AppRoutesProps>) {
+  if (!isLoggedIn) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage onLogin={onLogin} />} />
+        <Route path="/register" element={<RegisterPage onRegister={onLogin} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  const { Modules } = Common;
+
+  return (
+    <Routes>
+      <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/register" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        element={
+          <ProtectedLayout
+            isSidebarOpen={isSidebarOpen}
+            setIsSidebarOpen={setIsSidebarOpen}
+            onSignOut={onSignOut}
+          />
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+
+        {/* Always-on routes (no permission required). */}
+        <Route path="/dashboard" element={<EcommerceDashboard />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/access-denied" element={<NotAccessPage />} />
+
+        {/* Permission-gated routes. */}
+        <Route element={<RequirePage pageCode={Modules.USER_CONFIGURATION.USERS} />}>
+          <Route path="/user-management" element={<UsersPage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.USER_CONFIGURATION.ROLES} />}>
+          <Route path="/roles" element={<RolesPage />} />
+        </Route>
+
+        <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V1} />}>
+          <Route path="/workflows" element={<PlaceholderPage title="Workflows" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V2} />}>
+          <Route path="/workflows-v2" element={<PlaceholderPage title="Workflow (V2)" />} />
+        </Route>
+
+        <Route element={<RequirePage pageCode={Modules.APPROVALS.ITEM_APPROVAL} />}>
+          <Route path="/item-approval" element={<PlaceholderPage title="Item Approval" />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.APPROVALS.VENDOR_APPROVAL} />}>
+          <Route
+            path="/vendor-approval"
+            element={<PlaceholderPage title="Vendor Approval" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.APPROVALS.BUDGET_APPROVAL} />}>
+          <Route
+            path="/budget-approval"
+            element={<PlaceholderPage title="Budget Approval" />}
+          />
+        </Route>
+
+        <Route element={<RequirePage pageCode={Modules.MASTER.MASTER} />}>
+          <Route
+            path="/masters-control"
+            element={<PlaceholderPage title="Masters Control" />}
+          />
+        </Route>
+
+        <Route element={<RequirePage pageCode={Modules.PROCUREMENT.PURCHASE_REQUEST} />}>
+          <Route
+            path="/purchase-request"
+            element={<PlaceholderPage title="Purchase Request" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.PROCUREMENT.RATE_CONTRACT} />}>
+          <Route
+            path="/rate-contract"
+            element={<PlaceholderPage title="Rate Contract" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.PROCUREMENT.PURCHASE_ORDER} />}>
+          <Route
+            path="/purchase-order"
+            element={<PlaceholderPage title="Purchase Order" />}
+          />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.PROCUREMENT.DIRECT_INVOICE} />}>
+          <Route
+            path="/direct-invoice"
+            element={<PlaceholderPage title="Direct Invoice" />}
+          />
+        </Route>
+
+        <Route element={<RequirePage pageCode={Modules.FINANCE.BUDGETS} />}>
+          <Route path="/budgets" element={<PlaceholderPage title="Budgets" />} />
+        </Route>
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+function AppShell() {
+  const dispatch = useAppDispatch();
+  const { accessToken, profile } = useAppSelector(authSelector);
+  const isLoggedIn = !!accessToken;
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const navigate = useNavigate();
+  const { setIsCode } = useSidebarPermissionCodes();
+
+  // If we already have a token in localStorage on app start, validate it via
+  // /auth/me. If the call fails the auth slice clears the token automatically
+  // (see authSlice.fetchProfile.rejected) which flips us back to /login.
+  useEffect(() => {
+    if (accessToken && !profile.data && !profile.loading) {
+      dispatch(fetchProfile());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
+  // Bootstrap permissions whenever the user becomes logged in.
+  useEffect(() => {
+    if (!isLoggedIn) {
+      ability.update([]);
+      setIsCode([]);
+      return;
+    }
+    // Dev shortcut while the backend `/users/me` + role-permissions wiring isn't
+    // ready: grant the catch-all CASL ability and unlock every known page code.
+    grantAllAbility();
+    setIsCode(collectAllPageCodes());
+  }, [isLoggedIn, setIsCode]);
+
+  const handleLogin = () => {
+    navigate('/dashboard', { replace: true });
+  };
+
+  const handleSignOut = () => {
+    dispatch(signOutAction());
+    ability.update([]);
+    setIsCode([]);
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <AppRoutes
+      isLoggedIn={isLoggedIn}
+      onLogin={handleLogin}
+      onSignOut={handleSignOut}
+      isSidebarOpen={isSidebarOpen}
+      setIsSidebarOpen={setIsSidebarOpen}
+    />
+  );
+}
+
+export default function App() {
+  return (
+    <AbilityContext.Provider value={ability}>
+      <SidebarPermissionCodeProvider>
+        <AppShell />
+      </SidebarPermissionCodeProvider>
+    </AbilityContext.Provider>
   );
 }

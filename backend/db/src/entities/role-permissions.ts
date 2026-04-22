@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Users } from './users';
-import { PageActions } from './-actions';
+import { PageActions } from './page-actions';
 import { Roles } from './roles';
 
 @Index('role_permissions_pkey', ['id'], { unique: true })

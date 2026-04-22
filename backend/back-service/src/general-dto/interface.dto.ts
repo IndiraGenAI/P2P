@@ -1,5 +1,4 @@
-import { Departments } from 'erp-db';
-import { PageOptionsDto } from './-option.dto';
+import { PageOptionsDto } from './page-option.dto';
 
 export interface PageMetaDtoParameters {
   pageOptionsDto: PageOptionsDto;

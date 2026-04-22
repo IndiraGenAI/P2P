@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Area, City, Country, State } from 'erp-db';
-import { PageOptionsDto } from 'src/general-dto/-option.dto';
+import { PageOptionsDto } from 'src/general-dto/page-option.dto';
 
 export class AddressResponse {
   data: Country[] | State[] | City[] | Area[];

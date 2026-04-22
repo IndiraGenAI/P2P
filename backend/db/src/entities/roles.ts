@@ -8,17 +8,33 @@ import {
 import { RolePermissions } from './role-permissions';
 import { UserRoles } from './user-roles';
 
+export enum RoleType {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  MANAGER = 'MANAGER',
+  PURCHASER = 'PURCHASER',
+  FINANCE = 'FINANCE',
+}
+
 @Index('roles_pkey', ['id'], { unique: true })
+@Index('roles_name_unique', ['name'], { unique: true })
 @Entity('roles', { schema: 'public' })
 export class Roles {
   @PrimaryGeneratedColumn({ type: 'integer', name: 'id' })
   id: number;
 
-  @Column('character varying', { name: 'name', length: 100 })
+  @Column('character varying', { name: 'name', unique: true, length: 100 })
   name: string;
 
   @Column('text', { name: 'description', nullable: true })
   description: string | null;
+
+  @Column('enum', {
+    name: 'type',
+    enumName: 'role_type',
+    enum: RoleType,
+    nullable: true,
+  })
+  type: RoleType | null;
 
   @Column('boolean', { name: 'status', nullable: true, default: () => 'true' })
   status: boolean | null;
@@ -48,13 +64,6 @@ export class Roles {
     nullable: true,
   })
   updated_date: Date | null;
-
-  @Column('enum', {
-    name: 'type',
-    nullable: true,
-    enum: ['SUPER_ADMIN', 'ADMIN', 'FACULTY_HEAD', 'FACULTY', 'MANAGER'],
-  })
-  type: 'SUPER_ADMIN' | 'ADMIN' | 'FACULTY_HEAD' | 'FACULTY' | 'MANAGER' | null;
 
   @OneToMany(() => UserRoles, (user_roles) => user_roles.role)
   user_roles: UserRoles[];

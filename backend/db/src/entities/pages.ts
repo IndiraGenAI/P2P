@@ -7,7 +7,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PageActions } from './-actions';
+import { PageActions } from './page-actions';
 
 @Index('pages_pkey', ['id'], { unique: true })
 @Index('pages_page_code_key', ['page_code'], { unique: true })
@@ -47,7 +47,7 @@ export class Pages {
   @Column("integer", { name: "sequence", nullable: true })
   sequence: number | null;
 
-  @OneToMany(() => PageActions, (page_actions) => page_actions.)
+  @OneToMany(() => PageActions, (page_actions) => page_actions.page)
   page_actions: PageActions[];
 
   @ManyToOne(() => Pages, (pages) => pages.pages)

@@ -1,69 +1,158 @@
-import {
-  BadgeCheck,
-  Database,
-  FileSignature,
-  FileText,
-  GitBranch,
-  LayoutGrid,
-  LogOut,
-  Network,
-  PackageCheck,
-  Receipt,
-  ShieldCheck,
-  ShoppingCart,
-  UserCheck,
-  Users,
-  Wallet,
-  type LucideIcon,
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, LogOut } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/ui/Logo';
-import type { PageKey } from '@/types';
-
-interface SidebarItem {
-  icon: LucideIcon;
-  label: string;
-  key: PageKey;
-}
+import { APP_MENU_ITEMS } from '@/data';
+import { ability } from '@/ability';
+import { useSidebarPermissionCodes } from '@/contexts/SidebarPermissionCodeContext';
+import { filterMenuTree } from '@/common/utils';
+import type { MenuItem } from '@/common/models';
 
 interface SidebarProps {
-  currentPage: PageKey;
-  setCurrentPage: (page: PageKey) => void;
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
   onSignOut: () => void;
 }
 
-const menuItems: SidebarItem[] = [
-  { icon: LayoutGrid, label: 'Dashboard', key: 'dashboard' },
-  { icon: Users, label: 'User Management', key: 'user-management' },
-  { icon: GitBranch, label: 'Workflows', key: 'workflows' },
-  { icon: Network, label: 'Workflow (V2)', key: 'workflows-v2' },
-  { icon: PackageCheck, label: 'Item Approval', key: 'item-approval' },
-  { icon: UserCheck, label: 'Vendor Approval', key: 'vendor-approval' },
-  { icon: BadgeCheck, label: 'Budget Approval', key: 'budget-approval' },
-  { icon: Database, label: 'Masters Control', key: 'masters-control' },
-  { icon: ShieldCheck, label: 'Role Config', key: 'role-config' },
-  { icon: FileText, label: 'Purchase Request', key: 'purchase-request' },
-  { icon: FileSignature, label: 'Rate Contract', key: 'rate-contract' },
-  { icon: ShoppingCart, label: 'Purchase Order', key: 'purchase-order' },
-  { icon: Receipt, label: 'Direct Invoice', key: 'direct-invoice' },
-  { icon: Wallet, label: 'Budgets', key: 'budgets' },
-];
+interface SidebarLeafProps {
+  item: MenuItem;
+  isSidebarOpen: boolean;
+  onNavigate: () => void;
+}
+
+function SidebarLeaf({ item, isSidebarOpen, onNavigate }: Readonly<SidebarLeafProps>) {
+  if (!item.to) return null;
+  const Icon = item.icon;
+  return (
+    <NavLink
+      to={item.to}
+      onClick={onNavigate}
+      title={isSidebarOpen ? undefined : item.label}
+      className={({ isActive }) =>
+        `w-full flex items-center rounded-lg text-sm transition-all duration-300 ease-in-out mb-0.5 px-3 py-2.5 overflow-hidden ${
+          isActive
+            ? 'bg-emerald-50 text-emerald-600 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`
+      }
+    >
+      <Icon
+        size={18}
+        className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? '' : 'mx-auto'
+        }`}
+      />
+      <span
+        className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'ml-3 max-w-[200px] opacity-100' : 'ml-0 max-w-0 opacity-0'
+        }`}
+      >
+        {item.label}
+      </span>
+    </NavLink>
+  );
+}
+
+interface SidebarGroupProps {
+  item: MenuItem;
+  isSidebarOpen: boolean;
+  onNavigate: () => void;
+}
+
+function SidebarGroup({ item, isSidebarOpen, onNavigate }: Readonly<SidebarGroupProps>) {
+  const { pathname } = useLocation();
+  const Icon = item.icon;
+  const childActive = item.children?.some((c) => c.to && pathname.startsWith(c.to));
+  const [open, setOpen] = useState<boolean>(!!childActive);
+
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  if (!isSidebarOpen) {
+    return (
+      <div className="mb-0.5">
+        <button
+          type="button"
+          title={item.label}
+          className={`w-full flex items-center rounded-lg text-sm transition px-3 py-2.5 overflow-hidden ${
+            childActive
+              ? 'bg-emerald-50 text-emerald-600 font-medium'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <Icon size={18} className="mx-auto flex-shrink-0" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between rounded-lg text-sm transition px-3 py-2.5 ${
+          childActive
+            ? 'text-emerald-700 font-medium'
+            : 'text-gray-600 hover:bg-gray-50'
+        }`}
+      >
+        <span className="flex items-center min-w-0">
+          <Icon size={18} className="flex-shrink-0" />
+          <span className="ml-3 truncate">{item.label}</span>
+        </span>
+        <ChevronDown
+          size={14}
+          className={`flex-shrink-0 transition-transform duration-200 ${
+            open ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="ml-4 mt-1 border-l border-gray-100 pl-2">
+          {item.children?.map((child) => (
+            <SidebarLeaf
+              key={child.key}
+              item={child}
+              isSidebarOpen={isSidebarOpen}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Sidebar({
-  currentPage,
-  setCurrentPage,
-  sidebarOpen,
-  setSidebarOpen,
+  isSidebarOpen,
+  setIsSidebarOpen,
   onSignOut,
 }: Readonly<SidebarProps>) {
+  const { isCode } = useSidebarPermissionCodes();
+
+  // Re-render when CASL ability is updated (login / logout / role switch).
+  const [, setTick] = useState(0);
+  useEffect(() => ability.on('updated', () => setTick((v) => v + 1)), []);
+
+  const visibleItems = useMemo(
+    () => filterMenuTree(APP_MENU_ITEMS, ability, isCode),
+    [isCode],
+  );
+
+  const handleNavigate = () => {
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  };
+
   return (
     <>
-      {sidebarOpen && (
+      {isSidebarOpen && (
         <button
           type="button"
           aria-label="Close sidebar"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setIsSidebarOpen(false)}
           className="fixed inset-0 bg-black/40 z-30 lg:hidden"
         />
       )}
@@ -72,67 +161,60 @@ export function Sidebar({
         className={`bg-white h-screen soft-sidebar transition-all duration-300 ease-in-out z-40 flex-shrink-0
           fixed lg:sticky top-0 left-0 flex flex-col
           ${
-            sidebarOpen
+            isSidebarOpen
               ? 'w-64 translate-x-0'
               : 'w-64 -translate-x-full lg:translate-x-0 lg:w-[72px]'
           }`}
       >
         <div
           className={`h-16 flex items-center flex-shrink-0 border-b border-gray-100 bg-white overflow-hidden transition-all duration-300 ease-in-out ${
-            sidebarOpen ? 'px-6 justify-start' : 'px-4 lg:justify-center'
+            isSidebarOpen ? 'px-6 justify-start' : 'px-4 lg:justify-center'
           }`}
         >
-          <Logo size="sm" iconOnly={!sidebarOpen} />
+          <Logo size="sm" iconOnly={!isSidebarOpen} />
         </div>
 
         <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4">
-          {menuItems.map((item) => {
-            const isActive = currentPage === item.key;
-            const Icon = item.icon;
-            return (
-              <button
+          {visibleItems.length === 0 && (
+            <p className="px-3 py-2 text-xs text-gray-400">No accessible pages.</p>
+          )}
+          {visibleItems.map((item) =>
+            item.children?.length ? (
+              <SidebarGroup
                 key={item.key}
-                onClick={() => setCurrentPage(item.key)}
-                title={sidebarOpen ? undefined : item.label}
-                className={`w-full flex items-center rounded-lg text-sm transition-all duration-300 ease-in-out mb-0.5 px-3 py-2.5 overflow-hidden ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon
-                  size={18}
-                  className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
-                    sidebarOpen ? '' : 'mx-auto'
-                  }`}
-                />
-                <span
-                  className={`font-medium whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
-                    sidebarOpen ? 'ml-3 max-w-[200px] opacity-100' : 'ml-0 max-w-0 opacity-0'
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+                item={item}
+                isSidebarOpen={isSidebarOpen}
+                onNavigate={handleNavigate}
+              />
+            ) : (
+              <SidebarLeaf
+                key={item.key}
+                item={item}
+                isSidebarOpen={isSidebarOpen}
+                onNavigate={handleNavigate}
+              />
+            ),
+          )}
         </nav>
 
         <div className="flex-shrink-0 border-t border-gray-100 bg-white py-3 px-3">
           <button
+            type="button"
             onClick={onSignOut}
-            title={sidebarOpen ? undefined : 'Logout'}
+            title={isSidebarOpen ? undefined : 'Logout'}
             className="w-full flex items-center rounded-lg text-sm text-red-600 hover:bg-red-50 transition-all duration-300 ease-in-out font-medium px-3 py-2.5 overflow-hidden"
           >
             <LogOut
               size={18}
               className={`flex-shrink-0 transition-all duration-300 ease-in-out ${
-                sidebarOpen ? '' : 'mx-auto'
+                isSidebarOpen ? '' : 'mx-auto'
               }`}
             />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
-                sidebarOpen ? 'ml-3 max-w-[200px] opacity-100' : 'ml-0 max-w-0 opacity-0'
+                isSidebarOpen
+                  ? 'ml-3 max-w-[200px] opacity-100'
+                  : 'ml-0 max-w-0 opacity-0'
               }`}
             >
               Logout
