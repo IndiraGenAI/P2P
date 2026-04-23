@@ -30,7 +30,7 @@ import {
 } from '@/state/invoiceSource/invoiceSource.reducer';
 import type { IInvoiceSourceDetails } from '@/services/invoiceSource/invoiceSource.model';
 import { Common } from '@/utils/constants/constant';
-import { trimObject } from '@/utils/helperFunction';
+import { showTooltip, trimObject } from '@/utils/helperFunction';
 import InvoiceSourceAdd from './Add';
 import type { IInvoiceSourceRecord } from './InvoiceSource.model';
 
@@ -465,7 +465,7 @@ export const InvoiceSourcePage = () => {
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {row.name}
+                      {showTooltip(row.name, 40)}
                     </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
+import { MaskedValue } from '@/components/ui/MaskedValue';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { TablePagination } from '@/components/ui/TablePagination';
@@ -30,7 +31,7 @@ import type { ICoaDetails } from '@/services/coa/coa.model';
 import coaCategoryService from '@/services/coaCategory/coaCategory.service';
 import type { ICoaCategoryDetails } from '@/services/coaCategory/coaCategory.model';
 import { Common } from '@/utils/constants/constant';
-import { trimObject } from '@/utils/helperFunction';
+import { showTooltip, trimObject } from '@/utils/helperFunction';
 import CoaAdd from './Add';
 import type { ICoaRecord } from './Coa.model';
 
@@ -493,11 +494,11 @@ export const CoaPage = () => {
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {row.gl_name}
+                      {showTooltip(row.gl_name, 40)}
                     </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                    {row.coa_category?.name ?? '—'}
+                    {showTooltip(row.coa_category?.name ?? '—', 25)}
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     {row.gl_code ? (
@@ -508,10 +509,11 @@ export const CoaPage = () => {
                       <span className="text-xs text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80 max-w-[260px] truncate">
-                    <span title={row.distribution_combination}>
-                      {row.distribution_combination || '—'}
-                    </span>
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80 max-w-[260px]">
+                    <MaskedValue
+                      value={row.distribution_combination}
+                      pageCode={Common.Modules.MASTER.COA}
+                    />
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
                     {formatDate(

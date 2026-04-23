@@ -30,7 +30,7 @@ import {
 } from '@/state/tds/tds.reducer';
 import type { ITdsDetails } from '@/services/tds/tds.model';
 import { Common } from '@/utils/constants/constant';
-import { trimObject } from '@/utils/helperFunction';
+import { showTooltip, trimObject } from '@/utils/helperFunction';
 import TdsAdd from './Add';
 import type { ITdsRecord } from './Tds.model';
 
@@ -456,7 +456,7 @@ export const TdsPage = () => {
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {row.name}
+                      {showTooltip(row.name, 40)}
                     </p>
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">

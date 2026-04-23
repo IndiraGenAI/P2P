@@ -21,10 +21,17 @@ export const dateFormate = (
 
 export const showTooltip = (text: string | null | undefined, maxLength = 50) => {
   const value = text ?? '';
-  if (value.length <= maxLength) return value;
+  if (value.length <= maxLength) return <span>{value}</span>;
   return (
-    <Tooltip title={value}>
-      <span>{value.slice(0, maxLength)}…</span>
+    <Tooltip
+      title={value}
+      placement="top"
+      mouseEnterDelay={0.15}
+      rootClassName="soft-tooltip"
+    >
+      <span className="cursor-help underline decoration-dotted decoration-gray-300 underline-offset-4">
+        {value.slice(0, maxLength)}…
+      </span>
     </Tooltip>
   );
 };

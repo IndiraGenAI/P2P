@@ -30,7 +30,7 @@ import {
 } from '@/state/currency/currency.reducer';
 import type { ICurrencyDetails } from '@/services/currency/currency.model';
 import { Common } from '@/utils/constants/constant';
-import { trimObject } from '@/utils/helperFunction';
+import { showTooltip, trimObject } from '@/utils/helperFunction';
 import CurrencyAdd from './Add';
 import type { ICurrencyRecord } from './Currency.model';
 
@@ -456,7 +456,7 @@ export const CurrencyPage = () => {
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {row.name}
+                      {showTooltip(row.name, 40)}
                     </p>
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">

@@ -30,7 +30,7 @@ import {
 } from '@/state/coaCategory/coaCategory.reducer';
 import type { ICoaCategoryDetails } from '@/services/coaCategory/coaCategory.model';
 import { Common } from '@/utils/constants/constant';
-import { trimObject } from '@/utils/helperFunction';
+import { showTooltip, trimObject } from '@/utils/helperFunction';
 import CoaCategoryAdd from './Add';
 import type { ICoaCategoryRecord } from './CoaCategory.model';
 
@@ -448,7 +448,7 @@ export const CoaCategoryPage = () => {
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {row.name}
+                      {showTooltip(row.name, 40)}
                     </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
