@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer } from '@/components/ui/Drawer';
+import { FormModal } from '@/components/ui/FormModal';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
@@ -727,7 +728,7 @@ export const RolesPage = () => {
         </div>
       </Drawer>
 
-      <Drawer
+      <FormModal
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
         title={isEdit ? 'Edit Role' : 'Create New Role'}
@@ -802,7 +803,7 @@ export const RolesPage = () => {
             />
           </div>
         </div>
-      </Drawer>
+      </FormModal>
 
       {confirmDeleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">

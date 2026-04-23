@@ -11,6 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
+import { FormModal } from '@/components/ui/FormModal';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
@@ -679,7 +680,7 @@ export const ZonePage = () => {
         </div>
       </Drawer>
 
-      <Drawer
+      <FormModal
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
         title={isEdit ? 'Edit Zone' : 'Create New Zone'}
@@ -709,9 +710,9 @@ export const ZonePage = () => {
           </div>
         }
       >
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {formError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+            <div className="md:col-span-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
               {formError}
             </div>
           )}
@@ -754,7 +755,7 @@ export const ZonePage = () => {
             />
           </div>
         </div>
-      </Drawer>
+      </FormModal>
 
       {confirmDeleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">

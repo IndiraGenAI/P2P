@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { message } from 'antd';
 import {
-  Building2,
+  Building,
   ChevronsUpDown,
   Filter,
   Loader2,
@@ -17,52 +17,48 @@ import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import {
-  createNewCity,
-  editCityById,
-  removeCityById,
-  searchCityData,
-  updateCityStatus,
-} from '@/state/city/city.action';
+  createNewSubdepartment,
+  editSubdepartmentById,
+  removeSubdepartmentById,
+  searchSubdepartmentData,
+  updateSubdepartmentStatus,
+} from '@/state/subdepartment/subdepartment.action';
 import {
-  cityMasterSelector,
-  clearCityMessage,
-} from '@/state/city/city.reducer';
-import type { ICityDetails } from '@/services/city/city.model';
-import countryService from '@/services/country/country.service';
-import stateService from '@/services/state/state.service';
-import type { ICountryDetails } from '@/services/country/country.model';
-import type { IStateDetails } from '@/services/state/state.model';
+  clearSubdepartmentMessage,
+  subdepartmentMasterSelector,
+} from '@/state/subdepartment/subdepartment.reducer';
+import type { ISubdepartmentDetails } from '@/services/subdepartment/subdepartment.model';
+import departmentService from '@/services/department/department.service';
+import type { IDepartmentDetails } from '@/services/department/department.model';
 import { Common } from '@/utils/constants/constant';
 
-type SortKey = 'name' | 'created_date' | 'status' | null;
+type SortKey = 'name' | 'code' | 'created_date' | 'status' | null;
 type SortDir = 'asc' | 'desc';
 
 interface FilterState {
   name: string;
-  country_id: string;
-  state_id: string;
+  department_id: string;
   status: string;
 }
 
-interface CityFormState {
+interface SubdepartmentFormState {
   id?: number;
   name: string;
-  country_id: string;
-  state_id: string;
+  code: string;
+  department_id: string;
 }
 
 const EMPTY_FILTERS: FilterState = {
   name: '',
-  country_id: '',
-  state_id: '',
+  department_id: '',
   status: '',
 };
 
-const EMPTY_FORM: CityFormState = {
+const EMPTY_FORM: SubdepartmentFormState = {
   id: undefined,
   name: '',
-  country_id: '',
-  state_id: '',
+  code: '',
+  department_id: '',
 };
 
 const STATUS_OPTIONS = [
@@ -79,7 +75,8 @@ const PAGE_SIZE_OPTIONS = [
 ];
 
 const TABLE_COLUMNS: { key: Exclude<SortKey, null>; label: string }[] = [
-  { key: 'name', label: 'City Name' },
+  { key: 'name', label: 'Subdepartment Name' },
+  { key: 'code', label: 'Code' },
   { key: 'created_date', label: 'Created Date' },
   { key: 'status', label: 'Status' },
 ];
@@ -121,29 +118,9 @@ const buildSearchParams = (
   return params;
 };
 
-const fetchStatesByCountry = async (
-  countryId: string,
-): Promise<IStateDetails[]> => {
-  if (!countryId) return [];
-  const params = new URLSearchParams();
-  params.set('noLimit', 'true');
-  params.set('status', 'true');
-  params.set('country_id', countryId);
-  try {
-    const res = await stateService.searchStateData(params);
-    const rows =
-      (res.data as unknown as { rows?: IStateDetails[] })?.rows ??
-      (res.data?.rows as IStateDetails[]) ??
-      [];
-    return rows ?? [];
-  } catch {
-    return [];
-  }
-};
-
-export const CityPage = () => {
+export const SubdepartmentPage = () => {
   const dispatch = useAppDispatch();
-  const cityState = useAppSelector(cityMasterSelector);
+  const subState = useAppSelector(subdepartmentMasterSelector);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -158,80 +135,63 @@ export const CityPage = () => {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
-  const [form, setForm] = useState<CityFormState>(EMPTY_FORM);
+  const [form, setForm] = useState<SubdepartmentFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [confirmDeleteRow, setConfirmDeleteRow] = useState<ICityDetails | null>(
-    null,
-  );
+  const [confirmDeleteRow, setConfirmDeleteRow] =
+    useState<ISubdepartmentDetails | null>(null);
 
-  const [countries, setCountries] = useState<ICountryDetails[]>([]);
-  const [filterStates, setFilterStates] = useState<IStateDetails[]>([]);
-  const [formStates, setFormStates] = useState<IStateDetails[]>([]);
-  const countriesFetchedRef = useRef(false);
+  const [departments, setDepartments] = useState<IDepartmentDetails[]>([]);
+  const departmentsFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (countriesFetchedRef.current) return;
-    countriesFetchedRef.current = true;
+    if (departmentsFetchedRef.current) return;
+    departmentsFetchedRef.current = true;
     const params = new URLSearchParams();
     params.set('noLimit', 'true');
     params.set('status', 'true');
-    countryService
-      .searchCountryData(params)
+    departmentService
+      .searchDepartmentData(params)
       .then((res) => {
         const rows =
-          (res.data as unknown as { rows?: ICountryDetails[] })?.rows ??
-          (res.data?.rows as ICountryDetails[]) ??
+          (res.data as unknown as { rows?: IDepartmentDetails[] })?.rows ??
+          (res.data?.rows as IDepartmentDetails[]) ??
           [];
-        setCountries(rows ?? []);
+        setDepartments(rows ?? []);
       })
-      .catch(() => setCountries([]));
+      .catch(() => setDepartments([]));
   }, []);
 
-  useEffect(() => {
-    fetchStatesByCountry(draftFilters.country_id).then(setFilterStates);
-  }, [draftFilters.country_id]);
-
-  useEffect(() => {
-    fetchStatesByCountry(form.country_id).then(setFormStates);
-  }, [form.country_id]);
-
-  const countryOptions = useMemo(
+  const departmentOptions = useMemo(
     () =>
-      countries.map((c) => ({ value: String(c.id), label: c.name ?? '' })),
-    [countries],
+      departments.map((d) => ({ value: String(d.id), label: d.name ?? '' })),
+    [departments],
   );
 
-  const countryFilterOptions = useMemo(
-    () => [{ value: '', label: 'All countries' }, ...countryOptions],
-    [countryOptions],
+  const departmentFilterOptions = useMemo(
+    () => [{ value: '', label: 'All departments' }, ...departmentOptions],
+    [departmentOptions],
   );
 
-  const filterStateOptions = useMemo(
-    () => [
-      { value: '', label: draftFilters.country_id ? 'All states' : 'Select country first' },
-      ...filterStates.map((s) => ({ value: String(s.id), label: s.name ?? '' })),
-    ],
-    [filterStates, draftFilters.country_id],
-  );
-
-  const formStateOptions = useMemo(
-    () => formStates.map((s) => ({ value: String(s.id), label: s.name ?? '' })),
-    [formStates],
-  );
-
-  const rows = cityState.citiesData.data?.rows ?? [];
-  const meta = cityState.citiesData.data?.meta;
+  const rows = subState.subdepartmentsData.data?.rows ?? [];
+  const meta = subState.subdepartmentsData.data?.meta;
   const totalCount = meta?.itemCount ?? 0;
-  const isLoading = cityState.citiesData.loading;
+  const isLoading = subState.subdepartmentsData.loading;
 
   const isEdit = form.id !== undefined;
-  const isSubmitting = cityState.createCity.loading || cityState.editById.loading;
+  const isSubmitting =
+    subState.createSubdepartment.loading || subState.editById.loading;
 
   const lastFetchRef = useRef<{ key: string; at: number } | null>(null);
 
   const refresh = (force = false) => {
-    const params = buildSearchParams(appliedFilters, sort, page, pageSize, quickSearch);
+    const params = buildSearchParams(
+      appliedFilters,
+      sort,
+      page,
+      pageSize,
+      quickSearch,
+    );
     const key = params.toString();
     const now = Date.now();
     if (
@@ -243,7 +203,7 @@ export const CityPage = () => {
       return;
     }
     lastFetchRef.current = { key, at: now };
-    dispatch(searchCityData(params));
+    dispatch(searchSubdepartmentData(params));
   };
 
   useEffect(() => {
@@ -251,43 +211,53 @@ export const CityPage = () => {
   }, [appliedFilters, sort, page, pageSize, quickSearch]);
 
   useEffect(() => {
-    if (cityState.createCity.message) {
-      if (cityState.createCity.hasErrors) message.error(cityState.createCity.message);
-      else message.success(cityState.createCity.message);
-      dispatch(clearCityMessage());
+    if (subState.createSubdepartment.message) {
+      if (subState.createSubdepartment.hasErrors)
+        message.error(subState.createSubdepartment.message);
+      else message.success(subState.createSubdepartment.message);
+      dispatch(clearSubdepartmentMessage());
     }
-  }, [cityState.createCity.message]);
+  }, [subState.createSubdepartment.message]);
 
   useEffect(() => {
-    if (cityState.editById.message) {
-      if (cityState.editById.hasErrors) message.error(cityState.editById.message);
-      else message.success(cityState.editById.message);
-      dispatch(clearCityMessage());
+    if (subState.editById.message) {
+      if (subState.editById.hasErrors)
+        message.error(subState.editById.message);
+      else message.success(subState.editById.message);
+      dispatch(clearSubdepartmentMessage());
     }
-  }, [cityState.editById.message]);
+  }, [subState.editById.message]);
 
   useEffect(() => {
-    if (cityState.removeById.message) {
-      if (cityState.removeById.hasErrors) message.error(cityState.removeById.message);
-      else message.success(cityState.removeById.message);
-      dispatch(clearCityMessage());
+    if (subState.removeById.message) {
+      if (subState.removeById.hasErrors)
+        message.error(subState.removeById.message);
+      else message.success(subState.removeById.message);
+      dispatch(clearSubdepartmentMessage());
     }
-  }, [cityState.removeById.message]);
+  }, [subState.removeById.message]);
 
   useEffect(() => {
-    if (cityState.updateById.message) {
-      if (cityState.updateById.hasErrors) message.error(cityState.updateById.message);
-      else message.success(cityState.updateById.message);
-      dispatch(clearCityMessage());
+    if (subState.updateById.message) {
+      if (subState.updateById.hasErrors)
+        message.error(subState.updateById.message);
+      else message.success(subState.updateById.message);
+      dispatch(clearSubdepartmentMessage());
     }
-  }, [cityState.updateById.message]);
+  }, [subState.updateById.message]);
 
   useEffect(() => {
-    if (cityState.citiesData.message && cityState.citiesData.hasErrors) {
-      message.error(cityState.citiesData.message);
-      dispatch(clearCityMessage());
+    if (
+      subState.subdepartmentsData.message &&
+      subState.subdepartmentsData.hasErrors
+    ) {
+      message.error(subState.subdepartmentsData.message);
+      dispatch(clearSubdepartmentMessage());
     }
-  }, [cityState.citiesData.message, cityState.citiesData.hasErrors]);
+  }, [
+    subState.subdepartmentsData.message,
+    subState.subdepartmentsData.hasErrors,
+  ]);
 
   const activeFilterCount = useMemo(
     () => Object.values(appliedFilters).filter(Boolean).length,
@@ -309,47 +279,51 @@ export const CityPage = () => {
     setIsFormDrawerOpen(true);
   };
 
-  const openEditDrawer = (row: ICityDetails) => {
+  const openEditDrawer = (row: ISubdepartmentDetails) => {
     setForm({
       id: row.id,
       name: row.name ?? '',
-      country_id: row.country_id ? String(row.country_id) : '',
-      state_id: row.state_id ? String(row.state_id) : '',
+      code: row.code ?? '',
+      department_id: row.department_id ? String(row.department_id) : '',
     });
     setFormError(null);
     setIsFormDrawerOpen(true);
   };
 
   const handleSubmitForm = async () => {
-    const trimmed = { ...form, name: form.name.trim() };
-    if (!trimmed.name) return setFormError('City name is required.');
-    if (!trimmed.country_id) return setFormError('Country is required.');
-    if (!trimmed.state_id) return setFormError('State is required.');
+    const trimmed = {
+      ...form,
+      name: form.name.trim(),
+      code: form.code.trim(),
+    };
+    if (!trimmed.department_id) return setFormError('Department is required.');
+    if (!trimmed.name) return setFormError('Subdepartment name is required.');
+    if (!trimmed.code) return setFormError('Subdepartment code is required.');
     setFormError(null);
 
     if (isEdit && trimmed.id !== undefined) {
       const result = await dispatch(
-        editCityById({
+        editSubdepartmentById({
           id: trimmed.id,
           name: trimmed.name,
-          country_id: Number(trimmed.country_id),
-          state_id: Number(trimmed.state_id),
+          code: trimmed.code,
+          department_id: Number(trimmed.department_id),
         }),
       );
-      if (editCityById.fulfilled.match(result)) {
+      if (editSubdepartmentById.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
         refresh(true);
       }
     } else {
       const result = await dispatch(
-        createNewCity({
+        createNewSubdepartment({
           id: 0,
           name: trimmed.name,
-          country_id: Number(trimmed.country_id),
-          state_id: Number(trimmed.state_id),
-        } as ICityDetails),
+          code: trimmed.code,
+          department_id: Number(trimmed.department_id),
+        } as ISubdepartmentDetails),
       );
-      if (createNewCity.fulfilled.match(result)) {
+      if (createNewSubdepartment.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
         setPage(1);
         refresh(true);
@@ -357,18 +331,21 @@ export const CityPage = () => {
     }
   };
 
-  const handleToggleStatus = async (row: ICityDetails, checked: boolean) => {
+  const handleToggleStatus = async (
+    row: ISubdepartmentDetails,
+    checked: boolean,
+  ) => {
     const result = await dispatch(
-      updateCityStatus({ id: row.id, status: checked }),
+      updateSubdepartmentStatus({ id: row.id, status: checked }),
     );
-    if (updateCityStatus.fulfilled.match(result)) refresh(true);
+    if (updateSubdepartmentStatus.fulfilled.match(result)) refresh(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!confirmDeleteRow) return;
-    const result = await dispatch(removeCityById(confirmDeleteRow.id));
+    const result = await dispatch(removeSubdepartmentById(confirmDeleteRow.id));
     setConfirmDeleteRow(null);
-    if (removeCityById.fulfilled.match(result)) {
+    if (removeSubdepartmentById.fulfilled.match(result)) {
       if (rows.length === 1 && page > 1) setPage(page - 1);
       else refresh(true);
     }
@@ -384,11 +361,11 @@ export const CityPage = () => {
         <div className="px-6 py-5 flex items-center justify-between flex-wrap gap-3 flex-shrink-0 border-b border-gray-100">
           <div>
             <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <Building2 size={18} className="text-emerald-600" />
-              City
+              <Building size={18} className="text-emerald-600" />
+              Subdepartment
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              {totalCount} cit{totalCount === 1 ? 'y' : 'ies'} configured
+              {totalCount} subdepartment{totalCount === 1 ? '' : 's'} configured
             </p>
           </div>
 
@@ -405,7 +382,7 @@ export const CityPage = () => {
                   setQuickSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search by name…"
+                placeholder="Search by name or code…"
                 className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-56"
               />
             </div>
@@ -426,13 +403,16 @@ export const CityPage = () => {
               )}
             </button>
 
-            <Can I={Common.Actions.CAN_ADD} a={Common.Modules.MASTER.CITY}>
+            <Can
+              I={Common.Actions.CAN_ADD}
+              a={Common.Modules.MASTER.SUBDEPARTMENT}
+            >
               <button
                 type="button"
                 onClick={openCreateDrawer}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
               >
-                <Plus size={14} /> New City
+                <Plus size={14} /> New Subdepartment
               </button>
             </Can>
           </div>
@@ -450,27 +430,26 @@ export const CityPage = () => {
                   return (
                     <Fragment key={col.key}>
                       {idx === 1 && (
-                        <>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                            State
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-                            Country
-                          </th>
-                        </>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+                          Department
+                        </th>
                       )}
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
                         <button
                           type="button"
                           onClick={() => handleSort(col.key)}
                           className={`flex items-center gap-1 select-none transition ${
-                            active ? 'text-emerald-700' : 'text-gray-500 hover:text-gray-700'
+                            active
+                              ? 'text-emerald-700'
+                              : 'text-gray-500 hover:text-gray-700'
                           }`}
                         >
                           {col.label}
                           <ChevronsUpDown
                             size={12}
-                            className={active ? 'text-emerald-600' : 'text-gray-400'}
+                            className={
+                              active ? 'text-emerald-600' : 'text-gray-400'
+                            }
                           />
                         </button>
                       </th>
@@ -488,8 +467,8 @@ export const CityPage = () => {
                   rows={Math.min(pageSize, 10)}
                   columns={[
                     { key: 'name', width: 'w-40' },
-                    { key: 'state', width: 'w-32' },
-                    { key: 'country', width: 'w-32' },
+                    { key: 'department', width: 'w-32' },
+                    { key: 'code', width: 'w-20' },
                     { key: 'created', width: 'w-24' },
                     { key: 'status', width: 'w-20' },
                   ]}
@@ -501,13 +480,21 @@ export const CityPage = () => {
                     {String((page - 1) * pageSize + index + 1).padStart(2, '0')}
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
-                    <p className="font-semibold text-gray-900 text-sm">{row.name}</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {row.name}
+                    </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                    {row.state?.name ?? '—'}
+                    {row.department?.name ?? '—'}
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
-                    {row.country?.name ?? '—'}
+                  <td className="px-4 py-4 border-b border-slate-100/80">
+                    {row.code ? (
+                      <span className="inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                        {row.code}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
                     {formatDate(
@@ -542,7 +529,7 @@ export const CityPage = () => {
                     <div className="flex items-center gap-2">
                       <Can
                         I={Common.Actions.CAN_UPDATE}
-                        a={Common.Modules.MASTER.CITY}
+                        a={Common.Modules.MASTER.SUBDEPARTMENT}
                       >
                         <button
                           type="button"
@@ -555,7 +542,7 @@ export const CityPage = () => {
                       </Can>
                       <Can
                         I={Common.Actions.CAN_DELETE}
-                        a={Common.Modules.MASTER.CITY}
+                        a={Common.Modules.MASTER.SUBDEPARTMENT}
                       >
                         <button
                           type="button"
@@ -573,14 +560,14 @@ export const CityPage = () => {
               {!isLoading && rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={TABLE_COLUMNS.length + 4}
+                    colSpan={TABLE_COLUMNS.length + 3}
                     className="px-6 py-16 text-center text-sm text-gray-400"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <Building2 size={28} className="text-gray-300" />
-                      <p>No cities found.</p>
+                      <Building size={28} className="text-gray-300" />
+                      <p>No subdepartments found.</p>
                       <p className="text-xs text-gray-400">
-                        Try clearing the filters or create a new city.
+                        Try clearing the filters or create a new subdepartment.
                       </p>
                     </div>
                   </td>
@@ -640,8 +627,8 @@ export const CityPage = () => {
       <Drawer
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
-        title="Filter Cities"
-        subtitle="Narrow down the city list"
+        title="Filter Subdepartments"
+        subtitle="Narrow down the subdepartment list"
         footer={
           <div className="flex items-center justify-between gap-3">
             <button
@@ -673,7 +660,7 @@ export const CityPage = () => {
         <div className="space-y-5">
           <div>
             <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Name
+              Name / Code
             </p>
             <input
               type="text"
@@ -681,35 +668,22 @@ export const CityPage = () => {
               onChange={(e) =>
                 setDraftFilters({ ...draftFilters, name: e.target.value })
               }
-              placeholder="Enter city name"
+              placeholder="Enter subdepartment name or code"
               className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
             />
           </div>
 
           <div>
             <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Country
+              Department
             </p>
             <Select
-              value={draftFilters.country_id}
+              value={draftFilters.department_id}
               onChange={(v) =>
-                setDraftFilters({ ...draftFilters, country_id: v, state_id: '' })
+                setDraftFilters({ ...draftFilters, department_id: v })
               }
-              options={countryFilterOptions}
-              placeholder="All countries"
-            />
-          </div>
-
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              State
-            </p>
-            <Select
-              value={draftFilters.state_id}
-              onChange={(v) => setDraftFilters({ ...draftFilters, state_id: v })}
-              options={filterStateOptions}
-              placeholder="All states"
-              disabled={!draftFilters.country_id}
+              options={departmentFilterOptions}
+              placeholder="All departments"
             />
           </div>
 
@@ -745,11 +719,11 @@ export const CityPage = () => {
       <FormModal
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
-        title={isEdit ? 'Edit City' : 'Create New City'}
+        title={isEdit ? 'Edit Subdepartment' : 'Create New Subdepartment'}
         subtitle={
           isEdit
-            ? 'Update the city details and save your changes.'
-            : 'Add a new city under a state.'
+            ? 'Update the subdepartment details and save your changes.'
+            : 'Add a new subdepartment under a department.'
         }
         footer={
           <div className="flex items-center justify-end gap-3">
@@ -767,7 +741,7 @@ export const CityPage = () => {
               className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {isEdit ? 'Update City' : 'Create City'}
+              {isEdit ? 'Update Subdepartment' : 'Create Subdepartment'}
             </button>
           </div>
         }
@@ -779,30 +753,15 @@ export const CityPage = () => {
             </div>
           )}
 
-          <div>
+          <div className="md:col-span-2">
             <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Country <span className="text-red-500">*</span>
+              Department <span className="text-red-500">*</span>
             </p>
             <Select
-              value={form.country_id}
-              onChange={(v) =>
-                setForm({ ...form, country_id: v, state_id: '' })
-              }
-              options={countryOptions}
-              placeholder="Select country"
-            />
-          </div>
-
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              State <span className="text-red-500">*</span>
-            </p>
-            <Select
-              value={form.state_id}
-              onChange={(v) => setForm({ ...form, state_id: v })}
-              options={formStateOptions}
-              placeholder={form.country_id ? 'Select state' : 'Select country first'}
-              disabled={!form.country_id}
+              value={form.department_id}
+              onChange={(v) => setForm({ ...form, department_id: v })}
+              options={departmentOptions}
+              placeholder="Select department"
             />
           </div>
 
@@ -814,7 +773,20 @@ export const CityPage = () => {
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Mumbai"
+              placeholder="e.g. Accounts Payable"
+              className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
+            />
+          </div>
+
+          <div>
+            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+              Code <span className="text-red-500">*</span>
+            </p>
+            <input
+              type="text"
+              value={form.code}
+              onChange={(e) => setForm({ ...form, code: e.target.value })}
+              placeholder="e.g. AP"
               className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
             />
           </div>
@@ -831,7 +803,7 @@ export const CityPage = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Delete City
+                    Delete Subdepartment
                   </h2>
                   <p className="text-sm text-gray-500 mt-1">
                     Are you sure you want to delete{' '}
@@ -854,10 +826,10 @@ export const CityPage = () => {
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                disabled={cityState.removeById.loading}
+                disabled={subState.removeById.loading}
                 className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-60"
               >
-                {cityState.removeById.loading && (
+                {subState.removeById.loading && (
                   <Loader2 size={14} className="animate-spin" />
                 )}
                 Yes, Delete
@@ -870,4 +842,4 @@ export const CityPage = () => {
   );
 };
 
-export default CityPage;
+export default SubdepartmentPage;

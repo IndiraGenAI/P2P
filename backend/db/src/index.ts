@@ -14,3 +14,5 @@ export { Pages } from './entities/pages';
 export { PageActions } from './entities/page-actions';
 export { Configurations } from './entities/configurations';
 export { RolePermissions } from './entities/role-permissions';
+export { Department } from './entities/department';
+export { Subdepartment } from './entities/subdepartment';

@@ -2,9 +2,11 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './auth/auth.reducer';
 import cityMasterReducer from './city/city.reducer';
 import countryReducer from './country/country.reducer';
+import departmentMasterReducer from './department/department.reducer';
 import roleReducer from './role/role.reducer';
 import rolePermissionsReducer from './rolePermissions/rolePermissions.reducer';
 import stateMasterReducer from './state/state.reducer';
+import subdepartmentMasterReducer from './subdepartment/subdepartment.reducer';
 import userReducer from './user/user.reducer';
 import zoneMasterReducer from './zone/zone.reducer';
 
@@ -18,6 +20,8 @@ export const store = configureStore({
     stateMaster: stateMasterReducer,
     cityMaster: cityMasterReducer,
     zoneMaster: zoneMasterReducer,
+    departmentMaster: departmentMasterReducer,
+    subdepartmentMaster: subdepartmentMasterReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),

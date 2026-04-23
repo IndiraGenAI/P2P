@@ -17,6 +17,8 @@ import { CountryPage } from '@/pages/Country';
 import { StatePage } from '@/pages/State';
 import { CityPage } from '@/pages/City';
 import { ZonePage } from '@/pages/Zone';
+import { DepartmentPage } from '@/pages/Department';
+import { SubdepartmentPage } from '@/pages/Subdepartment';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ability } from '@/ability';
@@ -205,16 +207,10 @@ function AppRoutes({
 
         {/* Masters - Organization */}
         <Route element={<RequirePage pageCode={Modules.MASTER.DEPARTMENT} />}>
-          <Route
-            path="/masters/department"
-            element={<PlaceholderPage title="Department" />}
-          />
+          <Route path="/masters/department" element={<DepartmentPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.SUBDEPARTMENT} />}>
-          <Route
-            path="/masters/subdepartment"
-            element={<PlaceholderPage title="Subdepartment" />}
-          />
+          <Route path="/masters/subdepartment" element={<SubdepartmentPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.COST_CENTER} />}>
           <Route

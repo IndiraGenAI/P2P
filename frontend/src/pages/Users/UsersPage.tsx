@@ -13,6 +13,7 @@ import {
   Users as UsersIcon,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
+import { FormModal } from '@/components/ui/FormModal';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
@@ -847,7 +848,7 @@ export const UsersPage = () => {
         </div>
       </Drawer>
 
-      <Drawer
+      <FormModal
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
         title={isEdit ? 'Edit User' : 'Create New User'}
@@ -1011,7 +1012,7 @@ export const UsersPage = () => {
             </p>
           </div>
         </div>
-      </Drawer>
+      </FormModal>
 
       {confirmDeleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">

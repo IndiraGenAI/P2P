@@ -11,6 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
+import { FormModal } from '@/components/ui/FormModal';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { Can } from '@/ability/can';
@@ -619,9 +620,10 @@ export const CountryPage = () => {
         </div>
       </Drawer>
 
-      <Drawer
+      <FormModal
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
+        size="md"
         title={isEdit ? 'Edit Country' : 'Create New Country'}
         subtitle={
           isEdit
@@ -669,7 +671,7 @@ export const CountryPage = () => {
             />
           </div>
         </div>
-      </Drawer>
+      </FormModal>
 
       {confirmDeleteRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
