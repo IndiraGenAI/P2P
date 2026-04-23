@@ -1,8 +1,8 @@
 import { Table } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import type { TablePaginationConfig } from 'antd/es/table';
+import type { ColumnsType, TableProps } from 'antd/es/table';
 import type { SorterResult, FilterValue } from 'antd/es/table/interface';
 import { useSearchParams } from 'react-router-dom';
+import PaginationComponent from '@/components/Pagination';
 import type { IMetaProps } from '@/components/Pagination/Pagination.model';
 
 interface TableComponentProps<T> {
@@ -10,37 +10,33 @@ interface TableComponentProps<T> {
   dataSource: T[];
   loading?: boolean;
   meta?: IMetaProps;
+  rowKey?: TableProps<T>['rowKey'];
+  rowClassName?: TableProps<T>['rowClassName'];
 }
-
-
 
 const TableComponent = <T extends object>({
   columns,
   dataSource,
   loading,
   meta,
+  rowKey,
+  rowClassName,
 }: TableComponentProps<T>) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const take = Number(searchParams.get('take')) || meta?.take || 10;
-  const skip = Number(searchParams.get('skip')) || 0;
-  const current = Math.floor(skip / take) + 1;
-
-  const handleChange = (
-    pagination: TablePaginationConfig,
+  const onChange: TableProps<T>['onChange'] = (
+    _pagination,
     _filters: Record<string, FilterValue | null>,
     sorter: SorterResult<T> | SorterResult<T>[],
   ) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    const nextTake = pagination.pageSize ?? take;
-    const nextSkip = ((pagination.current ?? 1) - 1) * nextTake;
-    sp.set('take', String(nextTake));
-    sp.set('skip', String(nextSkip));
+    const sorterObj = Array.isArray(sorter) ? sorter[0] : sorter;
 
-    const single = Array.isArray(sorter) ? sorter[0] : sorter;
-    if (single?.order && single.field) {
-      sp.set('orderBy', String(single.field));
-      sp.set('order', single.order === 'ascend' ? 'ASC' : 'DESC');
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('skip', '0');
+
+    if (sorterObj?.order && sorterObj.field) {
+      sp.set('orderBy', String(sorterObj.field));
+      sp.set('order', sorterObj.order === 'ascend' ? 'ASC' : 'DESC');
     } else {
       sp.delete('orderBy');
       sp.delete('order');
@@ -50,22 +46,27 @@ const TableComponent = <T extends object>({
   };
 
   return (
-    <Table<T>
-      rowKey={(row) => String((row as { id?: number | string }).id ?? Math.random())}
-      columns={columns}
-      dataSource={dataSource}
-      loading={loading}
-      onChange={handleChange}
-      pagination={{
-        current,
-        pageSize: take,
-        total: meta?.itemCount ?? dataSource.length,
-        showSizeChanger: true,
-        pageSizeOptions: ['10', '25', '50', '100'],
-        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-      }}
-      scroll={{ x: 'max-content' }}
-    />
+    <>
+      <div className="table-bg">
+        <Table<T>
+          rowKey={
+            rowKey ??
+            ((row) =>
+              String((row as { id?: number | string }).id ?? Math.random()))
+          }
+          columns={columns}
+          dataSource={!loading ? dataSource : []}
+          onChange={onChange}
+          sortDirections={['ascend', 'descend']}
+          pagination={false}
+          rowClassName={rowClassName}
+          scroll={{ x: 'max-content' }}
+        />
+      </div>
+      <div className="pagination">
+        {meta && meta.itemCount > 0 && <PaginationComponent meta={meta} />}
+      </div>
+    </>
   );
 };
 

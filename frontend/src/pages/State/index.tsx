@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { message } from 'antd';
+import { useSearchParams } from 'react-router-dom';
+import { Form, Input, message } from 'antd';
 import {
   ChevronsUpDown,
   Filter,
@@ -14,6 +15,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
 import { Select } from '@/components/ui/Select';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
+import { TablePagination } from '@/components/ui/TablePagination';
 import { Can } from '@/ability/can';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import {
@@ -31,27 +33,24 @@ import type { IStateDetails } from '@/services/state/state.model';
 import countryService from '@/services/country/country.service';
 import type { ICountryDetails } from '@/services/country/country.model';
 import { Common } from '@/utils/constants/constant';
+import { trimObject } from '@/utils/helperFunction';
+import StateAdd from './Add';
+import type { IStateRecord } from './State.model';
 
-type SortKey = 'name' | 'created_date' | 'status' | null;
-type SortDir = 'asc' | 'desc';
+type SortKey = 'name' | 'created_date' | 'status';
+type SortDir = 'ASC' | 'DESC';
 
-interface FilterState {
-  name: string;
-  country_id: string;
-  status: string;
+interface IStateFilterValues {
+  name?: string;
+  country_id?: string;
+  status?: string;
 }
 
-interface StateFormState {
-  id?: number;
-  name: string;
-  country_id: string;
-}
-
-const EMPTY_FILTERS: FilterState = { name: '', country_id: '', status: '' };
-const EMPTY_FORM: StateFormState = {
-  id: undefined,
-  name: '',
-  country_id: '',
+const rules = {
+  name: [
+    { required: false, message: 'Please enter state name' },
+    { min: 1, max: 100, message: 'Name must be 1-100 characters' },
+  ],
 };
 
 const STATUS_OPTIONS = [
@@ -60,18 +59,14 @@ const STATUS_OPTIONS = [
   { value: 'false', label: 'Inactive' },
 ];
 
-const PAGE_SIZE_OPTIONS = [
-  { value: '10', label: '10' },
-  { value: '25', label: '25' },
-  { value: '50', label: '50' },
-  { value: '100', label: '100' },
-];
-
-const TABLE_COLUMNS: { key: Exclude<SortKey, null>; label: string }[] = [
+const TABLE_COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'State Name' },
   { key: 'created_date', label: 'Created Date' },
   { key: 'status', label: 'Status' },
 ];
+
+const NON_FILTER_KEYS = new Set(['take', 'skip', 'orderBy', 'order']);
+const DEFAULT_TAKE = 10;
 
 const formatDate = (value: unknown): string => {
   if (!value) return '—';
@@ -84,58 +79,83 @@ const formatDate = (value: unknown): string => {
   });
 };
 
-const buildSearchParams = (
-  filters: FilterState,
-  sort: { key: SortKey; dir: SortDir },
-  page: number,
-  pageSize: number,
-  quickSearch: string,
-): URLSearchParams => {
-  const params = new URLSearchParams();
-  params.set('skip', String((page - 1) * pageSize));
-  params.set('take', String(pageSize));
-  if (sort.key) {
-    params.set('orderBy', sort.key);
-    params.set('order', sort.dir.toUpperCase());
-  }
-  const merged: Record<string, string> = {
-    ...filters,
-    ...(quickSearch ? { name: quickSearch } : {}),
-  };
-  for (const [key, value] of Object.entries(merged)) {
-    if (value !== '' && value !== undefined && value !== null) {
-      params.set(key, value);
-    }
-  }
-  return params;
-};
-
 export const StatePage = () => {
   const dispatch = useAppDispatch();
   const stateState = useAppSelector(stateMasterSelector);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filterForm] = Form.useForm();
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
-    key: null,
-    dir: 'asc',
-  });
-  const [quickSearch, setQuickSearch] = useState('');
+  const take = Number(searchParams.get('take')) || DEFAULT_TAKE;
+  const skip = Number(searchParams.get('skip')) || 0;
+  const page = Math.floor(skip / take) + 1;
+  const sortKey = (searchParams.get('orderBy') ?? '') as SortKey | '';
+  const sortDir = ((searchParams.get('order') ?? 'ASC').toUpperCase() === 'DESC'
+    ? 'DESC'
+    : 'ASC') as SortDir;
 
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
-  const [draftFilters, setDraftFilters] = useState<FilterState>(EMPTY_FILTERS);
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
-  const [form, setForm] = useState<StateFormState>(EMPTY_FORM);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const [confirmDeleteRow, setConfirmDeleteRow] = useState<IStateDetails | null>(
-    null,
+  const [count, setCount] = useState<number>(0);
+  const [formValues, setFormValues] = useState<IStateFilterValues>({});
+  const [quickSearchInput, setQuickSearchInput] = useState(
+    searchParams.get('name') ?? '',
   );
+
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<IStateRecord | undefined>(
+    undefined,
+  );
+  const [confirmDeleteRow, setConfirmDeleteRow] =
+    useState<IStateDetails | null>(null);
 
   const [countries, setCountries] = useState<ICountryDetails[]>([]);
   const countriesFetchedRef = useRef(false);
+
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+
+  const dataConvertFromSearchParm = (): Record<string, unknown> => {
+    const data: Record<string, unknown> = {};
+    searchParams.forEach((value, key) => {
+      if (key === 'country_id') data[key] = Number(value);
+      else data[key] = value;
+    });
+    if (!data.take) data.take = DEFAULT_TAKE;
+    if (!data.skip) data.skip = 0;
+    return data;
+  };
+
+  useEffect(() => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (!sp.has('take') || !sp.has('skip')) {
+      if (!sp.has('take')) sp.set('take', String(DEFAULT_TAKE));
+      if (!sp.has('skip')) sp.set('skip', '0');
+      setSearchParams(sp, { replace: true });
+      return;
+    }
+    dispatch(searchStateData(dataConvertFromSearchParm()));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const data: IStateFilterValues = {};
+    searchParams.forEach((value, key) => {
+      if (NON_FILTER_KEYS.has(key)) return;
+      (data as Record<string, string>)[key] = value;
+    });
+    setFormValues(data);
+    setQuickSearchInput(data.name ?? '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    filterForm.resetFields();
+  }, [formValues]);
+
+  useEffect(() => {
+    let sum = 0;
+    searchParams.forEach((value, key) => {
+      if (NON_FILTER_KEYS.has(key)) return;
+      if (value !== '' && value !== undefined) sum += 1;
+    });
+    setCount(sum);
+  }, [searchParams]);
 
   useEffect(() => {
     if (countriesFetchedRef.current) return;
@@ -155,51 +175,22 @@ export const StatePage = () => {
       .catch(() => setCountries([]));
   }, []);
 
-  const countryOptions = useMemo(
-    () =>
-      countries.map((c) => ({ value: String(c.id), label: c.name ?? '' })),
-    [countries],
-  );
-
-  const countryFilterOptions = useMemo(
-    () => [{ value: '', label: 'All countries' }, ...countryOptions],
-    [countryOptions],
-  );
-
-  const rows = stateState.statesData.data?.rows ?? [];
-  const meta = stateState.statesData.data?.meta;
-  const totalCount = meta?.itemCount ?? 0;
-  const isLoading = stateState.statesData.loading;
-
-  const isEdit = form.id !== undefined;
-  const isSubmitting =
-    stateState.createState.loading || stateState.editById.loading;
-
-  const lastFetchRef = useRef<{ key: string; at: number } | null>(null);
-
-  const refresh = (force = false) => {
-    const params = buildSearchParams(appliedFilters, sort, page, pageSize, quickSearch);
-    const key = params.toString();
-    const now = Date.now();
-    if (
-      !force &&
-      lastFetchRef.current &&
-      lastFetchRef.current.key === key &&
-      now - lastFetchRef.current.at < 100
-    ) {
-      return;
-    }
-    lastFetchRef.current = { key, at: now };
-    dispatch(searchStateData(params));
-  };
-
   useEffect(() => {
-    refresh();
-  }, [appliedFilters, sort, page, pageSize, quickSearch]);
+    const handle = setTimeout(() => {
+      if ((searchParams.get('name') ?? '') === quickSearchInput) return;
+      const sp = new URLSearchParams(searchParams.toString());
+      if (quickSearchInput) sp.set('name', quickSearchInput);
+      else sp.delete('name');
+      sp.set('skip', '0');
+      setSearchParams(sp);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [quickSearchInput]);
 
   useEffect(() => {
     if (stateState.createState.message) {
-      if (stateState.createState.hasErrors) message.error(stateState.createState.message);
+      if (stateState.createState.hasErrors)
+        message.error(stateState.createState.message);
       else message.success(stateState.createState.message);
       dispatch(clearStateMessage());
     }
@@ -207,7 +198,8 @@ export const StatePage = () => {
 
   useEffect(() => {
     if (stateState.editById.message) {
-      if (stateState.editById.hasErrors) message.error(stateState.editById.message);
+      if (stateState.editById.hasErrors)
+        message.error(stateState.editById.message);
       else message.success(stateState.editById.message);
       dispatch(clearStateMessage());
     }
@@ -215,7 +207,8 @@ export const StatePage = () => {
 
   useEffect(() => {
     if (stateState.removeById.message) {
-      if (stateState.removeById.hasErrors) message.error(stateState.removeById.message);
+      if (stateState.removeById.hasErrors)
+        message.error(stateState.removeById.message);
       else message.success(stateState.removeById.message);
       dispatch(clearStateMessage());
     }
@@ -223,7 +216,8 @@ export const StatePage = () => {
 
   useEffect(() => {
     if (stateState.updateById.message) {
-      if (stateState.updateById.hasErrors) message.error(stateState.updateById.message);
+      if (stateState.updateById.hasErrors)
+        message.error(stateState.updateById.message);
       else message.success(stateState.updateById.message);
       dispatch(clearStateMessage());
     }
@@ -236,66 +230,126 @@ export const StatePage = () => {
     }
   }, [stateState.statesData.message, stateState.statesData.hasErrors]);
 
-  const activeFilterCount = useMemo(
-    () => Object.values(appliedFilters).filter(Boolean).length,
-    [appliedFilters],
+  const rows = stateState.statesData.data?.rows ?? [];
+  const meta = stateState.statesData.data?.meta;
+  const totalCount = meta?.itemCount ?? 0;
+  const isLoading = stateState.statesData.loading;
+
+  const isEdit = editingRecord !== undefined;
+  const isSubmitting =
+    stateState.createState.loading || stateState.editById.loading;
+
+  const countryOptions = useMemo(
+    () =>
+      countries.map((c) => ({ value: String(c.id), label: c.name ?? '' })),
+    [countries],
   );
 
-  const handleSort = (key: Exclude<SortKey, null>) => {
-    setSort((prev) => {
-      if (prev.key !== key) return { key, dir: 'asc' };
-      if (prev.dir === 'asc') return { key, dir: 'desc' };
-      return { key: null, dir: 'asc' };
+  const countryFilterOptions = useMemo(
+    () => [{ value: '', label: 'All countries' }, ...countryOptions],
+    [countryOptions],
+  );
+
+  const refreshCurrent = () => {
+    dispatch(searchStateData(dataConvertFromSearchParm()));
+  };
+
+  const handleSort = (key: SortKey) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('skip', '0');
+    if (sortKey !== key) {
+      sp.set('orderBy', key);
+      sp.set('order', 'ASC');
+    } else if (sortDir === 'ASC') {
+      sp.set('orderBy', key);
+      sp.set('order', 'DESC');
+    } else {
+      sp.delete('orderBy');
+      sp.delete('order');
+    }
+    setSearchParams(sp);
+  };
+
+  const onFinish = (values: IStateFilterValues) => {
+    const existing: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      existing[key] = value;
     });
-    setPage(1);
+    const merged: Record<string, unknown> = { ...existing, ...values };
+
+    const queryString = Object.entries(trimObject(merged))
+      .filter(
+        ([key, val]) =>
+          val !== undefined &&
+          val !== '' &&
+          !(Array.isArray(val) && val.length === 0) &&
+          key !== 'skip',
+      )
+      .map(([key, val]) => `${key}=${encodeURIComponent(val as string)}`)
+      .join('&');
+
+    const newParams = new URLSearchParams(queryString);
+    if (!newParams.has('take')) newParams.set('take', String(take));
+    newParams.set('skip', '0');
+
+    setSearchParams(newParams);
+    setIsFilterDrawerOpen(false);
+  };
+
+  const onReset = () => {
+    const sp = new URLSearchParams();
+    sp.set('take', String(take));
+    sp.set('skip', '0');
+    setSearchParams(sp);
+    filterForm.resetFields();
+    setIsFilterDrawerOpen(false);
   };
 
   const openCreateDrawer = () => {
-    setForm(EMPTY_FORM);
-    setFormError(null);
+    setEditingRecord(undefined);
     setIsFormDrawerOpen(true);
   };
 
   const openEditDrawer = (row: IStateDetails) => {
-    setForm({
+    setEditingRecord({
       id: row.id,
       name: row.name ?? '',
-      country_id: row.country_id ? String(row.country_id) : '',
+      country_id: row.country_id ?? 0,
+      status: row.status,
     });
-    setFormError(null);
     setIsFormDrawerOpen(true);
   };
 
-  const handleSubmitForm = async () => {
-    const trimmed = { ...form, name: form.name.trim() };
-    if (!trimmed.name) return setFormError('State name is required.');
-    if (!trimmed.country_id) return setFormError('Country is required.');
-    setFormError(null);
-
-    if (isEdit && trimmed.id !== undefined) {
+  const handleFormSubmit = async (values: IStateRecord) => {
+    if (isEdit && editingRecord) {
       const result = await dispatch(
-        editStateById({
-          id: trimmed.id,
-          name: trimmed.name,
-          country_id: Number(trimmed.country_id),
-        }),
+        editStateById(
+          trimObject({
+            id: editingRecord.id,
+            name: values.name,
+            country_id: values.country_id,
+          }),
+        ),
       );
       if (editStateById.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
-        refresh(true);
+        refreshCurrent();
       }
     } else {
       const result = await dispatch(
-        createNewState({
-          id: 0,
-          name: trimmed.name,
-          country_id: Number(trimmed.country_id),
-        } as IStateDetails),
+        createNewState(
+          trimObject({
+            id: 0,
+            name: values.name,
+            country_id: values.country_id,
+          }) as IStateDetails,
+        ),
       );
       if (createNewState.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
-        setPage(1);
-        refresh(true);
+        const sp = new URLSearchParams(searchParams.toString());
+        sp.set('skip', '0');
+        setSearchParams(sp);
       }
     }
   };
@@ -304,7 +358,7 @@ export const StatePage = () => {
     const result = await dispatch(
       updateStateStatus({ id: row.id, status: checked }),
     );
-    if (updateStateStatus.fulfilled.match(result)) refresh(true);
+    if (updateStateStatus.fulfilled.match(result)) refreshCurrent();
   };
 
   const handleConfirmDelete = async () => {
@@ -312,14 +366,15 @@ export const StatePage = () => {
     const result = await dispatch(removeStateById(confirmDeleteRow.id));
     setConfirmDeleteRow(null);
     if (removeStateById.fulfilled.match(result)) {
-      if (rows.length === 1 && page > 1) setPage(page - 1);
-      else refresh(true);
+      if (rows.length === 1 && page > 1) {
+        const sp = new URLSearchParams(searchParams.toString());
+        sp.set('skip', String(Math.max(0, (page - 2) * take)));
+        setSearchParams(sp);
+      } else {
+        refreshCurrent();
+      }
     }
   };
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const fromIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const toIndex = Math.min(page * pageSize, totalCount);
 
   return (
     <div className="p-6 h-full">
@@ -343,11 +398,8 @@ export const StatePage = () => {
               />
               <input
                 type="text"
-                value={quickSearch}
-                onChange={(e) => {
-                  setQuickSearch(e.target.value);
-                  setPage(1);
-                }}
+                value={quickSearchInput}
+                onChange={(e) => setQuickSearchInput(e.target.value)}
                 placeholder="Search by name…"
                 className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-56"
               />
@@ -355,16 +407,13 @@ export const StatePage = () => {
 
             <button
               type="button"
-              onClick={() => {
-                setDraftFilters(appliedFilters);
-                setIsFilterDrawerOpen(true);
-              }}
+              onClick={() => setIsFilterDrawerOpen(true)}
               className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 soft-btn"
             >
               Filter <Filter size={14} />
-              {activeFilterCount > 0 && (
+              {count > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-emerald-600 text-white text-[10px] font-semibold rounded-full w-5 h-5 flex items-center justify-center">
-                  {activeFilterCount}
+                  {count}
                 </span>
               )}
             </button>
@@ -389,7 +438,7 @@ export const StatePage = () => {
                   No
                 </th>
                 {TABLE_COLUMNS.map((col, idx) => {
-                  const active = sort.key === col.key;
+                  const active = sortKey === col.key;
                   return (
                     <Fragment key={col.key}>
                       {idx === 1 && (
@@ -402,13 +451,17 @@ export const StatePage = () => {
                           type="button"
                           onClick={() => handleSort(col.key)}
                           className={`flex items-center gap-1 select-none transition ${
-                            active ? 'text-emerald-700' : 'text-gray-500 hover:text-gray-700'
+                            active
+                              ? 'text-emerald-700'
+                              : 'text-gray-500 hover:text-gray-700'
                           }`}
                         >
                           {col.label}
                           <ChevronsUpDown
                             size={12}
-                            className={active ? 'text-emerald-600' : 'text-gray-400'}
+                            className={
+                              active ? 'text-emerald-600' : 'text-gray-400'
+                            }
                           />
                         </button>
                       </th>
@@ -423,7 +476,7 @@ export const StatePage = () => {
             <tbody>
               {isLoading && rows.length === 0 && (
                 <TableRowSkeleton
-                  rows={Math.min(pageSize, 10)}
+                  rows={Math.min(take, 10)}
                   columns={[
                     { key: 'name', width: 'w-40' },
                     { key: 'country', width: 'w-32' },
@@ -435,10 +488,12 @@ export const StatePage = () => {
               {rows.map((row, index) => (
                 <tr key={row.id} className="transition hover:bg-slate-50/60">
                   <td className="w-16 pl-6 pr-4 py-4 text-sm font-medium text-gray-500 border-b border-slate-100/80">
-                    {String((page - 1) * pageSize + index + 1).padStart(2, '0')}
+                    {(page - 1) * take + index + 1}
                   </td>
                   <td className="px-4 py-4 border-b border-slate-100/80">
-                    <p className="font-semibold text-gray-900 text-sm">{row.name}</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {row.name}
+                    </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
                     {row.country?.name ?? '—'}
@@ -524,51 +579,7 @@ export const StatePage = () => {
           </table>
         </div>
 
-        <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-4 flex-shrink-0 border-t border-gray-100 bg-white">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>Show</span>
-              <Select
-                value={String(pageSize)}
-                onChange={(value) => {
-                  setPageSize(Number(value));
-                  setPage(1);
-                }}
-                options={PAGE_SIZE_OPTIONS}
-                size="sm"
-                fullWidth={false}
-                className="w-20"
-              />
-              <span>entries</span>
-            </div>
-            <p className="text-sm text-gray-500">
-              Showing {fromIndex} to {toIndex} of {totalCount} entries
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1.5 rounded-lg text-sm text-gray-600 soft-btn disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium min-w-[36px] text-center">
-              {page}
-            </span>
-            <span className="text-sm text-gray-400">of {totalPages}</span>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 rounded-lg text-sm text-gray-600 soft-btn disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <TablePagination meta={meta} defaultPageSize={DEFAULT_TAKE} />
       </div>
 
       <Drawer
@@ -580,23 +591,14 @@ export const StatePage = () => {
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => {
-                setDraftFilters(EMPTY_FILTERS);
-                setAppliedFilters(EMPTY_FILTERS);
-                setIsFilterDrawerOpen(false);
-                setPage(1);
-              }}
+              onClick={onReset}
               className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
             >
               Reset
             </button>
             <button
               type="button"
-              onClick={() => {
-                setAppliedFilters(draftFilters);
-                setIsFilterDrawerOpen(false);
-                setPage(1);
-              }}
+              onClick={() => filterForm.submit()}
               className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition"
             >
               Apply Filters
@@ -604,48 +606,67 @@ export const StatePage = () => {
           </div>
         }
       >
-        <div className="space-y-5">
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Name
-            </p>
-            <input
-              type="text"
-              value={draftFilters.name}
-              onChange={(e) =>
-                setDraftFilters({ ...draftFilters, name: e.target.value })
-              }
+        <Form
+          form={filterForm}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={formValues}
+          className="space-y-3"
+        >
+          <Form.Item
+            name="name"
+            rules={rules.name}
+            label={
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Name
+              </span>
+            }
+          >
+            <Input
               placeholder="Enter state name"
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
+              className="rounded-xl soft-input !py-2"
+              size="large"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Country
-            </p>
+          <Form.Item
+            name="country_id"
+            label={
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Country
+              </span>
+            }
+          >
             <Select
-              value={draftFilters.country_id}
-              onChange={(v) => setDraftFilters({ ...draftFilters, country_id: v })}
+              value={formValues.country_id ?? ''}
+              onChange={(v) => {
+                filterForm.setFieldsValue({ country_id: v });
+                setFormValues((prev) => ({ ...prev, country_id: v }));
+              }}
               options={countryFilterOptions}
               placeholder="All countries"
             />
-          </div>
+          </Form.Item>
 
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Status
-            </p>
+          <Form.Item
+            name="status"
+            label={
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Status
+              </span>
+            }
+          >
             <div className="flex gap-2">
               {STATUS_OPTIONS.map((opt) => {
-                const active = draftFilters.status === opt.value;
+                const active = (formValues.status ?? '') === opt.value;
                 return (
                   <button
                     key={opt.label}
                     type="button"
-                    onClick={() =>
-                      setDraftFilters({ ...draftFilters, status: opt.value })
-                    }
+                    onClick={() => {
+                      filterForm.setFieldsValue({ status: opt.value });
+                      setFormValues((prev) => ({ ...prev, status: opt.value }));
+                    }}
                     className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition ${
                       active
                         ? 'bg-emerald-600 text-white'
@@ -657,8 +678,8 @@ export const StatePage = () => {
                 );
               })}
             </div>
-          </div>
-        </div>
+          </Form.Item>
+        </Form>
       </Drawer>
 
       <FormModal
@@ -681,7 +702,7 @@ export const StatePage = () => {
             </button>
             <button
               type="button"
-              onClick={handleSubmitForm}
+              onClick={() => submitBtnRef.current?.click()}
               disabled={isSubmitting}
               className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -691,38 +712,12 @@ export const StatePage = () => {
           </div>
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {formError && (
-            <div className="md:col-span-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-              {formError}
-            </div>
-          )}
-
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Country <span className="text-red-500">*</span>
-            </p>
-            <Select
-              value={form.country_id}
-              onChange={(v) => setForm({ ...form, country_id: v })}
-              options={countryOptions}
-              placeholder="Select country"
-            />
-          </div>
-
-          <div>
-            <p className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Name <span className="text-red-500">*</span>
-            </p>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Maharashtra"
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
-            />
-          </div>
-        </div>
+        <StateAdd
+          data={editingRecord}
+          onSubmit={handleFormSubmit}
+          myRef={submitBtnRef}
+          countries={countryOptions}
+        />
       </FormModal>
 
       {confirmDeleteRow && (
