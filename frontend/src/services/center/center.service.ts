@@ -34,8 +34,9 @@ class CenterService {
   public editCenterById = async (
     data: ICenterRecord,
   ): Promise<IApiResponse<ICenterDetails>> => {
-    const url = `${this.ENDPOINT}/${data.id}`;
-    return request({ url, method: "PUT", data }).then((res) => res.data);
+    const { id, ...rest } = data;
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "PUT", data: rest }).then((res) => res.data);
   };
 
   public removeCenterById = async (

@@ -35,8 +35,9 @@ class GstService {
   public editGstById = async (
     data: IGstRecord,
   ): Promise<IApiResponse<IGstDetails>> => {
-    const url = `${this.ENDPOINT}/${data.id}`;
-    return request({ url, method: "PUT", data }).then((res) => res.data);
+    const { id, ...rest } = data;
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "PUT", data: rest }).then((res) => res.data);
   };
 
   public removeGstById = async (

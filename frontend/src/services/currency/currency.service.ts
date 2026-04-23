@@ -35,8 +35,9 @@ class CurrencyService {
   public editCurrencyById = async (
     data: ICurrencyRecord,
   ): Promise<IApiResponse<ICurrencyDetails>> => {
-    const url = `${this.ENDPOINT}/${data.id}`;
-    return request({ url, method: "PUT", data }).then((res) => res.data);
+    const { id, ...rest } = data;
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "PUT", data: rest }).then((res) => res.data);
   };
 
   public removeCurrencyById = async (

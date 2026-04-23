@@ -319,9 +319,13 @@ export const DepartmentPage = () => {
       );
       if (createNewDepartment.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.set('skip', '0');
-        setSearchParams(sp);
+        if (skip === 0) {
+          refreshCurrent();
+        } else {
+          const sp = new URLSearchParams(searchParams.toString());
+          sp.set('skip', '0');
+          setSearchParams(sp);
+        }
       }
     }
   };

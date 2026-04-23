@@ -34,8 +34,9 @@ class CostCenterService {
   public editCostCenterById = async (
     data: ICostCenterRecord,
   ): Promise<IApiResponse<ICostCenterDetails>> => {
-    const url = `${this.ENDPOINT}/${data.id}`;
-    return request({ url, method: "PUT", data }).then((res) => res.data);
+    const { id, ...rest } = data;
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "PUT", data: rest }).then((res) => res.data);
   };
 
   public removeCostCenterById = async (

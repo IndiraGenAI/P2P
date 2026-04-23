@@ -34,8 +34,9 @@ class InvoiceSourceService {
   public editInvoiceSourceById = async (
     data: IInvoiceSourceRecord,
   ): Promise<IApiResponse<IInvoiceSourceDetails>> => {
-    const url = `${this.ENDPOINT}/${data.id}`;
-    return request({ url, method: "PUT", data }).then((res) => res.data);
+    const { id, ...rest } = data;
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "PUT", data: rest }).then((res) => res.data);
   };
 
   public removeInvoiceSourceById = async (

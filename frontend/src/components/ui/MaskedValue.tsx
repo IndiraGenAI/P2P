@@ -1,6 +1,6 @@
 import { useContext, useMemo, useState } from 'react';
 import { Check, Copy, Eye, EyeOff } from 'lucide-react';
-import { message } from 'antd';
+import { message, Tooltip } from 'antd';
 import { AbilityContext } from '@/ability/can';
 import { Common } from '@/utils/constants/constant';
 
@@ -27,6 +27,12 @@ interface MaskedValueProps {
   maskLength?: number;
   /** Allow copying the revealed value to the clipboard. Defaults to true. */
   allowCopy?: boolean;
+  /**
+   * When the revealed value is longer than this, the on-screen text is
+   * truncated with `…` and the full value is shown in an antd tooltip on
+   * hover (same UX as the shared `showTooltip` helper). Omit to disable.
+   */
+  maxLength?: number;
   /** Extra class names for the wrapper. */
   className?: string;
 }
@@ -47,6 +53,7 @@ export const MaskedValue = ({
   maskChar = '•',
   maskLength = 6,
   allowCopy = true,
+  maxLength,
   className = '',
 }: MaskedValueProps) => {
   const ability = useContext(AbilityContext);
@@ -91,24 +98,62 @@ export const MaskedValue = ({
     );
   }
 
+  const shouldTruncate =
+    revealed &&
+    typeof maxLength === 'number' &&
+    maxLength > 0 &&
+    stringValue.length > maxLength;
+
+  const valueNode = (() => {
+    if (!revealed) {
+      return (
+        <span className="text-gray-500 tracking-widest select-none">
+          {masked}
+        </span>
+      );
+    }
+    if (shouldTruncate) {
+      return (
+        <Tooltip
+          title={stringValue}
+          placement="top"
+          mouseEnterDelay={0.15}
+          color="#ffffff"
+          rootClassName="soft-tooltip"
+          styles={{
+            body: {
+              color: '#374151',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '8px 12px',
+              borderRadius: 12,
+              border: '1px solid rgba(15, 23, 42, 0.06)',
+              boxShadow:
+                '0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.08)',
+              maxWidth: 360,
+              wordBreak: 'break-word',
+            },
+          }}
+        >
+          <span className="text-gray-800 font-medium cursor-help underline decoration-dotted decoration-gray-300 underline-offset-4">
+            {stringValue.slice(0, maxLength)}…
+          </span>
+        </Tooltip>
+      );
+    }
+    return <span className="text-gray-800 font-medium">{stringValue}</span>;
+  })();
+
   return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <span
-        className={
-          revealed
-            ? 'text-gray-800 font-medium'
-            : 'text-gray-500 tracking-widest select-none'
-        }
-      >
-        {revealed ? stringValue : masked}
-      </span>
+    <span className={`inline-flex items-center gap-1.5 align-middle ${className}`}>
+      {valueNode}
 
       <button
         type="button"
         onClick={() => setRevealed((v) => !v)}
         aria-label={revealed ? 'Hide value' : 'Reveal value'}
         title={revealed ? 'Hide value' : 'Reveal value'}
-        className="p-1 rounded-md text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
+        className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
       >
         {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
       </button>
@@ -119,7 +164,7 @@ export const MaskedValue = ({
           onClick={handleCopy}
           aria-label="Copy value"
           title="Copy to clipboard"
-          className="p-1 rounded-md text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
+          className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition"
         >
           {copied ? (
             <Check size={13} className="text-emerald-600" />

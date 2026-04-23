@@ -27,7 +27,22 @@ export const showTooltip = (text: string | null | undefined, maxLength = 50) => 
       title={value}
       placement="top"
       mouseEnterDelay={0.15}
+      color="#ffffff"
       rootClassName="soft-tooltip"
+      styles={{
+        body: {
+          color: '#374151',
+          fontSize: 12,
+          fontWeight: 500,
+          padding: '8px 12px',
+          borderRadius: 12,
+          border: '1px solid rgba(15, 23, 42, 0.06)',
+          boxShadow:
+            '0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 4px 10px -2px rgba(15, 23, 42, 0.08)',
+          maxWidth: 360,
+          wordBreak: 'break-word',
+        },
+      }}
     >
       <span className="cursor-help underline decoration-dotted decoration-gray-300 underline-offset-4">
         {value.slice(0, maxLength)}…

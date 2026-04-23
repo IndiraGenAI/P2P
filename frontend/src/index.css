@@ -195,10 +195,10 @@ body {
 }
 
 /* App-themed Ant Tooltip used by `showTooltip` helper.
-   Soft white card, dark slate text, matching arrow & subtle border. */
+   Soft white card, dark grey text, matching arrow & subtle border. */
 .soft-tooltip .ant-tooltip-inner {
   background: #ffffff !important;
-  color: #0f172a !important;
+  color: #374151 !important;
   border-radius: 12px !important;
   box-shadow:
     0 10px 25px -5px rgba(15, 23, 42, 0.15),
@@ -215,6 +215,12 @@ body {
 .soft-tooltip .ant-tooltip-arrow-content {
   background: #ffffff !important;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+/* Force the arrow body white too (newer antd renders the arrow via
+   --antd-arrow-background-color CSS var, which must be overridden). */
+.soft-tooltip {
+  --antd-arrow-background-color: #ffffff;
 }
 
 /* Normalize table headers across the app:

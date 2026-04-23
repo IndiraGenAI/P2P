@@ -342,9 +342,13 @@ export const CoaPage = () => {
       );
       if (createNewCoa.fulfilled.match(result)) {
         setIsFormDrawerOpen(false);
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.set('skip', '0');
-        setSearchParams(sp);
+        if (skip === 0) {
+          refreshCurrent();
+        } else {
+          const sp = new URLSearchParams(searchParams.toString());
+          sp.set('skip', '0');
+          setSearchParams(sp);
+        }
       }
     }
   };
@@ -509,10 +513,11 @@ export const CoaPage = () => {
                       <span className="text-xs text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80 max-w-[260px]">
+                  <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
                     <MaskedValue
                       value={row.distribution_combination}
                       pageCode={Common.Modules.MASTER.COA}
+                      maxLength={20}
                     />
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600 border-b border-slate-100/80">
