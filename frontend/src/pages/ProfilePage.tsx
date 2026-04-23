@@ -2,12 +2,6 @@ import { useEffect, useState } from 'react';
 import { Camera, Check, ChevronRight, Pencil, Upload } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
-import {
-  FacebookIcon,
-  InstagramIcon,
-  LinkedinIcon,
-  TwitterIcon,
-} from '@/components/ui/BrandIcons';
 import type { Profile } from '@/common/models';
 import { useAppSelector } from '@/state/app.hooks';
 import { authSelector } from '@/state/auth/auth.reducer';
@@ -18,13 +12,8 @@ const PLACEHOLDER_PROFILE: Profile = {
   lastName: '',
   email: '',
   phone: '',
-  bio: '',
   role: 'Team Member',
   location: '',
-  facebook: '',
-  twitter: '',
-  linkedin: '',
-  instagram: '',
 };
 
 const buildProfileFromUser = (user: IAuthUser | null): Profile => {
@@ -122,38 +111,6 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href={profile.facebook}
-              target="_blank"
-              rel="noreferrer"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 soft-btn transition"
-            >
-              <FacebookIcon size={16} />
-            </a>
-            <a
-              href={profile.twitter}
-              target="_blank"
-              rel="noreferrer"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 soft-btn transition"
-            >
-              <TwitterIcon size={16} />
-            </a>
-            <a
-              href={profile.linkedin}
-              target="_blank"
-              rel="noreferrer"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 soft-btn transition"
-            >
-              <LinkedinIcon size={16} />
-            </a>
-            <a
-              href={profile.instagram}
-              target="_blank"
-              rel="noreferrer"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-emerald-600 soft-btn transition"
-            >
-              <InstagramIcon size={16} />
-            </a>
             <button
               onClick={openProfileModal}
               className="flex items-center gap-2 ml-2 px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-emerald-600 soft-btn transition"
@@ -191,10 +148,6 @@ export function ProfilePage() {
             <p className="text-xs text-gray-500 mb-1.5">Phone</p>
             <p className="font-semibold text-gray-900">{profile.phone}</p>
           </div>
-          <div className="sm:col-span-2">
-            <p className="text-xs text-gray-500 mb-1.5">Bio</p>
-            <p className="font-semibold text-gray-900">{profile.bio}</p>
-          </div>
         </div>
       </div>
 
@@ -222,34 +175,6 @@ export function ProfilePage() {
               <Upload size={12} /> Upload new photo
             </button>
           </div>
-        </div>
-
-        <h4 className="text-sm font-semibold text-gray-700 mb-4">Social Links</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <FormField
-            label="Facebook"
-            value={draft.facebook}
-            onChange={(v) => setDraft({ ...draft, facebook: v })}
-            placeholder="https://facebook.com/..."
-          />
-          <FormField
-            label="X.com"
-            value={draft.twitter}
-            onChange={(v) => setDraft({ ...draft, twitter: v })}
-            placeholder="https://x.com/..."
-          />
-          <FormField
-            label="LinkedIn"
-            value={draft.linkedin}
-            onChange={(v) => setDraft({ ...draft, linkedin: v })}
-            placeholder="https://linkedin.com/..."
-          />
-          <FormField
-            label="Instagram"
-            value={draft.instagram}
-            onChange={(v) => setDraft({ ...draft, instagram: v })}
-            placeholder="https://instagram.com/..."
-          />
         </div>
 
         <h4 className="text-sm font-semibold text-gray-700 mb-4">Profile Details</h4>
@@ -308,16 +233,6 @@ export function ProfilePage() {
             onChange={(v) => setDraft({ ...draft, phone: v })}
             colSpan={2}
           />
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Bio</label>
-            <textarea
-              value={draft.bio}
-              onChange={(e) => setDraft({ ...draft, bio: e.target.value })}
-              rows={3}
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm text-gray-900 placeholder-gray-400 soft-input resize-none"
-              placeholder="Tell us about yourself..."
-            />
-          </div>
         </div>
       </Modal>
 
