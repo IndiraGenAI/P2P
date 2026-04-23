@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { CityService } from './city.service';
 import { CreateCityDto } from './dto/create-city.dto';
@@ -28,15 +29,14 @@ import { UpdateCityStatusDto } from './dto/update-status.dto';
 export class CityController {
   constructor(private readonly cityService: CityService) {}
 
-  @SkipAuth()
+  @Role('MASTER_CITY_CREATE')
   @Post()
   async create(
     @Body() data: CreateCityDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.cityService.createCity(data, userEmailId);
+    const result = await this.cityService.createCity(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -45,7 +45,7 @@ export class CityController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_CITY_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetCityFilterDto,
@@ -60,7 +60,7 @@ export class CityController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_CITY_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -75,19 +75,18 @@ export class CityController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_CITY_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCityDto: UpdateCityDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.cityService.updateCity(
       id,
       updateCityDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -97,17 +96,15 @@ export class CityController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_CITY_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCityStatusDto: UpdateCityStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateCityStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateCityStatusDto.updated_by = req.user.email;
     const result = await this.cityService.updateCityStatus(
       id,
       updateCityStatusDto,
@@ -120,7 +117,7 @@ export class CityController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_CITY_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

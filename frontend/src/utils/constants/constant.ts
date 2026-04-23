@@ -59,9 +59,12 @@ export const Common = {
       CENTER: 'MASTER_CENTER',
       // Finance & Tax leaves
       COA: 'MASTER_COA',
+      COA_CATEGORY: 'MASTER_COA_CATEGORY',
       TDS: 'MASTER_TDS',
       GST: 'MASTER_GST',
       VOUCHER: 'MASTER_VOUCHER',
+      INVOICE_SOURCE: 'MASTER_INVOICE_SOURCE',
+      CURRENCY: 'MASTER_CURRENCY',
       // Geography leaves
       COUNTRY: 'MASTER_COUNTRY',
       ZONE: 'MASTER_ZONE',

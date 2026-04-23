@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { GetRoleFilterDto } from './dto/role-filter.dto';
@@ -28,15 +29,14 @@ import { RolesService } from './roles.service';
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @SkipAuth()
+  @Role('USERS_ROLES_CREATE')
   @Post()
   async create(
     @Body() data: CreateRoleDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.rolesService.createRole(data, userEmailId);
+    const result = await this.rolesService.createRole(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -45,7 +45,7 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetRoleFilterDto,
@@ -60,7 +60,7 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_VIEW')
   @Get('permissions/:id')
   async getPermissions(
     @Param('id', ParseIntPipe) id: number,
@@ -75,7 +75,7 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -90,19 +90,18 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.rolesService.updateRole(
       id,
       updateRoleDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -112,17 +111,15 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleStatusDto: UpdateRoleStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateRoleStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateRoleStatusDto.updated_by = req.user.email;
     const result = await this.rolesService.updateRoleStatus(
       id,
       updateRoleStatusDto,
@@ -135,7 +132,7 @@ export class RolesController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_ROLES_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

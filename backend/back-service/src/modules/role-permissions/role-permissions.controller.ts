@@ -1,7 +1,8 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { SaveRolePermissionsDto } from './dto/save-role-permissions.dto';
 import { RolePermissionsService } from './role-permissions.service';
@@ -14,20 +15,14 @@ export class RolePermissionsController {
     private readonly rolePermissionsService: RolePermissionsService,
   ) {}
 
-  @SkipAuth()
+  @Role('USERS_ROLES_ASSIGN_PERMISSION')
   @Post()
   async save(
     @Body() dto: SaveRolePermissionsDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (dto.created_by === undefined || dto.created_by === null) {
-      const headerUserId = req.headers.userId as string | undefined;
-      const parsed = headerUserId ? Number(headerUserId) : Number.NaN;
-      if (Number.isFinite(parsed) && parsed > 0) {
-        dto.created_by = parsed;
-      }
-    }
+    dto.created_by = req.user.id;
     const result = await this.rolePermissionsService.save(dto);
     return baseController.getResult(
       res,

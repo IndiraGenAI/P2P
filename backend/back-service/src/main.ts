@@ -9,9 +9,26 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix(APP_ENV.prefix);
   app.useGlobalPipes(
-    new ValidationPipe({ transform: true, forbidUnknownValues: false }),
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
   );
-  app.enableCors();
+
+  if (APP_ENV.isDev() && APP_ENV.cors.origins.length === 0) {
+    app.enableCors({ origin: true, credentials: true });
+  } else {
+    if (APP_ENV.cors.origins.length === 0) {
+      throw new Error(
+        '[FATAL] CORS_ORIGINS env var must list allowed origins (comma-separated) when MODE != DEV.',
+      );
+    }
+    app.enableCors({
+      origin: APP_ENV.cors.origins,
+      credentials: true,
+    });
+  }
 
   if (APP_ENV.isDev()) {
     const config = new DocumentBuilder()

@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { CountryService } from './country.service';
 import { CreateCountryDto } from './dto/create-country.dto';
@@ -28,15 +29,17 @@ import { UpdateCountryStatusDto } from './dto/update-status.dto';
 export class CountryController {
   constructor(private readonly countryService: CountryService) {}
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_CREATE')
   @Post()
   async create(
     @Body() data: CreateCountryDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.countryService.createCountry(data, userEmailId);
+    const result = await this.countryService.createCountry(
+      data,
+      req.user.email,
+    );
     return baseController.getResult(
       res,
       201,
@@ -45,7 +48,7 @@ export class CountryController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetCountryFilterDto,
@@ -60,7 +63,7 @@ export class CountryController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -75,19 +78,18 @@ export class CountryController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCountryDto: UpdateCountryDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.countryService.updateCountry(
       id,
       updateCountryDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -97,17 +99,15 @@ export class CountryController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCountryStatusDto: UpdateCountryStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateCountryStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateCountryStatusDto.updated_by = req.user.email;
     const result = await this.countryService.updateCountryStatus(
       id,
       updateCountryStatusDto,
@@ -120,7 +120,7 @@ export class CountryController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_COUNTRY_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

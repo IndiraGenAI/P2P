@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { StateService } from './state.service';
 import { CreateStateDto } from './dto/create-state.dto';
@@ -28,15 +29,14 @@ import { UpdateStateStatusDto } from './dto/update-status.dto';
 export class StateController {
   constructor(private readonly stateService: StateService) {}
 
-  @SkipAuth()
+  @Role('MASTER_STATE_CREATE')
   @Post()
   async create(
     @Body() data: CreateStateDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.stateService.createState(data, userEmailId);
+    const result = await this.stateService.createState(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -45,7 +45,7 @@ export class StateController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_STATE_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetStateFilterDto,
@@ -60,7 +60,7 @@ export class StateController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_STATE_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -75,19 +75,18 @@ export class StateController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_STATE_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStateDto: UpdateStateDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.stateService.updateState(
       id,
       updateStateDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -97,17 +96,15 @@ export class StateController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_STATE_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStateStatusDto: UpdateStateStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateStateStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateStateStatusDto.updated_by = req.user.email;
     const result = await this.stateService.updateStateStatus(
       id,
       updateStateStatusDto,
@@ -120,7 +117,7 @@ export class StateController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_STATE_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

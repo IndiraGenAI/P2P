@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { message } from 'antd';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -22,20 +22,6 @@ export function LoginPage({ onLogin }: Readonly<LoginPageProps>) {
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
-
-
-  useEffect(() => {
-    if (login.message) {
-      if (login.hasErrors) {
-        message.error(login.message);
-      } else {
-        message.success(login.message);
-      }
-      dispatch(clearAuthMessage());
-    }
-
-  }, [login.message]);
-
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
     const trimmedEmail = email.trim();
@@ -56,8 +42,14 @@ export function LoginPage({ onLogin }: Readonly<LoginPageProps>) {
     const result = await dispatch(
       loginUser({ email: trimmedEmail, password }),
     );
+
     if (loginUser.fulfilled.match(result)) {
+      message.success(result.payload.message || 'Login successful');
+      dispatch(clearAuthMessage());
       onLogin();
+    } else {
+      message.error(result.error?.message || 'Login failed. Please try again.');
+      dispatch(clearAuthMessage());
     }
   };
 

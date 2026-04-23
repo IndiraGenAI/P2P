@@ -5,7 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { ErrorType } from 'src/commons/common';
 import { isArray } from 'class-validator';
 
@@ -70,15 +70,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 }
 
-
-
-export async function useMiddleware(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-) {
-  const { headers } = req;
-  headers.userId = headers.userId ?? '0';
-  headers.emailId = headers.emailId ?? 'dev@local';
-  next();
-}

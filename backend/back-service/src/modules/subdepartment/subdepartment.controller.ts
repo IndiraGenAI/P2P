@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { SubdepartmentService } from './subdepartment.service';
 import { CreateSubdepartmentDto } from './dto/create-subdepartment.dto';
@@ -28,17 +29,16 @@ import { UpdateSubdepartmentStatusDto } from './dto/update-status.dto';
 export class SubdepartmentController {
   constructor(private readonly subdepartmentService: SubdepartmentService) {}
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_CREATE')
   @Post()
   async create(
     @Body() data: CreateSubdepartmentDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.subdepartmentService.createSubdepartment(
       data,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -48,7 +48,7 @@ export class SubdepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetSubdepartmentFilterDto,
@@ -63,7 +63,7 @@ export class SubdepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -78,19 +78,18 @@ export class SubdepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateSubdepartmentDto: UpdateSubdepartmentDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.subdepartmentService.updateSubdepartment(
       id,
       updateSubdepartmentDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -100,17 +99,15 @@ export class SubdepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateSubdepartmentStatusDto: UpdateSubdepartmentStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateSubdepartmentStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateSubdepartmentStatusDto.updated_by = req.user.email;
     const result = await this.subdepartmentService.updateSubdepartmentStatus(
       id,
       updateSubdepartmentStatusDto,
@@ -123,7 +120,7 @@ export class SubdepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_SUBDEPARTMENT_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

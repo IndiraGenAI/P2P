@@ -1,21 +1,12 @@
 import { SkipAuth } from '@core/guards/role.guard';
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import type { AuthenticatedUser } from './jwt.strategy';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -48,10 +39,9 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(
-    @Req() req: Request & { user: AuthenticatedUser },
+    @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ): Promise<Response> {
     const result = await this.authService.getProfile(req.user.id);

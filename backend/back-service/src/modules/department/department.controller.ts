@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { DepartmentService } from './department.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
@@ -28,17 +29,16 @@ import { UpdateDepartmentStatusDto } from './dto/update-status.dto';
 export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
-  @SkipAuth()
+  @Role('MASTER_DEPARTMENT_CREATE')
   @Post()
   async create(
     @Body() data: CreateDepartmentDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.departmentService.createDepartment(
       data,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -48,7 +48,12 @@ export class DepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role(
+    'MASTER_DEPARTMENT_VIEW',
+    'MASTER_SUBDEPARTMENT_VIEW',
+    'MASTER_SUBDEPARTMENT_CREATE',
+    'MASTER_SUBDEPARTMENT_UPDATE',
+  )
   @Get()
   async findAll(
     @Query() filterDto: GetDepartmentFilterDto,
@@ -63,7 +68,12 @@ export class DepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role(
+    'MASTER_DEPARTMENT_VIEW',
+    'MASTER_SUBDEPARTMENT_VIEW',
+    'MASTER_SUBDEPARTMENT_CREATE',
+    'MASTER_SUBDEPARTMENT_UPDATE',
+  )
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -78,19 +88,18 @@ export class DepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_DEPARTMENT_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDepartmentDto: UpdateDepartmentDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.departmentService.updateDepartment(
       id,
       updateDepartmentDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -100,17 +109,15 @@ export class DepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_DEPARTMENT_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDepartmentStatusDto: UpdateDepartmentStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateDepartmentStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateDepartmentStatusDto.updated_by = req.user.email;
     const result = await this.departmentService.updateDepartmentStatus(
       id,
       updateDepartmentStatusDto,
@@ -123,7 +130,7 @@ export class DepartmentController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_DEPARTMENT_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

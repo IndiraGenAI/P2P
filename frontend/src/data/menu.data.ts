@@ -267,6 +267,14 @@ export const APP_MENU_ITEMS: MenuItem[] = [
         icon: Calculator,
         children: [
           {
+            key: 'masters-coa-category',
+            label: 'COA Category',
+            icon: Tags,
+            to: '/masters/coa-category',
+            pageCode: Modules.MASTER.COA_CATEGORY,
+            action: Actions.CAN_VIEW,
+          },
+          {
             key: 'masters-coa',
             label: 'COA',
             icon: BookOpen,
@@ -296,6 +304,22 @@ export const APP_MENU_ITEMS: MenuItem[] = [
             icon: Ticket,
             to: '/masters/voucher',
             pageCode: Modules.MASTER.VOUCHER,
+            action: Actions.CAN_VIEW,
+          },
+          {
+            key: 'masters-invoice-source',
+            label: 'Invoice Source',
+            icon: FileSignature,
+            to: '/masters/invoice-source',
+            pageCode: Modules.MASTER.INVOICE_SOURCE,
+            action: Actions.CAN_VIEW,
+          },
+          {
+            key: 'masters-currency',
+            label: 'Currency',
+            icon: CreditCard,
+            to: '/masters/currency',
+            pageCode: Modules.MASTER.CURRENCY,
             action: Actions.CAN_VIEW,
           },
         ],

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { message } from 'antd';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -26,18 +26,6 @@ export function RegisterPage({ onRegister }: Readonly<RegisterPageProps>) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (register.message) {
-      if (register.hasErrors) {
-        message.error(register.message);
-      } else {
-        message.success(register.message);
-      }
-      dispatch(clearAuthMessage());
-    }
-
-  }, [register.message]);
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -74,7 +62,14 @@ export function RegisterPage({ onRegister }: Readonly<RegisterPageProps>) {
     );
 
     if (registerUser.fulfilled.match(result)) {
+      message.success(result.payload.message || 'Registration successful');
+      dispatch(clearAuthMessage());
       onRegister();
+    } else {
+      message.error(
+        result.error?.message || 'Registration failed. Please try again.',
+      );
+      dispatch(clearAuthMessage());
     }
   };
 

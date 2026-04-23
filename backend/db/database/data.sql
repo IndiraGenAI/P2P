@@ -113,10 +113,13 @@ SELECT v.page_code, v.name, parent.id, v.sequence FROM (
         ('MASTER_CENTER',          'Center',           'MASTER_ORGANIZATION', 5),
 
         -- Finance & Tax
-        ('MASTER_COA',             'COA',              'MASTER_FINANCE_TAX',  1),
-        ('MASTER_TDS',             'TDS',              'MASTER_FINANCE_TAX',  2),
-        ('MASTER_GST',             'GST',              'MASTER_FINANCE_TAX',  3),
-        ('MASTER_VOUCHER',         'Voucher',          'MASTER_FINANCE_TAX',  4),
+        ('MASTER_COA_CATEGORY',    'COA Category',     'MASTER_FINANCE_TAX',  1),
+        ('MASTER_COA',             'COA',              'MASTER_FINANCE_TAX',  2),
+        ('MASTER_TDS',             'TDS',              'MASTER_FINANCE_TAX',  3),
+        ('MASTER_GST',             'GST',              'MASTER_FINANCE_TAX',  4),
+        ('MASTER_VOUCHER',         'Voucher',          'MASTER_FINANCE_TAX',  5),
+        ('MASTER_INVOICE_SOURCE',  'Invoice Source',   'MASTER_FINANCE_TAX',  6),
+        ('MASTER_CURRENCY',        'Currency',         'MASTER_FINANCE_TAX',  7),
 
         -- Geography
         ('MASTER_COUNTRY',         'Country',          'MASTER_GEOGRAPHY',    1),

@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUserFilterDto } from './dto/user-filter.dto';
@@ -28,15 +29,14 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @SkipAuth()
+  @Role('USERS_USERS_CREATE')
   @Post()
   async create(
     @Body() data: CreateUserDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.usersService.createUser(data, userEmailId);
+    const result = await this.usersService.createUser(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -45,7 +45,7 @@ export class UsersController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_USERS_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetUserFilterDto,
@@ -60,7 +60,7 @@ export class UsersController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_USERS_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -75,19 +75,18 @@ export class UsersController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_USERS_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.usersService.updateUser(
       id,
       updateUserDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -97,17 +96,15 @@ export class UsersController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_USERS_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateUserStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateUserStatusDto.updated_by = req.user.email;
     const result = await this.usersService.updateUserStatus(
       id,
       updateUserStatusDto,
@@ -120,7 +117,7 @@ export class UsersController {
     );
   }
 
-  @SkipAuth()
+  @Role('USERS_USERS_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

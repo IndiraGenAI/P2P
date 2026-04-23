@@ -1,4 +1,5 @@
-import { SkipAuth } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
   Controller,
@@ -14,7 +15,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
 import { ZoneService } from './zone.service';
 import { CreateZoneDto } from './dto/create-zone.dto';
@@ -28,15 +29,14 @@ import { UpdateZoneStatusDto } from './dto/update-status.dto';
 export class ZoneController {
   constructor(private readonly zoneService: ZoneService) {}
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_CREATE')
   @Post()
   async create(
     @Body() data: CreateZoneDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
-    const result = await this.zoneService.createZone(data, userEmailId);
+    const result = await this.zoneService.createZone(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -45,7 +45,7 @@ export class ZoneController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetZoneFilterDto,
@@ -60,7 +60,7 @@ export class ZoneController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -75,19 +75,18 @@ export class ZoneController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateZoneDto: UpdateZoneDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const userEmailId = (req.headers.emailId as string) || null;
     const result = await this.zoneService.updateZone(
       id,
       updateZoneDto,
-      userEmailId,
+      req.user.email,
     );
     return baseController.getResult(
       res,
@@ -97,17 +96,15 @@ export class ZoneController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateZoneStatusDto: UpdateZoneStatusDto,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      updateZoneStatusDto.updated_by = req.headers.emailId as string;
-    }
+    updateZoneStatusDto.updated_by = req.user.email;
     const result = await this.zoneService.updateZoneStatus(
       id,
       updateZoneStatusDto,
@@ -120,7 +117,7 @@ export class ZoneController {
     );
   }
 
-  @SkipAuth()
+  @Role('MASTER_ZONE_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,

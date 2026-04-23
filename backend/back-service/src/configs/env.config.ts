@@ -24,8 +24,25 @@ const readMode = (value: string | undefined, fallback: AppMode): AppMode => {
     : fallback;
 };
 
+const DEV_JWT_SECRET = 'dev-only-change-me-set-JWT_SECRET-in-env';
+
+const resolveJwtSecret = (mode: AppMode): string => {
+  const fromEnv = process.env.JWT_SECRET?.trim();
+  if (fromEnv && fromEnv.length >= 32) return fromEnv;
+
+  if (mode !== 'DEV') {
+    throw new Error(
+      '[FATAL] JWT_SECRET must be set to a strong (>= 32 char) value when MODE != DEV. ' +
+        'Refusing to start with a weak/default secret.',
+    );
+  }
+  return fromEnv && fromEnv.length > 0 ? fromEnv : DEV_JWT_SECRET;
+};
+
+const mode = readMode(process.env.MODE, 'DEV');
+
 export const APP_ENV = {
-  mode: readMode(process.env.MODE, 'DEV'),
+  mode,
   port: readNumber(process.env.PORT, 3010),
   prefix: readString(process.env.PREFIX, '/'),
 
@@ -39,17 +56,19 @@ export const APP_ENV = {
   },
 
   jwt: {
-
-
-    secret: readString(
-      process.env.JWT_SECRET,
-      'change-me-in-prod-please-use-a-long-random-string',
-    ),
+    secret: resolveJwtSecret(mode),
     expiresIn: readString(process.env.JWT_EXPIRES_IN, '12h'),
   },
 
-  isDev: () => readMode(process.env.MODE, 'DEV') === 'DEV',
-  isProd: () => readMode(process.env.MODE, 'DEV') === 'PROD',
+  cors: {
+    origins: readString(process.env.CORS_ORIGINS, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
+
+  isDev: () => mode === 'DEV',
+  isProd: () => mode === 'PROD',
 } as const;
 
 export type AppEnv = typeof APP_ENV;

@@ -1,17 +1,13 @@
 import { Controller, Get, Post, Body, Res, Req, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CommonService } from './common.service';
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import { getLookupType } from './dto/getLookupType.dto';
 import { baseController } from '@core/baseController';
 import { AddArea } from './dto/address.interface';
 import { PreSignedURLParams } from './dto/presignurl-s3file-upload.dto';
 
-@ApiHeader({
-  name: 'userRoleId',
-  description: 'Set User Role ID',
-  required: true,
-})
 @ApiTags('Common')
 @ApiBearerAuth()
 @Controller('common')
@@ -22,7 +18,6 @@ export class CommonController {
   async getLookup(
     @Body() lookupType: getLookupType,
     @Res() res: Response,
-    @Req() req: Request,
   ) {
     const result = await this.commonService.getLookup(lookupType);
     return baseController.getResult(
@@ -84,11 +79,9 @@ export class CommonController {
   async create(
     @Body() createAreaDto: AddArea,
     @Res() res: Response,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    if (req.headers.emailId) {
-      createAreaDto.created_by = req.headers.emailId as string;
-    }
+    createAreaDto.created_by = req.user.email;
     const result = await this.commonService.createArea(createAreaDto);
     return baseController.getResult(
       res,

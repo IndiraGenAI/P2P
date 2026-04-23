@@ -1,4 +1,44 @@
 -- ----------------------------------------------------------------------------
+-- get_user_role_wise_permission: given a role_id, return the user_id assigned
+-- to that role plus the flat list of permission tags the role grants.
+--
+-- Mirrors the WEB project helper of the same name that powers the
+-- `RolesGuard` (`WEB/rnw-api/admission-service/src/core/guards/role.guard.ts`).
+-- The guard expects a row shaped like `{ user_id, role_id, permissions }`
+-- where `permissions` is an array of `page_actions.tag` strings such as
+-- `'MASTER_COUNTRY_VIEW'` (matching the seed expression
+-- `page_code || '_' || action_code`).
+-- ----------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS get_user_role_wise_permission(INTEGER);
+
+CREATE OR REPLACE FUNCTION get_user_role_wise_permission(p_role_id INTEGER)
+RETURNS TABLE(
+    user_id     INTEGER,
+    role_id     INTEGER,
+    permissions TEXT[]
+) AS $$
+BEGIN
+    RETURN QUERY
+        SELECT
+            ur.user_id,
+            r.id AS role_id,
+            COALESCE(
+                ARRAY(
+                    SELECT pa.tag
+                      FROM role_permissions rp
+                      JOIN page_actions pa ON pa.id = rp.page_action_id
+                     WHERE rp.role_id = r.id
+                ),
+                ARRAY[]::TEXT[]
+            ) AS permissions
+          FROM roles r
+          LEFT JOIN user_roles ur ON ur.role_id = r.id
+         WHERE r.id = p_role_id
+         LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ----------------------------------------------------------------------------
 -- assign_role_permissions: replace the role's permission list with the
 -- supplied page_action_ids. Mirrors the legacy WEB project helper that the
 -- frontend's "Save Permissions" action calls.

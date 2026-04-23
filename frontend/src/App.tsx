@@ -19,6 +19,15 @@ import { CityPage } from '@/pages/City';
 import { ZonePage } from '@/pages/Zone';
 import { DepartmentPage } from '@/pages/Department';
 import { SubdepartmentPage } from '@/pages/Subdepartment';
+import { CostCenterPage } from '@/pages/CostCenter';
+import { CenterPage } from '@/pages/Center';
+import InvoiceSourcePage from '@/pages/InvoiceSource';
+import CurrencyPage from '@/pages/Currency';
+import VoucherPage from '@/pages/Voucher';
+import GstPage from '@/pages/Gst';
+import TdsPage from '@/pages/Tds';
+import CoaCategoryPage from '@/pages/CoaCategory';
+import CoaPage from '@/pages/Coa';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ability } from '@/ability';
@@ -213,33 +222,36 @@ function AppRoutes({
           <Route path="/masters/subdepartment" element={<SubdepartmentPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.COST_CENTER} />}>
-          <Route
-            path="/masters/cost-center"
-            element={<PlaceholderPage title="Cost Center" />}
-          />
+          <Route path="/masters/cost-center" element={<CostCenterPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.ENTITY} />}>
           <Route path="/masters/entity" element={<PlaceholderPage title="Entity" />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.CENTER} />}>
-          <Route path="/masters/center" element={<PlaceholderPage title="Center" />} />
+          <Route path="/masters/center" element={<CenterPage />} />
         </Route>
 
         {/* Masters - Finance & Tax */}
+        <Route element={<RequirePage pageCode={Modules.MASTER.COA_CATEGORY} />}>
+          <Route path="/masters/coa-category" element={<CoaCategoryPage />} />
+        </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.COA} />}>
-          <Route path="/masters/coa" element={<PlaceholderPage title="COA" />} />
+          <Route path="/masters/coa" element={<CoaPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.TDS} />}>
-          <Route path="/masters/tds" element={<PlaceholderPage title="TDS" />} />
+          <Route path="/masters/tds" element={<TdsPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.GST} />}>
-          <Route path="/masters/gst" element={<PlaceholderPage title="GST" />} />
+          <Route path="/masters/gst" element={<GstPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.VOUCHER} />}>
-          <Route
-            path="/masters/voucher"
-            element={<PlaceholderPage title="Voucher" />}
-          />
+          <Route path="/masters/voucher" element={<VoucherPage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.INVOICE_SOURCE} />}>
+          <Route path="/masters/invoice-source" element={<InvoiceSourcePage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.CURRENCY} />}>
+          <Route path="/masters/currency" element={<CurrencyPage />} />
         </Route>
 
         {/* Masters - Geography */}
