@@ -25,3 +25,4 @@ export { Gst } from './entities/gst';
 export { Tds } from './entities/tds';
 export { CoaCategory } from './entities/coa-category';
 export { Coa } from './entities/coa';
+export { EntityMaster } from './entities/entity-master';

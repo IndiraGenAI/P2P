@@ -21,6 +21,7 @@ import { DepartmentPage } from '@/pages/Department';
 import { SubdepartmentPage } from '@/pages/Subdepartment';
 import { CostCenterPage } from '@/pages/CostCenter';
 import { CenterPage } from '@/pages/Center';
+import { EntityPage } from '@/pages/Entity';
 import InvoiceSourcePage from '@/pages/InvoiceSource';
 import CurrencyPage from '@/pages/Currency';
 import VoucherPage from '@/pages/Voucher';
@@ -225,7 +226,7 @@ function AppRoutes({
           <Route path="/masters/cost-center" element={<CostCenterPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.ENTITY} />}>
-          <Route path="/masters/entity" element={<PlaceholderPage title="Entity" />} />
+          <Route path="/masters/entity" element={<EntityPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.CENTER} />}>
           <Route path="/masters/center" element={<CenterPage />} />

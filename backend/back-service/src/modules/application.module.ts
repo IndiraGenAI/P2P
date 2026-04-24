@@ -8,6 +8,7 @@ import { CostCenterModule } from './cost-center/cost-center.module';
 import { CountryModule } from './country/country.module';
 import { CurrencyModule } from './currency/currency.module';
 import { DepartmentModule } from './department/department.module';
+import { EntityModule } from './entity/entity.module';
 import { GstModule } from './gst/gst.module';
 import { InvoiceSourceModule } from './invoice-source/invoice-source.module';
 import { RolePermissionsModule } from './role-permissions/role-permissions.module';
@@ -33,6 +34,7 @@ export const ApplicationModules = [
   SubdepartmentModule,
   CostCenterModule,
   CenterModule,
+  EntityModule,
   InvoiceSourceModule,
   CurrencyModule,
   VoucherModule,

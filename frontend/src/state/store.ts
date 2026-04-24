@@ -8,6 +8,7 @@ import costCenterMasterReducer from './costCenter/costCenter.reducer';
 import countryReducer from './country/country.reducer';
 import currencyMasterReducer from './currency/currency.reducer';
 import departmentMasterReducer from './department/department.reducer';
+import entityMasterReducer from './entity/entity.reducer';
 import gstMasterReducer from './gst/gst.reducer';
 import invoiceSourceMasterReducer from './invoiceSource/invoiceSource.reducer';
 import roleReducer from './role/role.reducer';
@@ -33,6 +34,7 @@ export const store = configureStore({
     subdepartmentMaster: subdepartmentMasterReducer,
     costCenterMaster: costCenterMasterReducer,
     centerMaster: centerMasterReducer,
+    entityMaster: entityMasterReducer,
     invoiceSourceMaster: invoiceSourceMasterReducer,
     currencyMaster: currencyMasterReducer,
     voucherMaster: voucherMasterReducer,

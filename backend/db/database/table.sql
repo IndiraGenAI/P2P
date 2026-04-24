@@ -279,3 +279,25 @@ CREATE TABLE IF NOT EXISTS coa (
         REFERENCES coa_categories(id)
         ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS entities (
+    id SERIAL PRIMARY KEY,
+
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL UNIQUE,
+
+    business_unit VARCHAR(100),
+    legal_entity VARCHAR(150),
+    liability_distribution VARCHAR(255),
+    prepayment_distribution VARCHAR(255),
+
+    shipping_addresses TEXT[],
+    billing_addresses TEXT[],
+
+    status BOOLEAN DEFAULT TRUE,
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
