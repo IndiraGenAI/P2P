@@ -19,7 +19,7 @@ const env = import.meta.env;
 
 export const ENV = {
   api: {
-    baseUrl: readString(env.VITE_API_BASE_URL, 'http://localhost:3010/api'),
+    baseUrl: readString(env.VITE_API_BASE_URL, 'http://localhost:3010/bs'),
     timeoutMs: readNumber(env.VITE_API_TIMEOUT, 30000),
   },
   app: {

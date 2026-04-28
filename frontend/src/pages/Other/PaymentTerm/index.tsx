@@ -5,13 +5,15 @@ import {
 } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
-  clearPaymentTermMessage,
   createNewPaymentTerm,
   editPaymentTermById,
-  paymentTermMasterSelector,
   removePaymentTermById,
   searchPaymentTermData,
   updatePaymentTermStatus,
+} from '@/state/paymentTerm/paymentTerm.action';
+import {
+  clearPaymentTermMessage,
+  paymentTermMasterSelector,
 } from '@/state/paymentTerm/paymentTerm.reducer';
 import PaymentTermAdd from './Add';
 import type { IPaymentTermRecord } from './PaymentTerm.model';

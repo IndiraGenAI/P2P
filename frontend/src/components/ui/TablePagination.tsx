@@ -68,6 +68,7 @@ export const TablePagination = ({
             size="sm"
             fullWidth={false}
             className="w-20"
+            searchable={false}
           />
           <span>entries</span>
         </div>

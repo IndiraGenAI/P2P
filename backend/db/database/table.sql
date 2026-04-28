@@ -570,3 +570,147 @@ CREATE TABLE IF NOT EXISTS vendor_documents (
         REFERENCES vendors(id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS purchase_requests (
+    id SERIAL PRIMARY KEY,
+
+    pr_number VARCHAR(50) UNIQUE,
+
+    entity_id INTEGER,
+    vendor_id INTEGER,
+    vendor_site_id INTEGER,
+    item_type_id INTEGER,
+
+    validity_from DATE,
+    validity_to DATE,
+    required_date DATE,
+
+    frequency VARCHAR(50),
+
+    department_id INTEGER,
+    subdepartment_id INTEGER,
+    payment_term_id INTEGER,
+
+    terms_conditions TEXT,
+    center_id INTEGER,
+
+    remarks TEXT,
+    overall_summary TEXT,
+
+    net_amount NUMERIC(12,2) DEFAULT 0,
+
+    status VARCHAR(50) DEFAULT 'DRAFT',
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_pr_entity FOREIGN KEY (entity_id) REFERENCES entities(id),
+    CONSTRAINT fk_pr_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    CONSTRAINT fk_pr_vendor_site FOREIGN KEY (vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_pr_item_type FOREIGN KEY (item_type_id) REFERENCES item_types(id),
+    CONSTRAINT fk_pr_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_pr_subdepartment FOREIGN KEY (subdepartment_id) REFERENCES subdepartments(id),
+    CONSTRAINT fk_pr_payment_term FOREIGN KEY (payment_term_id) REFERENCES payment_terms(id),
+    CONSTRAINT fk_pr_center FOREIGN KEY (center_id) REFERENCES centers(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_request_items (
+    id SERIAL PRIMARY KEY,
+
+    purchase_request_id INTEGER NOT NULL,
+
+    item_id INTEGER,
+    description TEXT,
+    quantity NUMERIC(12,2) NOT NULL DEFAULT 1,
+    estimated_rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+    amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    remarks TEXT,
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_pr_item_request
+        FOREIGN KEY (purchase_request_id)
+        REFERENCES purchase_requests(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_pr_item
+        FOREIGN KEY (item_id)
+        REFERENCES items(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_request_documents (
+    id SERIAL PRIMARY KEY,
+
+    purchase_request_id INTEGER NOT NULL,
+
+    file_name VARCHAR(255),
+    file_path TEXT,
+    file_type VARCHAR(100),
+    file_size BIGINT,
+
+    uploaded_by VARCHAR(100),
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_pr_document_request
+        FOREIGN KEY (purchase_request_id)
+        REFERENCES purchase_requests(id)
+        ON DELETE CASCADE
+);
+
+-- Purchase Request Header Indexes
+CREATE INDEX IF NOT EXISTS idx_pr_entity_id
+ON purchase_requests(entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_vendor_id
+ON purchase_requests(vendor_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_vendor_site_id
+ON purchase_requests(vendor_site_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_item_type_id
+ON purchase_requests(item_type_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_department_id
+ON purchase_requests(department_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_subdepartment_id
+ON purchase_requests(subdepartment_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_payment_term_id
+ON purchase_requests(payment_term_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_center_id
+ON purchase_requests(center_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_status
+ON purchase_requests(status);
+
+CREATE INDEX IF NOT EXISTS idx_pr_created_date
+ON purchase_requests(created_date);
+
+CREATE INDEX IF NOT EXISTS idx_pr_required_date
+ON purchase_requests(required_date);
+
+CREATE INDEX IF NOT EXISTS idx_pr_validity_from_to
+ON purchase_requests(validity_from, validity_to);
+
+
+-- Purchase Request Items Indexes
+CREATE INDEX IF NOT EXISTS idx_pr_items_purchase_request_id
+ON purchase_request_items(purchase_request_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_items_item_id
+ON purchase_request_items(item_id);
+
+
+-- Purchase Request Documents Indexes
+CREATE INDEX IF NOT EXISTS idx_pr_documents_purchase_request_id
+ON purchase_request_documents(purchase_request_id);
+
+CREATE INDEX IF NOT EXISTS idx_pr_documents_uploaded_date
+ON purchase_request_documents(uploaded_date);

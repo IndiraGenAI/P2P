@@ -1,14 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { RootState } from '../app.model';
 import { saveRolePermissions } from './rolePermissions.action';
-
-interface IRolePermissionsState {
-  saveRolePermissions: {
-    loading: boolean;
-    hasErrors: boolean;
-    message: string;
-  };
-}
+import type { IRolePermissionsState } from './rolePermissions.model';
 
 export const initialState: IRolePermissionsState = {
   saveRolePermissions: { loading: false, hasErrors: false, message: '' },

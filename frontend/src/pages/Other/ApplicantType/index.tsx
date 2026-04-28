@@ -2,13 +2,15 @@ import { UserCheck } from 'lucide-react';
 import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
-  applicantTypeMasterSelector,
-  clearApplicantTypeMessage,
   createNewApplicantType,
   editApplicantTypeById,
   removeApplicantTypeById,
   searchApplicantTypeData,
   updateApplicantTypeStatus,
+} from '@/state/applicantType/applicantType.action';
+import {
+  applicantTypeMasterSelector,
+  clearApplicantTypeMessage,
 } from '@/state/applicantType/applicantType.reducer';
 import ApplicantTypeAdd from './Add';
 import type { IApplicantTypeRecord } from './ApplicantType.model';
