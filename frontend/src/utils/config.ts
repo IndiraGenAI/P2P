@@ -9,6 +9,7 @@ const config = {
   baseApiStudent: ENV.api.baseUrl,
   baseApiApplication: ENV.api.baseUrl,
   baseApiBatch: ENV.api.baseUrl,
+  baseApiMain: ENV.api.mainBaseUrl,
   mode: ENV.isDev ? 'development' : 'production',
 };
 

@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
+import type { AxiosInstance } from 'axios';
 import request from './request';
+import mainRequest from './mainRequest';
 
 const describeStatus = (status: number): string => {
   if (status >= 500) return `Server error (${status})`;
@@ -7,6 +9,52 @@ const describeStatus = (status: number): string => {
   if (status === 403) return 'You do not have permission to perform this action.';
   if (status === 404) return 'The requested resource was not found.';
   return `Request failed (${status})`;
+};
+
+const attachInterceptors = (instance: AxiosInstance) => {
+  const reqId = instance.interceptors.request.use(
+    (config) => {
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('accessToken')
+          : null;
+      if (token && config.headers) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+      if (config.headers && config.headers['no-auth']) {
+        delete config.headers['no-auth'];
+        delete config.headers['Authorization'];
+      }
+      return config;
+    },
+    (error) => Promise.reject(error),
+  );
+
+  const resId = instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const response = error?.response;
+
+      if (!response) {
+        return Promise.reject(
+          new Error(
+            'Network error – unable to reach the server. Please check your connection.',
+          ),
+        );
+      }
+
+      const raw = response?.data?.message;
+      const text = Array.isArray(raw) ? raw.join(' ') : raw;
+      const fallbackByStatus = describeStatus(response.status);
+
+      return Promise.reject(new Error(text || fallbackByStatus));
+    },
+  );
+
+  return () => {
+    instance.interceptors.request.eject(reqId);
+    instance.interceptors.response.eject(resId);
+  };
 };
 
 /**
@@ -18,51 +66,18 @@ const describeStatus = (status: number): string => {
  *
  * The interceptor itself never renders UI - toasts are owned by the page
  * components, which subscribe to their slice messages.
+ *
+ * Both axios instances (back-service `request` and main-service `mainRequest`)
+ * share the same JWT and the same error-shape contract, so we attach the
+ * same interceptors to both.
  */
 const Interceptor = () => {
   useEffect(() => {
-    const reqId = request.interceptors.request.use(
-      (config) => {
-        const token =
-          typeof window !== 'undefined'
-            ? localStorage.getItem('accessToken')
-            : null;
-        if (token && config.headers) {
-          config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        if (config.headers && config.headers['no-auth']) {
-          delete config.headers['no-auth'];
-          delete config.headers['Authorization'];
-        }
-        return config;
-      },
-      (error) => Promise.reject(error),
-    );
-
-    const resId = request.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        const response = error?.response;
-
-        if (!response) {
-          return Promise.reject(
-            new Error(
-              'Network error – unable to reach the server. Please check your connection.',
-            ),
-          );
-        }
-
-        const raw = response?.data?.message;
-        const text = Array.isArray(raw) ? raw.join(' ') : raw;
-        const fallbackByStatus = describeStatus(response.status);
-
-        return Promise.reject(new Error(text || fallbackByStatus));
-      },
-    );
-
+    const detachBack = attachInterceptors(request);
+    const detachMain = attachInterceptors(mainRequest);
     return () => {
-      request.interceptors.request.eject(reqId);
-      request.interceptors.response.eject(resId);
+      detachBack();
+      detachMain();
     };
   }, []);
 

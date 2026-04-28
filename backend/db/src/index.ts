@@ -39,3 +39,6 @@ export { VendorBankDetail } from './entities/vendor-bank-detail';
 export { VendorEntity } from './entities/vendor-entity';
 export { VendorCenter } from './entities/vendor-center';
 export { VendorDocument } from './entities/vendor-document';
+export { PurchaseRequest } from './entities/purchase-request';
+export { PurchaseRequestItem } from './entities/purchase-request-item';
+export { PurchaseRequestDocument } from './entities/purchase-request-document';
