@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class DepartmentController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.departmentService.createDepartment(
+    const result = await this.departmentService.create(
       data,
       req.user.email,
     );
@@ -59,7 +59,7 @@ export class DepartmentController {
     @Query() filterDto: GetDepartmentFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.departmentService.findAllWithFilter(filterDto);
+    const result = await this.departmentService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -96,7 +96,7 @@ export class DepartmentController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.departmentService.updateDepartment(
+    const result = await this.departmentService.update(
       id,
       updateDepartmentDto,
       req.user.email,
@@ -118,7 +118,7 @@ export class DepartmentController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateDepartmentStatusDto.updated_by = req.user.email;
-    const result = await this.departmentService.updateDepartmentStatus(
+    const result = await this.departmentService.updateStatus(
       id,
       updateDepartmentStatusDto,
     );

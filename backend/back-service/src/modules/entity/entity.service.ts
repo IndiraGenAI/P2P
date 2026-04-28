@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateEntityDto } from './dto/create-entity.dto';
 import { GetEntityFilterDto } from './dto/entity-filter.dto';
 import { UpdateEntityDto } from './dto/update-entity.dto';
 import { UpdateEntityStatusDto } from './dto/update-status.dto';
-import { EntityRepository } from './entity.repository';
+import { EntityRepository } from './repository/entity.repository';
 
 interface EntityListResponse {
   rows: EntityMaster[];
@@ -32,7 +32,7 @@ const sanitizeAddresses = (
 
 @Injectable()
 export class EntityService {
-  async createEntity(
+  async create(
     createDto: CreateEntityDto,
     userEmailId: string | null,
   ): Promise<EntityMaster> {
@@ -75,7 +75,7 @@ export class EntityService {
     return EntityRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetEntityFilterDto,
   ): Promise<PageDto<EntityMaster> | EntityListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -122,7 +122,7 @@ export class EntityService {
     return entity;
   }
 
-  async updateEntity(
+  async update(
     id: number,
     updateDto: UpdateEntityDto,
     userEmailId: string | null,

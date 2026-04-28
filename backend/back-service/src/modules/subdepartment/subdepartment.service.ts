@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateSubdepartmentDto } from './dto/create-subdepartment.dto';
 import { GetSubdepartmentFilterDto } from './dto/subdepartment-filter.dto';
 import { UpdateSubdepartmentDto } from './dto/update-subdepartment.dto';
 import { UpdateSubdepartmentStatusDto } from './dto/update-status.dto';
-import { SubdepartmentRepository } from './subdepartment.repository';
+import { SubdepartmentRepository } from './repository/subdepartment.repository';
 
 interface SubdepartmentListResponse {
   rows: Subdepartment[];
@@ -21,7 +21,7 @@ interface SubdepartmentListResponse {
 
 @Injectable()
 export class SubdepartmentService {
-  async createSubdepartment(
+  async create(
     createSubdepartmentDto: CreateSubdepartmentDto,
     userEmailId: string | null,
   ): Promise<Subdepartment> {
@@ -70,7 +70,7 @@ export class SubdepartmentService {
     return SubdepartmentRepository.save(subdepartment);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetSubdepartmentFilterDto,
   ): Promise<PageDto<Subdepartment> | SubdepartmentListResponse> {
     const { name, department_id, status, orderBy, order } = filterDto;
@@ -127,7 +127,7 @@ export class SubdepartmentService {
     return sub;
   }
 
-  async updateSubdepartment(
+  async update(
     id: number,
     updateSubdepartmentDto: UpdateSubdepartmentDto,
     userEmailId: string | null,
@@ -196,7 +196,7 @@ export class SubdepartmentService {
     throw new NotFoundException('Subdepartment not found');
   }
 
-  async updateSubdepartmentStatus(
+  async updateStatus(
     id: number,
     updateSubdepartmentStatusDto: UpdateSubdepartmentStatusDto,
   ): Promise<UpdateResult> {

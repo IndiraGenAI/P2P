@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class UsersController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.usersService.createUser(data, req.user.email);
+    const result = await this.usersService.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class UsersController {
     @Query() filterDto: GetUserFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.usersService.findAllWithFilter(filterDto);
+    const result = await this.usersService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class UsersController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.usersService.updateUser(
+    const result = await this.usersService.update(
       id,
       updateUserDto,
       req.user.email,
@@ -105,7 +105,7 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateUserStatusDto.updated_by = req.user.email;
-    const result = await this.usersService.updateUserStatus(
+    const result = await this.usersService.updateStatus(
       id,
       updateUserStatusDto,
     );

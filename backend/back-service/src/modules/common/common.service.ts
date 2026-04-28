@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Area, Lookups } from 'erp-db';
-import { areaRepository, cityRepository, ConfigurationsRepository, countryRepository, labelRemarksRepository, lookupRepository, paymentModeRepository, sourceRepository, stateRepository } from './common.repository';
+import { areaRepository, cityRepository, ConfigurationsRepository, countryRepository, labelRemarksRepository, lookupRepository, paymentModeRepository, sourceRepository, stateRepository } from './repository/common.repository';
 import { AddArea, AddressResponse } from './dto/address.interface';
 import { getLookupType } from './dto/getLookupType.dto';
 import { PreSignedURLParams } from './dto/presignurl-s3file-upload.dto';

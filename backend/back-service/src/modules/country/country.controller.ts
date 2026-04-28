@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class CountryController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.countryService.createCountry(
+    const result = await this.countryService.create(
       data,
       req.user.email,
     );
@@ -54,7 +54,7 @@ export class CountryController {
     @Query() filterDto: GetCountryFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.countryService.findAllWithFilter(filterDto);
+    const result = await this.countryService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -86,7 +86,7 @@ export class CountryController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.countryService.updateCountry(
+    const result = await this.countryService.update(
       id,
       updateCountryDto,
       req.user.email,
@@ -108,7 +108,7 @@ export class CountryController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateCountryStatusDto.updated_by = req.user.email;
-    const result = await this.countryService.updateCountryStatus(
+    const result = await this.countryService.updateStatus(
       id,
       updateCountryStatusDto,
     );

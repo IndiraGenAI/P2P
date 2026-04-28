@@ -36,7 +36,7 @@ export class CityController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.cityService.createCity(data, req.user.email);
+    const result = await this.cityService.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class CityController {
     @Query() filterDto: GetCityFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.cityService.findAllWithFilter(filterDto);
+    const result = await this.cityService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class CityController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.cityService.updateCity(
+    const result = await this.cityService.update(
       id,
       updateCityDto,
       req.user.email,
@@ -105,7 +105,7 @@ export class CityController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateCityStatusDto.updated_by = req.user.email;
-    const result = await this.cityService.updateCityStatus(
+    const result = await this.cityService.updateStatus(
       id,
       updateCityStatusDto,
     );

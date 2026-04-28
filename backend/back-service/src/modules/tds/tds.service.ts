@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateTdsDto } from './dto/create-tds.dto';
 import { GetTdsFilterDto } from './dto/tds-filter.dto';
 import { UpdateTdsDto } from './dto/update-tds.dto';
 import { UpdateTdsStatusDto } from './dto/update-status.dto';
-import { TdsRepository } from './tds.repository';
+import { TdsRepository } from './repository/tds.repository';
 
 interface TdsListResponse {
   rows: Tds[];
@@ -21,7 +21,7 @@ interface TdsListResponse {
 
 @Injectable()
 export class TdsService {
-  async createTds(
+  async create(
     createDto: CreateTdsDto,
     userEmailId: string | null,
   ): Promise<Tds> {
@@ -57,7 +57,7 @@ export class TdsService {
     return TdsRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetTdsFilterDto,
   ): Promise<PageDto<Tds> | TdsListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -104,7 +104,7 @@ export class TdsService {
     return entity;
   }
 
-  async updateTds(
+  async update(
     id: number,
     updateDto: UpdateTdsDto,
     userEmailId: string | null,

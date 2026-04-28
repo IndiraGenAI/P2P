@@ -1,0 +1,30 @@
+export interface IVendorRecord {
+  id: number;
+  code?: string;
+  name: string;
+  vendor_category_id?: number | null;
+  supplier_number?: string;
+  supplier_name?: string;
+  tds_id?: number | null;
+  payment_term_id?: number | null;
+  applicant_type_id?: number | null;
+  resident_status?: string;
+  pan_number?: string;
+  gst_number?: string;
+  country_code?: string;
+  vendor_type?: string;
+  is_msme?: boolean;
+  address_line1?: string;
+  address_line2?: string;
+  address_line3?: string;
+  state_code?: string;
+  city?: string;
+  pincode?: string;
+  country_id?: number | null;
+  currency_id?: number | null;
+  contact_first_name?: string;
+  contact_last_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  status?: boolean;
+}

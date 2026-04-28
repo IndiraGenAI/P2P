@@ -1,0 +1,303 @@
+import { Check, ChevronDown, Search, X } from 'lucide-react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
+import type { SelectOption } from '@/common/models';
+
+interface MultiSelectProps {
+  values: string[];
+  onChange: (values: string[]) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  size?: 'sm' | 'md';
+  className?: string;
+  disabled?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  maxChipsShown?: number;
+}
+
+interface PanelPos {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+  placement: 'bottom' | 'top';
+}
+
+const ESTIMATED_PANEL_HEIGHT = 320;
+const PANEL_GAP = 8;
+const VIEWPORT_PADDING = 12;
+
+export function MultiSelect({
+  values,
+  onChange,
+  options,
+  placeholder = 'Select…',
+  size = 'md',
+  className = '',
+  disabled = false,
+  searchable = true,
+  searchPlaceholder = 'Search…',
+  emptyText = 'No options',
+  maxChipsShown = 3,
+}: Readonly<MultiSelectProps>) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [pos, setPos] = useState<PanelPos | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
+
+  const valueSet = useMemo(() => new Set(values), [values]);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !query.trim()) return options;
+    const q = query.trim().toLowerCase();
+    return options.filter((opt) =>
+      opt.label?.toString().toLowerCase().includes(q),
+    );
+  }, [options, query, searchable]);
+
+  const selectedOptions = useMemo(
+    () => options.filter((o) => valueSet.has(o.value)),
+    [options, valueSet],
+  );
+
+  const updatePosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_PADDING;
+    const spaceAbove = rect.top - VIEWPORT_PADDING;
+    const placement: 'bottom' | 'top' =
+      spaceBelow >= ESTIMATED_PANEL_HEIGHT || spaceBelow >= spaceAbove
+        ? 'bottom'
+        : 'top';
+    const maxHeight = Math.min(
+      ESTIMATED_PANEL_HEIGHT,
+      placement === 'bottom' ? spaceBelow : spaceAbove,
+    );
+    setPos({
+      top:
+        placement === 'bottom' ? rect.bottom + PANEL_GAP : rect.top - PANEL_GAP,
+      left: rect.left,
+      width: rect.width,
+      maxHeight,
+      placement,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (open) updatePosition();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+      return;
+    }
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        !triggerRef.current?.contains(target) &&
+        !panelRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const handleReposition = () => updatePosition();
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    if (searchable) {
+      const t = setTimeout(() => searchRef.current?.focus(), 0);
+      return () => {
+        clearTimeout(t);
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEsc);
+        window.removeEventListener('resize', handleReposition);
+        window.removeEventListener('scroll', handleReposition, true);
+      };
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, searchable]);
+
+  const toggle = (val: string) => {
+    if (valueSet.has(val)) {
+      onChange(values.filter((v) => v !== val));
+    } else {
+      onChange([...values, val]);
+    }
+  };
+
+  const removeChip = (val: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(values.filter((v) => v !== val));
+  };
+
+  const sizeClasses =
+    size === 'sm' ? 'px-2.5 py-1.5 text-sm min-h-[36px]' : 'px-3 py-2 text-sm min-h-[42px]';
+
+  const chipsToShow = selectedOptions.slice(0, maxChipsShown);
+  const overflow = selectedOptions.length - chipsToShow.length;
+
+  const panel = open && pos && (
+    <div
+      ref={panelRef}
+      id={listboxId}
+      className="fixed z-[100] animate-fadeIn"
+      style={{
+        top: pos.placement === 'bottom' ? pos.top : undefined,
+        bottom:
+          pos.placement === 'top' ? window.innerHeight - pos.top : undefined,
+        left: pos.left,
+        width: pos.width,
+      }}
+    >
+      <div
+        className="bg-white rounded-xl overflow-hidden flex flex-col"
+        style={{
+          maxHeight: pos.maxHeight,
+          boxShadow:
+            '0 4px 6px -2px rgba(16, 24, 40, 0.05), 0 12px 28px -4px rgba(16, 24, 40, 0.12)',
+          border: '1px solid rgba(226, 232, 240, 0.8)',
+        }}
+      >
+        {searchable && (
+          <div className="p-2 border-b border-gray-100 bg-white sticky top-0">
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full pl-7 pr-2 py-1.5 text-sm rounded-lg bg-gray-50 border border-transparent focus:bg-white focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/15 outline-none transition"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto soft-scroll py-1.5">
+          {filteredOptions.length === 0 && (
+            <p className="px-4 py-3 text-sm text-gray-400 text-center">
+              {options.length === 0 ? emptyText : 'No results'}
+            </p>
+          )}
+          {filteredOptions.map((opt) => {
+            const isSelected = valueSet.has(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => toggle(opt.value)}
+                className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-left transition rounded-lg ${
+                  isSelected ? 'text-emerald-700 font-medium' : 'text-gray-700'
+                } hover:bg-gray-50`}
+                style={{ width: 'calc(100% - 0.5rem)', margin: '0 0.25rem' }}
+              >
+                <span className="truncate">{opt.label}</span>
+                {isSelected && (
+                  <Check size={16} className="text-emerald-600 flex-shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedOptions.length > 0 && (
+          <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {selectedOptions.length} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`relative w-full ${className}`}>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={listboxId}
+        className={`w-full flex items-center justify-between gap-2 rounded-xl soft-input transition ${sizeClasses} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        } ${open ? 'ring-2 ring-emerald-500/20 border-emerald-300' : ''}`}
+      >
+        <div className="flex flex-1 items-center gap-1.5 flex-wrap min-w-0">
+          {selectedOptions.length === 0 && (
+            <span className="text-gray-400">{placeholder}</span>
+          )}
+          {chipsToShow.map((opt) => (
+            <span
+              key={opt.value}
+              className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100"
+            >
+              <span className="truncate max-w-[140px]">{opt.label}</span>
+              <button
+                type="button"
+                onClick={(e) => removeChip(opt.value, e)}
+                aria-label={`Remove ${opt.label}`}
+                className="hover:bg-emerald-100 rounded p-0.5 text-emerald-600"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          {overflow > 0 && (
+            <span className="text-xs font-medium text-gray-500">
+              +{overflow} more
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          size={16}
+          className={`flex-shrink-0 text-gray-400 transition-transform duration-200 ${
+            open ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {panel && createPortal(panel, document.body)}
+    </div>
+  );
+}
+
+export default MultiSelect;

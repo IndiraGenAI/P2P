@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class CoaController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.service.createCoa(data, req.user.email);
+    const result = await this.service.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class CoaController {
     @Query() filterDto: GetCoaFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.service.findAllWithFilter(filterDto);
+    const result = await this.service.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class CoaController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.service.updateCoa(
+    const result = await this.service.update(
       id,
       updateDto,
       req.user.email,

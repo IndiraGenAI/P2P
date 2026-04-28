@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateCoaCategoryDto } from './dto/create-coa-category.dto';
 import { GetCoaCategoryFilterDto } from './dto/coa-category-filter.dto';
 import { UpdateCoaCategoryDto } from './dto/update-coa-category.dto';
 import { UpdateCoaCategoryStatusDto } from './dto/update-status.dto';
-import { CoaCategoryRepository } from './coa-category.repository';
+import { CoaCategoryRepository } from './repository/coa-category.repository';
 
 interface CoaCategoryListResponse {
   rows: CoaCategory[];
@@ -21,7 +21,7 @@ interface CoaCategoryListResponse {
 
 @Injectable()
 export class CoaCategoryService {
-  async createCoaCategory(
+  async create(
     createDto: CreateCoaCategoryDto,
     userEmailId: string | null,
   ): Promise<CoaCategory> {
@@ -48,7 +48,7 @@ export class CoaCategoryService {
     return CoaCategoryRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCoaCategoryFilterDto,
   ): Promise<PageDto<CoaCategory> | CoaCategoryListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -94,7 +94,7 @@ export class CoaCategoryService {
     return entity;
   }
 
-  async updateCoaCategory(
+  async update(
     id: number,
     updateDto: UpdateCoaCategoryDto,
     userEmailId: string | null,

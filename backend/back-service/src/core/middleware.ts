@@ -12,6 +12,7 @@ import { isArray } from 'class-validator';
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: any, host: ArgumentsHost) {
+    console.log('exception', exception);
     const context = host.switchToHttp();
     const response = context.getResponse<Response>();
     let status =

@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class CenterController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.centerService.createCenter(data, req.user.email);
+    const result = await this.centerService.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class CenterController {
     @Query() filterDto: GetCenterFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.centerService.findAllWithFilter(filterDto);
+    const result = await this.centerService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class CenterController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.centerService.updateCenter(
+    const result = await this.centerService.update(
       id,
       updateCenterDto,
       req.user.email,
@@ -105,7 +105,7 @@ export class CenterController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateCenterStatusDto.updated_by = req.user.email;
-    const result = await this.centerService.updateCenterStatus(
+    const result = await this.centerService.updateStatus(
       id,
       updateCenterStatusDto,
     );

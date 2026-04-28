@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateCenterDto } from './dto/create-center.dto';
 import { GetCenterFilterDto } from './dto/center-filter.dto';
 import { UpdateCenterDto } from './dto/update-center.dto';
 import { UpdateCenterStatusDto } from './dto/update-status.dto';
-import { CenterRepository } from './center.repository';
+import { CenterRepository } from './repository/center.repository';
 
 interface CenterListResponse {
   rows: Center[];
@@ -21,7 +21,7 @@ interface CenterListResponse {
 
 @Injectable()
 export class CenterService {
-  async createCenter(
+  async create(
     createCenterDto: CreateCenterDto,
     userEmailId: string | null,
   ): Promise<Center> {
@@ -53,7 +53,7 @@ export class CenterService {
     return CenterRepository.save(center);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCenterFilterDto,
   ): Promise<PageDto<Center> | CenterListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -102,7 +102,7 @@ export class CenterService {
     return center;
   }
 
-  async updateCenter(
+  async update(
     id: number,
     updateCenterDto: UpdateCenterDto,
     userEmailId: string | null,
@@ -147,7 +147,7 @@ export class CenterService {
     throw new NotFoundException('Center not found');
   }
 
-  async updateCenterStatus(
+  async updateStatus(
     id: number,
     updateCenterStatusDto: UpdateCenterStatusDto,
   ): Promise<UpdateResult> {

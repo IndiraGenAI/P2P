@@ -12,7 +12,7 @@ import { CreateCityDto } from './dto/create-city.dto';
 import { GetCityFilterDto } from './dto/city-filter.dto';
 import { UpdateCityDto } from './dto/update-city.dto';
 import { UpdateCityStatusDto } from './dto/update-status.dto';
-import { CityRepository } from './city.repository';
+import { CityRepository } from './repository/city.repository';
 
 interface CityListResponse {
   rows: City[];
@@ -21,7 +21,7 @@ interface CityListResponse {
 
 @Injectable()
 export class CityService {
-  async createCity(
+  async create(
     createCityDto: CreateCityDto,
     userEmailId: string | null,
   ): Promise<City> {
@@ -59,7 +59,7 @@ export class CityService {
     return CityRepository.save(city);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCityFilterDto,
   ): Promise<PageDto<City> | CityListResponse> {
     const { name, country_id, state_id, status, orderBy, order } = filterDto;
@@ -120,7 +120,7 @@ export class CityService {
     return city;
   }
 
-  async updateCity(
+  async update(
     id: number,
     updateCityDto: UpdateCityDto,
     userEmailId: string | null,
@@ -166,7 +166,7 @@ export class CityService {
     throw new NotFoundException('City not found');
   }
 
-  async updateCityStatus(
+  async updateStatus(
     id: number,
     updateCityStatusDto: UpdateCityStatusDto,
   ): Promise<UpdateResult> {

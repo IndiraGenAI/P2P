@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateVoucherDto } from './dto/create-voucher.dto';
 import { GetVoucherFilterDto } from './dto/voucher-filter.dto';
 import { UpdateVoucherDto } from './dto/update-voucher.dto';
 import { UpdateVoucherStatusDto } from './dto/update-status.dto';
-import { VoucherRepository } from './voucher.repository';
+import { VoucherRepository } from './repository/voucher.repository';
 
 interface VoucherListResponse {
   rows: Voucher[];
@@ -21,7 +21,7 @@ interface VoucherListResponse {
 
 @Injectable()
 export class VoucherService {
-  async createVoucher(
+  async create(
     createDto: CreateVoucherDto,
     userEmailId: string | null,
   ): Promise<Voucher> {
@@ -56,7 +56,7 @@ export class VoucherService {
     return VoucherRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetVoucherFilterDto,
   ): Promise<PageDto<Voucher> | VoucherListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -103,7 +103,7 @@ export class VoucherService {
     return entity;
   }
 
-  async updateVoucher(
+  async update(
     id: number,
     updateDto: UpdateVoucherDto,
     userEmailId: string | null,

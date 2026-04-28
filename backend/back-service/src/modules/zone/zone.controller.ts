@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class ZoneController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.zoneService.createZone(data, req.user.email);
+    const result = await this.zoneService.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class ZoneController {
     @Query() filterDto: GetZoneFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.zoneService.findAllWithFilter(filterDto);
+    const result = await this.zoneService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class ZoneController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.zoneService.updateZone(
+    const result = await this.zoneService.update(
       id,
       updateZoneDto,
       req.user.email,
@@ -105,7 +105,7 @@ export class ZoneController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateZoneStatusDto.updated_by = req.user.email;
-    const result = await this.zoneService.updateZoneStatus(
+    const result = await this.zoneService.updateStatus(
       id,
       updateZoneStatusDto,
     );

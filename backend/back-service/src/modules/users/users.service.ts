@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -13,7 +13,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { GetUserFilterDto } from './dto/user-filter.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { UsersRepository } from './users.repository';
+import { UsersRepository } from './repository/users.repository';
 
 interface UserRoleSummary {
   id: number;
@@ -76,7 +76,7 @@ const attachRoles = (
 
 @Injectable()
 export class UsersService {
-  async createUser(
+  async create(
     createUserDto: CreateUserDto,
     userEmailId: string | null,
   ): Promise<UserWithRoles> {
@@ -114,7 +114,7 @@ export class UsersService {
     return attachRoles(stripHash(saved), roleMap);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetUserFilterDto,
   ): Promise<PageDto<UserWithRoles> | UserListResponse> {
     const { first_name, last_name, email, phone, status, orderBy, order } =
@@ -199,7 +199,7 @@ export class UsersService {
     return attachRoles(stripHash(user), roleMap);
   }
 
-  async updateUser(
+  async update(
     id: number,
     updateUserDto: UpdateUserDto,
     userEmailId: string | null,
@@ -282,7 +282,7 @@ export class UsersService {
     throw new NotFoundException('User not found');
   }
 
-  async updateUserStatus(
+  async updateStatus(
     id: number,
     updateUserStatusDto: UpdateUserStatusDto,
   ): Promise<UpdateResult> {

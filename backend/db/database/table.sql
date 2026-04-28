@@ -301,3 +301,272 @@ CREATE TABLE IF NOT EXISTS entities (
     updated_by VARCHAR(100),
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+CREATE TABLE IF NOT EXISTS payment_terms (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    oracle_code VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS uoms (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS item_categories (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS item_types (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS applicant_types (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS vendor_categories (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS items (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    item_type_id INTEGER,
+    item_category_id INTEGER,
+    uom_id INTEGER,
+    coa_id INTEGER,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_item_type FOREIGN KEY (item_type_id) REFERENCES item_types(id),
+    CONSTRAINT fk_item_category FOREIGN KEY (item_category_id) REFERENCES item_categories(id),
+    CONSTRAINT fk_item_uom FOREIGN KEY (uom_id) REFERENCES uoms(id),
+    CONSTRAINT fk_item_coa FOREIGN KEY (coa_id) REFERENCES coa(id)
+);
+
+CREATE TABLE IF NOT EXISTS vendors (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    vendor_category_id INTEGER,
+    supplier_number VARCHAR(100),
+    supplier_name VARCHAR(150),
+    tds_id INTEGER,
+    payment_term_id INTEGER,
+    applicant_type_id INTEGER,
+    resident_status VARCHAR(50),
+    pan_number VARCHAR(20),
+    gst_number VARCHAR(20),
+    country_code VARCHAR(10),
+    vendor_type VARCHAR(50),
+    is_msme BOOLEAN DEFAULT FALSE,
+    address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
+    address_line3 VARCHAR(255),
+    state_code VARCHAR(50),
+    city VARCHAR(100),
+    pincode VARCHAR(20),
+    country_id INTEGER,
+    currency_id INTEGER,
+    contact_first_name VARCHAR(100),
+    contact_last_name VARCHAR(100),
+    contact_phone VARCHAR(20),
+    contact_email VARCHAR(100),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_category FOREIGN KEY (vendor_category_id) REFERENCES vendor_categories(id),
+    CONSTRAINT fk_vendor_tds FOREIGN KEY (tds_id) REFERENCES tds(id),
+    CONSTRAINT fk_vendor_payment_term FOREIGN KEY (payment_term_id) REFERENCES payment_terms(id),
+    CONSTRAINT fk_vendor_applicant_type FOREIGN KEY (applicant_type_id) REFERENCES applicant_types(id),
+    CONSTRAINT fk_vendor_country FOREIGN KEY (country_id) REFERENCES country(id),
+    CONSTRAINT fk_vendor_currency FOREIGN KEY (currency_id) REFERENCES currencies(id)
+);
+
+-- Idempotent column adds (so existing databases pick up new columns)
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS is_msme BOOLEAN DEFAULT FALSE;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(255);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS address_line3 VARCHAR(255);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS state_code VARCHAR(50);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS country_id INTEGER;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS currency_id INTEGER;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_first_name VARCHAR(100);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_last_name VARCHAR(100);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20);
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_email VARCHAR(100);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_vendor_country'
+    ) THEN
+        ALTER TABLE vendors
+            ADD CONSTRAINT fk_vendor_country FOREIGN KEY (country_id) REFERENCES country(id);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_vendor_currency'
+    ) THEN
+        ALTER TABLE vendors
+            ADD CONSTRAINT fk_vendor_currency FOREIGN KEY (currency_id) REFERENCES currencies(id);
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS vendor_sites (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL,
+    site_code VARCHAR(50) NOT NULL,
+    site_name VARCHAR(150),
+    address TEXT,
+    contact_person VARCHAR(100),
+    contact_phone VARCHAR(20),
+    contact_email VARCHAR(100),
+    supplier_site_name VARCHAR(150),
+    oracle_address_name VARCHAR(150),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_site_vendor
+        FOREIGN KEY (vendor_id)
+        REFERENCES vendors(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS vendor_bank_details (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL,
+    account_number VARCHAR(50),
+    bank_name VARCHAR(100),
+    branch_name VARCHAR(100),
+    ifsc_code VARCHAR(20),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_bank_vendor
+        FOREIGN KEY (vendor_id)
+        REFERENCES vendors(id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS vendor_entities (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_entity_vendor
+        FOREIGN KEY (vendor_id)
+        REFERENCES vendors(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_vendor_entity_entity
+        FOREIGN KEY (entity_id)
+        REFERENCES entities(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_vendor_entity UNIQUE (vendor_id, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS vendor_centers (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL,
+    center_id INTEGER NOT NULL,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_center_vendor
+        FOREIGN KEY (vendor_id)
+        REFERENCES vendors(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_vendor_center_center
+        FOREIGN KEY (center_id)
+        REFERENCES centers(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_vendor_center UNIQUE (vendor_id, center_id)
+);
+
+CREATE TABLE IF NOT EXISTS vendor_documents (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_url VARCHAR(500) NOT NULL,
+    file_size INTEGER,
+    mime_type VARCHAR(100),
+    description VARCHAR(255),
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_vendor_document_vendor
+        FOREIGN KEY (vendor_id)
+        REFERENCES vendors(id)
+        ON DELETE CASCADE
+);

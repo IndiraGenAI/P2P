@@ -1,3 +1,4 @@
+import { ApplicantTypeModule } from './other/applicant-type/applicant-type.module';
 import { AuthModule } from './auth/auth.module';
 import { CenterModule } from './center/center.module';
 import { CityModule } from './city/city.module';
@@ -11,12 +12,18 @@ import { DepartmentModule } from './department/department.module';
 import { EntityModule } from './entity/entity.module';
 import { GstModule } from './gst/gst.module';
 import { InvoiceSourceModule } from './invoice-source/invoice-source.module';
+import { ItemModule } from './item/item/item.module';
+import { ItemCategoryModule } from './item/item-category/item-category.module';
+import { ItemTypeModule } from './item/item-type/item-type.module';
+import { PaymentTermModule } from './other/payment-term/payment-term.module';
 import { RolePermissionsModule } from './role-permissions/role-permissions.module';
 import { RolesModule } from './roles/roles.module';
 import { StateModule } from './state/state.module';
 import { SubdepartmentModule } from './subdepartment/subdepartment.module';
 import { TdsModule } from './tds/tds.module';
+import { UomModule } from './other/uom/uom.module';
 import { UsersModule } from './users/users.module';
+import { VendorModule } from './vendor/vendor.module';
 import { VoucherModule } from './voucher/voucher.module';
 import { ZoneModule } from './zone/zone.module';
 
@@ -42,4 +49,11 @@ export const ApplicationModules = [
   TdsModule,
   CoaCategoryModule,
   CoaModule,
+  ApplicantTypeModule,
+  UomModule,
+  PaymentTermModule,
+  ItemCategoryModule,
+  ItemTypeModule,
+  ItemModule,
+  VendorModule,
 ];

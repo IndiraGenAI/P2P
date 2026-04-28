@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateCurrencyDto } from './dto/create-currency.dto';
 import { GetCurrencyFilterDto } from './dto/currency-filter.dto';
 import { UpdateCurrencyDto } from './dto/update-currency.dto';
 import { UpdateCurrencyStatusDto } from './dto/update-status.dto';
-import { CurrencyRepository } from './currency.repository';
+import { CurrencyRepository } from './repository/currency.repository';
 
 interface CurrencyListResponse {
   rows: Currency[];
@@ -21,7 +21,7 @@ interface CurrencyListResponse {
 
 @Injectable()
 export class CurrencyService {
-  async createCurrency(
+  async create(
     createDto: CreateCurrencyDto,
     userEmailId: string | null,
   ): Promise<Currency> {
@@ -58,7 +58,7 @@ export class CurrencyService {
     return CurrencyRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCurrencyFilterDto,
   ): Promise<PageDto<Currency> | CurrencyListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -105,7 +105,7 @@ export class CurrencyService {
     return entity;
   }
 
-  async updateCurrency(
+  async update(
     id: number,
     updateDto: UpdateCurrencyDto,
     userEmailId: string | null,

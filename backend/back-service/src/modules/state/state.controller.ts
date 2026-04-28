@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class StateController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.stateService.createState(data, req.user.email);
+    const result = await this.stateService.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class StateController {
     @Query() filterDto: GetStateFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.stateService.findAllWithFilter(filterDto);
+    const result = await this.stateService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class StateController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.stateService.updateState(
+    const result = await this.stateService.update(
       id,
       updateStateDto,
       req.user.email,
@@ -105,7 +105,7 @@ export class StateController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateStateStatusDto.updated_by = req.user.email;
-    const result = await this.stateService.updateStateStatus(
+    const result = await this.stateService.updateStatus(
       id,
       updateStateStatusDto,
     );

@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class EntityController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.service.createEntity(data, req.user.email);
+    const result = await this.service.create(data, req.user.email);
     return baseController.getResult(
       res,
       201,
@@ -51,7 +51,7 @@ export class EntityController {
     @Query() filterDto: GetEntityFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.service.findAllWithFilter(filterDto);
+    const result = await this.service.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -83,7 +83,7 @@ export class EntityController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.service.updateEntity(
+    const result = await this.service.update(
       id,
       updateDto,
       req.user.email,

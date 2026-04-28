@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { GetDepartmentFilterDto } from './dto/department-filter.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { UpdateDepartmentStatusDto } from './dto/update-status.dto';
-import { DepartmentRepository } from './department.repository';
+import { DepartmentRepository } from './repository/department.repository';
 
 interface DepartmentListResponse {
   rows: Department[];
@@ -21,7 +21,7 @@ interface DepartmentListResponse {
 
 @Injectable()
 export class DepartmentService {
-  async createDepartment(
+  async create(
     createDepartmentDto: CreateDepartmentDto,
     userEmailId: string | null,
   ): Promise<Department> {
@@ -58,7 +58,7 @@ export class DepartmentService {
     return DepartmentRepository.save(department);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetDepartmentFilterDto,
   ): Promise<PageDto<Department> | DepartmentListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -107,7 +107,7 @@ export class DepartmentService {
     return department;
   }
 
-  async updateDepartment(
+  async update(
     id: number,
     updateDepartmentDto: UpdateDepartmentDto,
     userEmailId: string | null,
@@ -159,7 +159,7 @@ export class DepartmentService {
     throw new NotFoundException('Department not found');
   }
 
-  async updateDepartmentStatus(
+  async updateStatus(
     id: number,
     updateDepartmentStatusDto: UpdateDepartmentStatusDto,
   ): Promise<UpdateResult> {

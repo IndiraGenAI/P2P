@@ -12,7 +12,7 @@ import { CreateGstDto } from './dto/create-gst.dto';
 import { GetGstFilterDto } from './dto/gst-filter.dto';
 import { UpdateGstDto } from './dto/update-gst.dto';
 import { UpdateGstStatusDto } from './dto/update-status.dto';
-import { GstRepository } from './gst.repository';
+import { GstRepository } from './repository/gst.repository';
 
 interface GstListResponse {
   rows: Gst[];
@@ -21,7 +21,7 @@ interface GstListResponse {
 
 @Injectable()
 export class GstService {
-  async createGst(
+  async create(
     createDto: CreateGstDto,
     userEmailId: string | null,
   ): Promise<Gst> {
@@ -57,7 +57,7 @@ export class GstService {
     return GstRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetGstFilterDto,
   ): Promise<PageDto<Gst> | GstListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -104,7 +104,7 @@ export class GstService {
     return entity;
   }
 
-  async updateGst(
+  async update(
     id: number,
     updateDto: UpdateGstDto,
     userEmailId: string | null,

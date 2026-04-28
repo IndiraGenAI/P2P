@@ -1,9 +1,9 @@
 import { dataSource } from "src/core/data-source";
 import { Area, Source, Lookups, PaymentMode, LabelRemarks, City, Country, State } from "erp-db";
-import { getLookupType } from "./dto/getLookupType.dto";
-import { SourceResponse } from "./dto/source.interface.dto";
-import { PaymentModeResponse } from "./dto/payment-mode.interface.dto";
-import { LabelRemarksResponse } from "./dto/label-emarks.interface.dto";
+import { getLookupType } from "../dto/getLookupType.dto";
+import { SourceResponse } from "../dto/source.interface.dto";
+import { PaymentModeResponse } from "../dto/payment-mode.interface.dto";
+import { LabelRemarksResponse } from "../dto/label-emarks.interface.dto";
 import { Configurations } from "erp-db";
 export const lookupRepository = dataSource.getRepository(Lookups).extend({
     async getLookUpByType(lookupType: getLookupType): Promise<Lookups[]> {

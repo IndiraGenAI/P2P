@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SaveRolePermissionsDto } from './dto/save-role-permissions.dto';
-import { RolePermissionsRepository } from './role-permissions.repository';
+import { RolePermissionsRepository } from './repository/role-permissions.repository';
 
 @Injectable()
 export class RolePermissionsService {

@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateInvoiceSourceDto } from './dto/create-invoice-source.dto';
 import { GetInvoiceSourceFilterDto } from './dto/invoice-source-filter.dto';
 import { UpdateInvoiceSourceDto } from './dto/update-invoice-source.dto';
 import { UpdateInvoiceSourceStatusDto } from './dto/update-status.dto';
-import { InvoiceSourceRepository } from './invoice-source.repository';
+import { InvoiceSourceRepository } from './repository/invoice-source.repository';
 
 interface InvoiceSourceListResponse {
   rows: InvoiceSource[];
@@ -21,7 +21,7 @@ interface InvoiceSourceListResponse {
 
 @Injectable()
 export class InvoiceSourceService {
-  async createInvoiceSource(
+  async create(
     createDto: CreateInvoiceSourceDto,
     userEmailId: string | null,
   ): Promise<InvoiceSource> {
@@ -56,7 +56,7 @@ export class InvoiceSourceService {
     return InvoiceSourceRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetInvoiceSourceFilterDto,
   ): Promise<PageDto<InvoiceSource> | InvoiceSourceListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -103,7 +103,7 @@ export class InvoiceSourceService {
     return entity;
   }
 
-  async updateInvoiceSource(
+  async update(
     id: number,
     updateDto: UpdateInvoiceSourceDto,
     userEmailId: string | null,

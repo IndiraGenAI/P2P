@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { GetRoleFilterDto } from './dto/role-filter.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateRoleStatusDto } from './dto/update-status.dto';
 import { Pages, Roles } from 'erp-db';
-import { PagesRepository, RolesRepository } from './roles.repository';
+import { PagesRepository, RolesRepository } from './repository/roles.repository';
 
 interface RoleListResponse {
   rows: Roles[];
@@ -34,7 +34,7 @@ const sortByAsc = <T>(arr: T[], pick: (item: T) => number | string): T[] =>
 
 @Injectable()
 export class RolesService {
-  async createRole(
+  async create(
     createRoleDto: CreateRoleDto,
     userEmailId: string | null,
   ): Promise<Roles> {
@@ -58,7 +58,7 @@ export class RolesService {
     return RolesRepository.save(role);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetRoleFilterDto,
   ): Promise<PageDto<Roles> | RoleListResponse> {
     const { name, type, status, orderBy, order } = filterDto;
@@ -110,7 +110,7 @@ export class RolesService {
     return role;
   }
 
-  async updateRole(
+  async update(
     id: number,
     updateRoleDto: UpdateRoleDto,
     userEmailId: string | null,
@@ -156,7 +156,7 @@ export class RolesService {
     throw new NotFoundException('Role not found');
   }
 
-  async updateRoleStatus(
+  async updateStatus(
     id: number,
     updateRoleStatusDto: UpdateRoleStatusDto,
   ): Promise<UpdateResult> {

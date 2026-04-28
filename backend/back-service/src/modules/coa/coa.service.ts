@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,8 +12,8 @@ import { CreateCoaDto } from './dto/create-coa.dto';
 import { GetCoaFilterDto } from './dto/coa-filter.dto';
 import { UpdateCoaDto } from './dto/update-coa.dto';
 import { UpdateCoaStatusDto } from './dto/update-status.dto';
-import { CoaRepository } from './coa.repository';
-import { CoaCategoryRepository } from '../coa-category/coa-category.repository';
+import { CoaRepository } from './repository/coa.repository';
+import { CoaCategoryRepository } from '../coa-category/repository/coa-category.repository';
 
 interface CoaListResponse {
   rows: Coa[];
@@ -33,7 +33,7 @@ export class CoaService {
     }
   }
 
-  async createCoa(
+  async create(
     createDto: CreateCoaDto,
     userEmailId: string | null,
   ): Promise<Coa> {
@@ -75,7 +75,7 @@ export class CoaService {
     return CoaRepository.save(entity);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCoaFilterDto,
   ): Promise<PageDto<Coa> | CoaListResponse> {
     const { name, status, coa_category_id, orderBy, order } = filterDto;
@@ -134,7 +134,7 @@ export class CoaService {
     return entity;
   }
 
-  async updateCoa(
+  async update(
     id: number,
     updateDto: UpdateCoaDto,
     userEmailId: string | null,

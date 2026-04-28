@@ -29,6 +29,15 @@ import GstPage from '@/pages/Gst';
 import TdsPage from '@/pages/Tds';
 import CoaCategoryPage from '@/pages/CoaCategory';
 import CoaPage from '@/pages/Coa';
+import ApplicantTypePage from '@/pages/Other/ApplicantType';
+import UomPage from '@/pages/Other/Uom';
+import PaymentTermPage from '@/pages/Other/PaymentTerm';
+import ItemCategoryPage from '@/pages/Item/ItemCategory';
+import ItemTypePage from '@/pages/Item/ItemType';
+import ItemPage from '@/pages/Item/Item';
+import VendorCategoryPage from '@/pages/Vendor/VendorCategory';
+import VendorPage from '@/pages/Vendor/Vendor';
+import VendorSitePage from '@/pages/Vendor/VendorSite';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ability } from '@/ability';
@@ -170,49 +179,31 @@ function AppRoutes({
 
         {/* Masters - Purchasing */}
         <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR} />}>
-          <Route path="/masters/vendor" element={<PlaceholderPage title="Vendor" />} />
+          <Route path="/masters/vendor" element={<VendorPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR_SITE} />}>
-          <Route
-            path="/masters/vendor-site"
-            element={<PlaceholderPage title="Vendor Site" />}
-          />
+          <Route path="/masters/vendor-site" element={<VendorSitePage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.VENDOR_CATEGORY} />}>
-          <Route
-            path="/masters/vendor-category"
-            element={<PlaceholderPage title="Vendor Category" />}
-          />
+          <Route path="/masters/vendor-category" element={<VendorCategoryPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.APPLICANT_TYPE} />}>
-          <Route
-            path="/masters/applicant-type"
-            element={<PlaceholderPage title="Applicant Type" />}
-          />
+          <Route path="/masters/applicant-type" element={<ApplicantTypePage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.ITEM} />}>
-          <Route path="/masters/item" element={<PlaceholderPage title="Item" />} />
+          <Route path="/masters/item" element={<ItemPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.ITEM_TYPE} />}>
-          <Route
-            path="/masters/item-type"
-            element={<PlaceholderPage title="Item Type" />}
-          />
+          <Route path="/masters/item-type" element={<ItemTypePage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.ITEM_CATEGORY} />}>
-          <Route
-            path="/masters/item-category"
-            element={<PlaceholderPage title="Item Category" />}
-          />
+          <Route path="/masters/item-category" element={<ItemCategoryPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.UOM} />}>
-          <Route path="/masters/uom" element={<PlaceholderPage title="UOM" />} />
+          <Route path="/masters/uom" element={<UomPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.PAYMENT_TERMS} />}>
-          <Route
-            path="/masters/payment-terms"
-            element={<PlaceholderPage title="Payment Terms" />}
-          />
+          <Route path="/masters/payment-terms" element={<PaymentTermPage />} />
         </Route>
 
         {/* Masters - Organization */}

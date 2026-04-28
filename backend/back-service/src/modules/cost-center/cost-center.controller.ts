@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class CostCenterController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.costCenterService.createCostCenter(
+    const result = await this.costCenterService.create(
       data,
       req.user.email,
     );
@@ -54,7 +54,7 @@ export class CostCenterController {
     @Query() filterDto: GetCostCenterFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.costCenterService.findAllWithFilter(filterDto);
+    const result = await this.costCenterService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -86,7 +86,7 @@ export class CostCenterController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.costCenterService.updateCostCenter(
+    const result = await this.costCenterService.update(
       id,
       updateCostCenterDto,
       req.user.email,
@@ -108,7 +108,7 @@ export class CostCenterController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateCostCenterStatusDto.updated_by = req.user.email;
-    const result = await this.costCenterService.updateCostCenterStatus(
+    const result = await this.costCenterService.updateStatus(
       id,
       updateCostCenterStatusDto,
     );

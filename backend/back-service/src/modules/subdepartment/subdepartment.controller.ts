@@ -1,4 +1,4 @@
-import { Role } from '@core/guards/role.guard';
+﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -36,7 +36,7 @@ export class SubdepartmentController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.subdepartmentService.createSubdepartment(
+    const result = await this.subdepartmentService.create(
       data,
       req.user.email,
     );
@@ -54,7 +54,7 @@ export class SubdepartmentController {
     @Query() filterDto: GetSubdepartmentFilterDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const result = await this.subdepartmentService.findAllWithFilter(filterDto);
+    const result = await this.subdepartmentService.findAll(filterDto);
     return baseController.getResult(
       res,
       200,
@@ -86,7 +86,7 @@ export class SubdepartmentController {
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
-    const result = await this.subdepartmentService.updateSubdepartment(
+    const result = await this.subdepartmentService.update(
       id,
       updateSubdepartmentDto,
       req.user.email,
@@ -108,7 +108,7 @@ export class SubdepartmentController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Response> {
     updateSubdepartmentStatusDto.updated_by = req.user.email;
-    const result = await this.subdepartmentService.updateSubdepartmentStatus(
+    const result = await this.subdepartmentService.updateStatus(
       id,
       updateSubdepartmentStatusDto,
     );

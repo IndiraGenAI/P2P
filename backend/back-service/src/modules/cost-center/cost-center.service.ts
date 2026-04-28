@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateCostCenterDto } from './dto/create-cost-center.dto';
 import { GetCostCenterFilterDto } from './dto/cost-center-filter.dto';
 import { UpdateCostCenterDto } from './dto/update-cost-center.dto';
 import { UpdateCostCenterStatusDto } from './dto/update-status.dto';
-import { CostCenterRepository } from './cost-center.repository';
+import { CostCenterRepository } from './repository/cost-center.repository';
 
 interface CostCenterListResponse {
   rows: CostCenter[];
@@ -21,7 +21,7 @@ interface CostCenterListResponse {
 
 @Injectable()
 export class CostCenterService {
-  async createCostCenter(
+  async create(
     createCostCenterDto: CreateCostCenterDto,
     userEmailId: string | null,
   ): Promise<CostCenter> {
@@ -55,7 +55,7 @@ export class CostCenterService {
     return CostCenterRepository.save(costCenter);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCostCenterFilterDto,
   ): Promise<PageDto<CostCenter> | CostCenterListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -104,7 +104,7 @@ export class CostCenterService {
     return costCenter;
   }
 
-  async updateCostCenter(
+  async update(
     id: number,
     updateCostCenterDto: UpdateCostCenterDto,
     userEmailId: string | null,
@@ -150,7 +150,7 @@ export class CostCenterService {
     throw new NotFoundException('Cost center not found');
   }
 
-  async updateCostCenterStatus(
+  async updateStatus(
     id: number,
     updateCostCenterStatusDto: UpdateCostCenterStatusDto,
   ): Promise<UpdateResult> {

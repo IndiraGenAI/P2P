@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateStateDto } from './dto/create-state.dto';
 import { GetStateFilterDto } from './dto/state-filter.dto';
 import { UpdateStateDto } from './dto/update-state.dto';
 import { UpdateStateStatusDto } from './dto/update-status.dto';
-import { StateRepository } from './state.repository';
+import { StateRepository } from './repository/state.repository';
 
 interface StateListResponse {
   rows: State[];
@@ -21,7 +21,7 @@ interface StateListResponse {
 
 @Injectable()
 export class StateService {
-  async createState(
+  async create(
     createStateDto: CreateStateDto,
     userEmailId: string | null,
   ): Promise<State> {
@@ -56,7 +56,7 @@ export class StateService {
     return StateRepository.save(state);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetStateFilterDto,
   ): Promise<PageDto<State> | StateListResponse> {
     const { name, country_id, status, orderBy, order } = filterDto;
@@ -114,7 +114,7 @@ export class StateService {
     return state;
   }
 
-  async updateState(
+  async update(
     id: number,
     updateStateDto: UpdateStateDto,
     userEmailId: string | null,
@@ -164,7 +164,7 @@ export class StateService {
     throw new NotFoundException('State not found');
   }
 
-  async updateStateStatus(
+  async updateStatus(
     id: number,
     updateStateStatusDto: UpdateStateStatusDto,
   ): Promise<UpdateResult> {

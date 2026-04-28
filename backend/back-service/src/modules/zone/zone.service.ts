@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateZoneDto } from './dto/create-zone.dto';
 import { GetZoneFilterDto } from './dto/zone-filter.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { UpdateZoneStatusDto } from './dto/update-status.dto';
-import { ZoneRepository } from './zone.repository';
+import { ZoneRepository } from './repository/zone.repository';
 
 interface ZoneListResponse {
   rows: Zone[];
@@ -21,7 +21,7 @@ interface ZoneListResponse {
 
 @Injectable()
 export class ZoneService {
-  async createZone(
+  async create(
     createZoneDto: CreateZoneDto,
     userEmailId: string | null,
   ): Promise<Zone> {
@@ -57,7 +57,7 @@ export class ZoneService {
     return ZoneRepository.save(zone);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetZoneFilterDto,
   ): Promise<PageDto<Zone> | ZoneListResponse> {
     const { name, country_id, status, orderBy, order } = filterDto;
@@ -116,7 +116,7 @@ export class ZoneService {
     return zone;
   }
 
-  async updateZone(
+  async update(
     id: number,
     updateZoneDto: UpdateZoneDto,
     userEmailId: string | null,
@@ -166,7 +166,7 @@ export class ZoneService {
     throw new NotFoundException('Zone not found');
   }
 
-  async updateZoneStatus(
+  async updateStatus(
     id: number,
     updateZoneStatusDto: UpdateZoneStatusDto,
   ): Promise<UpdateResult> {

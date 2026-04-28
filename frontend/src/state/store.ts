@@ -19,6 +19,15 @@ import tdsMasterReducer from './tds/tds.reducer';
 import userReducer from './user/user.reducer';
 import voucherMasterReducer from './voucher/voucher.reducer';
 import zoneMasterReducer from './zone/zone.reducer';
+import applicantTypeMasterReducer from './applicantType/applicantType.reducer';
+import uomMasterReducer from './uom/uom.reducer';
+import paymentTermMasterReducer from './paymentTerm/paymentTerm.reducer';
+import itemCategoryMasterReducer from './itemCategory/itemCategory.reducer';
+import itemTypeMasterReducer from './itemType/itemType.reducer';
+import itemMasterReducer from './item/item.reducer';
+import vendorCategoryMasterReducer from './vendorCategory/vendorCategory.reducer';
+import vendorMasterReducer from './vendor/vendor.reducer';
+import vendorSiteMasterReducer from './vendorSite/vendorSite.reducer';
 
 export const store = configureStore({
   reducer: {
@@ -42,6 +51,15 @@ export const store = configureStore({
     tdsMaster: tdsMasterReducer,
     coaCategoryMaster: coaCategoryMasterReducer,
     coaMaster: coaMasterReducer,
+    applicantTypeMaster: applicantTypeMasterReducer,
+    uomMaster: uomMasterReducer,
+    paymentTermMaster: paymentTermMasterReducer,
+    itemCategoryMaster: itemCategoryMasterReducer,
+    itemTypeMaster: itemTypeMasterReducer,
+    itemMaster: itemMasterReducer,
+    vendorCategoryMaster: vendorCategoryMasterReducer,
+    vendorMaster: vendorMasterReducer,
+    vendorSiteMaster: vendorSiteMasterReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),

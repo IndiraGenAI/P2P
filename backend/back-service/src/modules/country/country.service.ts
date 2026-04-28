@@ -1,4 +1,4 @@
-import {
+﻿import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,7 +12,7 @@ import { CreateCountryDto } from './dto/create-country.dto';
 import { GetCountryFilterDto } from './dto/country-filter.dto';
 import { UpdateCountryDto } from './dto/update-country.dto';
 import { UpdateCountryStatusDto } from './dto/update-status.dto';
-import { CountryRepository } from './country.repository';
+import { CountryRepository } from './repository/country.repository';
 
 interface CountryListResponse {
   rows: Country[];
@@ -21,7 +21,7 @@ interface CountryListResponse {
 
 @Injectable()
 export class CountryService {
-  async createCountry(
+  async create(
     createCountryDto: CreateCountryDto,
     userEmailId: string | null,
   ): Promise<Country> {
@@ -48,7 +48,7 @@ export class CountryService {
     return CountryRepository.save(country);
   }
 
-  async findAllWithFilter(
+  async findAll(
     filterDto: GetCountryFilterDto,
   ): Promise<PageDto<Country> | CountryListResponse> {
     const { name, status, orderBy, order } = filterDto;
@@ -96,7 +96,7 @@ export class CountryService {
     return country;
   }
 
-  async updateCountry(
+  async update(
     id: number,
     updateCountryDto: UpdateCountryDto,
     userEmailId: string | null,
@@ -139,7 +139,7 @@ export class CountryService {
     throw new NotFoundException('Country not found');
   }
 
-  async updateCountryStatus(
+  async updateStatus(
     id: number,
     updateCountryStatusDto: UpdateCountryStatusDto,
   ): Promise<UpdateResult> {
