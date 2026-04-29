@@ -9,7 +9,6 @@ import {
   Plus,
   ShieldCheck,
   Trash2,
-  Search,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer } from '@/components/ui/Drawer';
@@ -108,7 +107,6 @@ const buildSearchParams = (
   sort: { key: SortKey; dir: SortDir },
   page: number,
   pageSize: number,
-  quickSearch: string,
 ): URLSearchParams => {
   const params = new URLSearchParams();
   params.set('skip', String((page - 1) * pageSize));
@@ -119,7 +117,6 @@ const buildSearchParams = (
   }
   const merged: Record<string, string> = {
     ...filters,
-    ...(quickSearch ? { name: quickSearch } : {}),
   };
   for (const [key, value] of Object.entries(merged)) {
     if (value !== '' && value !== undefined && value !== null) {
@@ -140,8 +137,6 @@ export const RolesPage = () => {
     key: null,
     dir: 'asc',
   });
-  const [quickSearch, setQuickSearch] = useState('');
-
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -167,7 +162,7 @@ export const RolesPage = () => {
   const lastFetchRef = useRef<{ key: string; at: number } | null>(null);
 
   const refresh = (force = false) => {
-    const params = buildSearchParams(appliedFilters, sort, page, pageSize, quickSearch);
+    const params = buildSearchParams(appliedFilters, sort, page, pageSize);
     const key = params.toString();
     const now = Date.now();
     if (
@@ -185,7 +180,7 @@ export const RolesPage = () => {
   useEffect(() => {
     refresh();
 
-  }, [appliedFilters, sort, page, pageSize, quickSearch]);
+  }, [appliedFilters, sort, page, pageSize]);
 
 
 
@@ -373,23 +368,6 @@ export const RolesPage = () => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={quickSearch}
-                onChange={(e) => {
-                  setQuickSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search by name…"
-                className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-56"
-              />
-            </div>
-
             <button
               type="button"
               onClick={() => {

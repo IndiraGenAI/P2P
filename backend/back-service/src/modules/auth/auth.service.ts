@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Users, UserStatus } from 'erp-db';
 import { APP_ENV } from '../../configs/env.config';
-import { UsersRepository } from '../users/repository/users.repository';
+import { usersRepository } from '../users/repository/users.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { JwtPayload } from './jwt.strategy';
@@ -62,7 +62,7 @@ interface RolePermissionRow {
 const loadRolePermissionsForUser = async (
   userId: number,
 ): Promise<AuthRolePermission[]> => {
-  const rows = await UsersRepository.query(
+  const rows = await usersRepository.query(
     `
       SELECT
         pa.id          AS pa_id,
@@ -118,7 +118,7 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthTokenPair> {
     const email = dto.email.trim().toLowerCase();
 
-    const existing = await UsersRepository.findOne({ where: { email } });
+    const existing = await usersRepository.findOne({ where: { email } });
     if (existing) {
       throw new ConflictException(
         `User with email "${email}" already exists`,
@@ -126,7 +126,7 @@ export class AuthService {
     }
 
     const hash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = UsersRepository.create({
+    const user = usersRepository.create({
       first_name: dto.first_name.trim(),
       last_name: dto.last_name.trim(),
       email,
@@ -138,14 +138,14 @@ export class AuthService {
       created_by: email,
     });
 
-    const saved = await UsersRepository.save(user);
+    const saved = await usersRepository.save(user);
     return this.signFor(saved);
   }
 
   async login(dto: LoginDto): Promise<AuthTokenPair> {
     const email = dto.email.trim().toLowerCase();
 
-    const user = await UsersRepository.findOne({
+    const user = await usersRepository.findOne({
       where: { email },
       select: [
         'id',
@@ -179,13 +179,13 @@ export class AuthService {
     }
 
     user.last_seen = new Date();
-    await UsersRepository.save(user);
+    await usersRepository.save(user);
 
     return this.signFor(user);
   }
 
   async getProfile(userId: number): Promise<AuthSafeUser> {
-    const user = await UsersRepository.findOne({ where: { id: userId } });
+    const user = await usersRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('User no longer exists');
     }

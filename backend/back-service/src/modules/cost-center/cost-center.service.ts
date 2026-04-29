@@ -12,7 +12,7 @@ import { CreateCostCenterDto } from './dto/create-cost-center.dto';
 import { GetCostCenterFilterDto } from './dto/cost-center-filter.dto';
 import { UpdateCostCenterDto } from './dto/update-cost-center.dto';
 import { UpdateCostCenterStatusDto } from './dto/update-status.dto';
-import { CostCenterRepository } from './repository/cost-center.repository';
+import { costCenterRepository } from './repository/cost-center.repository';
 
 interface CostCenterListResponse {
   rows: CostCenter[];
@@ -34,8 +34,8 @@ export class CostCenterService {
       throw new ConflictException('Cost center name is required');
     }
 
-    const codeConflict = await CostCenterRepository.createQueryBuilder('cc')
-      .where('LOWER(cc.code) = LOWER(:code)', { code })
+    const codeConflict = await costCenterRepository.createQueryBuilder('cost_center')
+      .where('LOWER(cost_center.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -43,7 +43,7 @@ export class CostCenterService {
       );
     }
 
-    const costCenter = CostCenterRepository.create({
+    const costCenter = costCenterRepository.create({
       ...createCostCenterDto,
       code,
       name,
@@ -52,7 +52,7 @@ export class CostCenterService {
       created_date: new Date(),
     });
 
-    return CostCenterRepository.save(costCenter);
+    return costCenterRepository.save(costCenter);
   }
 
   async findAll(
@@ -60,21 +60,28 @@ export class CostCenterService {
   ): Promise<PageDto<CostCenter> | CostCenterListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = CostCenterRepository.createQueryBuilder('cc');
+    const query = costCenterRepository.createQueryBuilder('cost_center').select([
+      'cost_center.id',
+      'cost_center.name',
+      'cost_center.code',
+      'cost_center.status',
+      'cost_center.created_date',
+      'cost_center.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(cc.name) LIKE LOWER(:name) OR LOWER(cc.code) LIKE LOWER(:name))',
+        '(LOWER(cost_center.name) LIKE LOWER(:name) OR LOWER(cost_center.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('cc.status = :status', { status });
+      query.andWhere('cost_center.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`cc.${sortColumn}`, order);
+    query.orderBy(`cost_center.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -97,7 +104,10 @@ export class CostCenterService {
   }
 
   async findOne(id: number): Promise<CostCenter> {
-    const costCenter = await CostCenterRepository.findOne({ where: { id } });
+    const costCenter = await costCenterRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!costCenter) {
       throw new NotFoundException('Cost center not found');
     }
@@ -109,7 +119,7 @@ export class CostCenterService {
     updateCostCenterDto: UpdateCostCenterDto,
     userEmailId: string | null,
   ): Promise<CostCenter> {
-    const costCenter = await CostCenterRepository.findOne({ where: { id } });
+    const costCenter = await costCenterRepository.findOne({ where: { id } });
     if (!costCenter) {
       throw new NotFoundException('Cost center not found');
     }
@@ -118,9 +128,9 @@ export class CostCenterService {
     const nextName = updateCostCenterDto.name?.trim() ?? costCenter.name;
 
     if (nextCode !== costCenter.code) {
-      const codeConflict = await CostCenterRepository.createQueryBuilder('cc')
-        .where('LOWER(cc.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('cc.id != :id', { id })
+      const codeConflict = await costCenterRepository.createQueryBuilder('cost_center')
+        .where('LOWER(cost_center.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('cost_center.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -139,11 +149,11 @@ export class CostCenterService {
       userEmailId ?? updateCostCenterDto.updated_by ?? null;
     costCenter.updated_date = new Date();
 
-    return CostCenterRepository.save(costCenter);
+    return costCenterRepository.save(costCenter);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CostCenterRepository.delete({ id });
+    const result = await costCenterRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -154,7 +164,7 @@ export class CostCenterService {
     id: number,
     updateCostCenterStatusDto: UpdateCostCenterStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CostCenterRepository.update(id, {
+    const result = await costCenterRepository.update(id, {
       ...updateCostCenterStatusDto,
       updated_date: new Date(),
     });

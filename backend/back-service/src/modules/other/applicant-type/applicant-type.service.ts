@@ -12,7 +12,7 @@ import { CreateApplicantTypeDto } from './dto/create-applicant-type.dto';
 import { GetApplicantTypeFilterDto } from './dto/applicant-type-filter.dto';
 import { UpdateApplicantTypeDto } from './dto/update-applicant-type.dto';
 import { UpdateApplicantTypeStatusDto } from './dto/update-status.dto';
-import { ApplicantTypeRepository } from './repository/applicant-type.repository';
+import { applicantTypeRepository } from './repository/applicant-type.repository';
 
 interface ApplicantTypeListResponse {
   rows: ApplicantType[];
@@ -30,8 +30,8 @@ export class ApplicantTypeService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await ApplicantTypeRepository.createQueryBuilder('a')
-      .where('LOWER(a.code) = LOWER(:code)', { code })
+    const codeConflict = await applicantTypeRepository.createQueryBuilder('applicant_type')
+      .where('LOWER(applicant_type.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -39,8 +39,8 @@ export class ApplicantTypeService {
       );
     }
 
-    const nameConflict = await ApplicantTypeRepository.createQueryBuilder('a')
-      .where('LOWER(a.name) = LOWER(:name)', { name })
+    const nameConflict = await applicantTypeRepository.createQueryBuilder('applicant_type')
+      .where('LOWER(applicant_type.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(
@@ -48,7 +48,7 @@ export class ApplicantTypeService {
       );
     }
 
-    const entity = ApplicantTypeRepository.create({
+    const entity = applicantTypeRepository.create({
       ...createDto,
       code,
       name,
@@ -57,7 +57,7 @@ export class ApplicantTypeService {
       created_date: new Date(),
     });
 
-    return ApplicantTypeRepository.save(entity);
+    return applicantTypeRepository.save(entity);
   }
 
   async findAll(
@@ -65,21 +65,28 @@ export class ApplicantTypeService {
   ): Promise<PageDto<ApplicantType> | ApplicantTypeListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = ApplicantTypeRepository.createQueryBuilder('a');
+    const query = applicantTypeRepository.createQueryBuilder('applicant_type').select([
+      'applicant_type.id',
+      'applicant_type.name',
+      'applicant_type.code',
+      'applicant_type.status',
+      'applicant_type.created_date',
+      'applicant_type.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(a.name) LIKE LOWER(:name) OR LOWER(a.code) LIKE LOWER(:name))',
+        '(LOWER(applicant_type.name) LIKE LOWER(:name) OR LOWER(applicant_type.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('a.status = :status', { status });
+      query.andWhere('applicant_type.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`a.${sortColumn}`, order);
+    query.orderBy(`applicant_type.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -102,7 +109,10 @@ export class ApplicantTypeService {
   }
 
   async findOne(id: number): Promise<ApplicantType> {
-    const entity = await ApplicantTypeRepository.findOne({ where: { id } });
+    const entity = await applicantTypeRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Applicant type not found');
     return entity;
   }
@@ -112,16 +122,16 @@ export class ApplicantTypeService {
     updateDto: UpdateApplicantTypeDto,
     userEmailId: string | null,
   ): Promise<ApplicantType> {
-    const entity = await ApplicantTypeRepository.findOne({ where: { id } });
+    const entity = await applicantTypeRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Applicant type not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await ApplicantTypeRepository.createQueryBuilder('a')
-        .where('LOWER(a.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('a.id != :id', { id })
+      const codeConflict = await applicantTypeRepository.createQueryBuilder('applicant_type')
+        .where('LOWER(applicant_type.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('applicant_type.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -131,9 +141,9 @@ export class ApplicantTypeService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await ApplicantTypeRepository.createQueryBuilder('a')
-        .where('LOWER(a.name) = LOWER(:name)', { name: nextName })
-        .andWhere('a.id != :id', { id })
+      const nameConflict = await applicantTypeRepository.createQueryBuilder('applicant_type')
+        .where('LOWER(applicant_type.name) = LOWER(:name)', { name: nextName })
+        .andWhere('applicant_type.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -149,11 +159,11 @@ export class ApplicantTypeService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return ApplicantTypeRepository.save(entity);
+    return applicantTypeRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await ApplicantTypeRepository.delete({ id });
+    const result = await applicantTypeRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Applicant type not found');
   }
@@ -162,7 +172,7 @@ export class ApplicantTypeService {
     id: number,
     updateStatusDto: UpdateApplicantTypeStatusDto,
   ): Promise<UpdateResult> {
-    const result = await ApplicantTypeRepository.update(id, {
+    const result = await applicantTypeRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

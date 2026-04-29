@@ -12,7 +12,7 @@ import { CreateTermsConditionDto } from './dto/create-terms-condition.dto';
 import { GetTermsConditionFilterDto } from './dto/terms-condition-filter.dto';
 import { UpdateTermsConditionDto } from './dto/update-terms-condition.dto';
 import { UpdateTermsConditionStatusDto } from './dto/update-status.dto';
-import { TermsConditionRepository } from './repository/terms-condition.repository';
+import { termsConditionRepository } from './repository/terms-condition.repository';
 
 interface TermsConditionListResponse {
   rows: TermsCondition[];
@@ -30,8 +30,8 @@ export class TermsConditionService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await TermsConditionRepository.createQueryBuilder('t')
-      .where('LOWER(t.code) = LOWER(:code)', { code })
+    const codeConflict = await termsConditionRepository.createQueryBuilder('terms_condition')
+      .where('LOWER(terms_condition.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -39,8 +39,8 @@ export class TermsConditionService {
       );
     }
 
-    const nameConflict = await TermsConditionRepository.createQueryBuilder('t')
-      .where('LOWER(t.name) = LOWER(:name)', { name })
+    const nameConflict = await termsConditionRepository.createQueryBuilder('terms_condition')
+      .where('LOWER(terms_condition.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(
@@ -48,7 +48,7 @@ export class TermsConditionService {
       );
     }
 
-    const entity = TermsConditionRepository.create({
+    const entity = termsConditionRepository.create({
       ...createDto,
       code,
       name,
@@ -58,7 +58,7 @@ export class TermsConditionService {
       created_date: new Date(),
     });
 
-    return TermsConditionRepository.save(entity);
+    return termsConditionRepository.save(entity);
   }
 
   async findAll(
@@ -66,21 +66,28 @@ export class TermsConditionService {
   ): Promise<PageDto<TermsCondition> | TermsConditionListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = TermsConditionRepository.createQueryBuilder('t');
+    const query = termsConditionRepository.createQueryBuilder('terms_condition').select([
+      'terms_condition.id',
+      'terms_condition.name',
+      'terms_condition.code',
+      'terms_condition.status',
+      'terms_condition.created_date',
+      'terms_condition.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(t.name) LIKE LOWER(:name) OR LOWER(t.code) LIKE LOWER(:name))',
+        '(LOWER(terms_condition.name) LIKE LOWER(:name) OR LOWER(terms_condition.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('t.status = :status', { status });
+      query.andWhere('terms_condition.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`t.${sortColumn}`, order);
+    query.orderBy(`terms_condition.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -103,7 +110,10 @@ export class TermsConditionService {
   }
 
   async findOne(id: number): Promise<TermsCondition> {
-    const entity = await TermsConditionRepository.findOne({ where: { id } });
+    const entity = await termsConditionRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'description', 'status'],
+    });
     if (!entity) throw new NotFoundException('Terms & condition not found');
     return entity;
   }
@@ -113,18 +123,18 @@ export class TermsConditionService {
     updateDto: UpdateTermsConditionDto,
     userEmailId: string | null,
   ): Promise<TermsCondition> {
-    const entity = await TermsConditionRepository.findOne({ where: { id } });
+    const entity = await termsConditionRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Terms & condition not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await TermsConditionRepository.createQueryBuilder(
+      const codeConflict = await termsConditionRepository.createQueryBuilder(
         't',
       )
-        .where('LOWER(t.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('t.id != :id', { id })
+        .where('LOWER(terms_condition.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('terms_condition.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -134,11 +144,11 @@ export class TermsConditionService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await TermsConditionRepository.createQueryBuilder(
+      const nameConflict = await termsConditionRepository.createQueryBuilder(
         't',
       )
-        .where('LOWER(t.name) = LOWER(:name)', { name: nextName })
-        .andWhere('t.id != :id', { id })
+        .where('LOWER(terms_condition.name) = LOWER(:name)', { name: nextName })
+        .andWhere('terms_condition.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -157,11 +167,11 @@ export class TermsConditionService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return TermsConditionRepository.save(entity);
+    return termsConditionRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await TermsConditionRepository.delete({ id });
+    const result = await termsConditionRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Terms & condition not found');
   }
@@ -170,7 +180,7 @@ export class TermsConditionService {
     id: number,
     updateStatusDto: UpdateTermsConditionStatusDto,
   ): Promise<UpdateResult> {
-    const result = await TermsConditionRepository.update(id, {
+    const result = await termsConditionRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

@@ -12,11 +12,11 @@ import { CreateItemDto } from './dto/create-item.dto';
 import { GetItemFilterDto } from './dto/item-filter.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemStatusDto } from './dto/update-status.dto';
-import { ItemRepository } from './repository/item.repository';
-import { ItemTypeRepository } from '../item-type/repository/item-type.repository';
-import { ItemCategoryRepository } from '../item-category/repository/item-category.repository';
-import { UomRepository } from '../../other/uom/repository/uom.repository';
-import { CoaRepository } from '../../coa/repository/coa.repository';
+import { itemRepository } from './repository/item.repository';
+import { itemTypeRepository } from '../item-type/repository/item-type.repository';
+import { itemCategoryRepository } from '../item-category/repository/item-category.repository';
+import { uomRepository } from '../../other/uom/repository/uom.repository';
+import { coaRepository } from '../../coa/repository/coa.repository';
 
 interface ItemListResponse {
   rows: Item[];
@@ -26,22 +26,22 @@ interface ItemListResponse {
 @Injectable()
 export class ItemService {
   private async assertItemTypeExists(id: number): Promise<void> {
-    const found = await ItemTypeRepository.findOne({ where: { id } });
+    const found = await itemTypeRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`Item type id=${id} not found`);
   }
 
   private async assertItemCategoryExists(id: number): Promise<void> {
-    const found = await ItemCategoryRepository.findOne({ where: { id } });
+    const found = await itemCategoryRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`Item category id=${id} not found`);
   }
 
   private async assertUomExists(id: number): Promise<void> {
-    const found = await UomRepository.findOne({ where: { id } });
+    const found = await uomRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`UOM id=${id} not found`);
   }
 
   private async assertCoaExists(id: number): Promise<void> {
-    const found = await CoaRepository.findOne({ where: { id } });
+    const found = await coaRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`COA id=${id} not found`);
   }
 
@@ -67,14 +67,14 @@ export class ItemService {
       await this.assertCoaExists(createDto.coa_id);
     }
 
-    const codeConflict = await ItemRepository.createQueryBuilder('i')
-      .where('LOWER(i.code) = LOWER(:code)', { code })
+    const codeConflict = await itemRepository.createQueryBuilder('item')
+      .where('LOWER(item.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Item code "${code}" already exists`);
     }
 
-    const entity = ItemRepository.create({
+    const entity = itemRepository.create({
       ...createDto,
       code,
       name,
@@ -87,7 +87,7 @@ export class ItemService {
       created_date: new Date(),
     });
 
-    return ItemRepository.save(entity);
+    return itemRepository.save(entity);
   }
 
   async findAll(
@@ -96,35 +96,56 @@ export class ItemService {
     const { name, status, item_type_id, item_category_id, orderBy, order } =
       filterDto;
 
-    const query = ItemRepository.createQueryBuilder('i')
-      .leftJoinAndSelect('i.item_type', 'item_type')
-      .leftJoinAndSelect('i.item_category', 'item_category')
-      .leftJoinAndSelect('i.uom', 'uom')
-      .leftJoinAndSelect('i.coa', 'coa');
+    const query = itemRepository.createQueryBuilder('item')
+      .leftJoin('item.item_type', 'item_type')
+      .leftJoin('item.item_category', 'item_category')
+      .leftJoin('item.uom', 'uom')
+      .leftJoin('item.coa', 'coa')
+      .select([
+        'item.id',
+        'item.name',
+        'item.code',
+        'item.item_type_id',
+        'item.item_category_id',
+        'item.uom_id',
+        'item.coa_id',
+        'item.status',
+        'item.created_date',
+        'item.updated_date',
+        'item_type.id',
+        'item_type.name',
+        'item_category.id',
+        'item_category.name',
+        'uom.id',
+        'uom.name',
+        'coa.id',
+        'coa.gl_code',
+        'coa.gl_name',
+      ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(i.name) LIKE LOWER(:name) OR LOWER(i.code) LIKE LOWER(:name))',
+        '(LOWER(item.name) LIKE LOWER(:name) OR LOWER(item.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (item_type_id !== undefined && item_type_id !== null) {
-      query.andWhere('i.item_type_id = :item_type_id', { item_type_id });
+      query.andWhere('item.item_type_id = :item_type_id', { item_type_id });
     }
 
     if (item_category_id !== undefined && item_category_id !== null) {
-      query.andWhere('i.item_category_id = :item_category_id', {
+      query.andWhere('item.item_category_id = :item_category_id', {
         item_category_id,
       });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('i.status = :status', { status });
+      query.andWhere('item.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`i.${sortColumn}`, order);
+    query.orderBy(`item.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -147,8 +168,22 @@ export class ItemService {
   }
 
   async findOne(id: number): Promise<Item> {
-    const entity = await ItemRepository.findOne({
+    const entity = await itemRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        item_type_id: true,
+        item_category_id: true,
+        uom_id: true,
+        coa_id: true,
+        status: true,
+        item_type: { id: true, name: true },
+        item_category: { id: true, name: true },
+        uom: { id: true, name: true },
+        coa: { id: true, gl_code: true, gl_name: true },
+      },
       relations: ['item_type', 'item_category', 'uom', 'coa'],
     });
     if (!entity) throw new NotFoundException('Item not found');
@@ -160,7 +195,7 @@ export class ItemService {
     updateDto: UpdateItemDto,
     userEmailId: string | null,
   ): Promise<Item> {
-    const entity = await ItemRepository.findOne({ where: { id } });
+    const entity = await itemRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Item not found');
 
     if (
@@ -196,9 +231,9 @@ export class ItemService {
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await ItemRepository.createQueryBuilder('i')
-        .where('LOWER(i.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('i.id != :id', { id })
+      const codeConflict = await itemRepository.createQueryBuilder('item')
+        .where('LOWER(item.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('item.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -226,11 +261,11 @@ export class ItemService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return ItemRepository.save(entity);
+    return itemRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await ItemRepository.delete({ id });
+    const result = await itemRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Item not found');
   }
@@ -239,7 +274,7 @@ export class ItemService {
     id: number,
     updateStatusDto: UpdateItemStatusDto,
   ): Promise<UpdateResult> {
-    const result = await ItemRepository.update(id, {
+    const result = await itemRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

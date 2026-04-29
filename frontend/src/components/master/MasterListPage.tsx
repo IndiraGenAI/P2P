@@ -14,7 +14,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Search,
   Trash2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -107,7 +106,6 @@ export interface IMasterListPageProps<TRecord extends { id: number }> {
   showCodeColumn?: boolean;
   filterFields?: ReactNode;
   formInitialValues?: Record<string, unknown>;
-  searchPlaceholder?: string;
   formSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   submitButtonLabel?: { create?: string; update?: string };
 }
@@ -140,7 +138,6 @@ export function MasterListPage<TRecord extends { id: number }>(
     extraColumns = [],
     showCodeColumn = true,
     filterFields,
-    searchPlaceholder = 'Search by name or code…',
     formSize = 'lg',
     submitButtonLabel,
   } = props;
@@ -178,9 +175,6 @@ export function MasterListPage<TRecord extends { id: number }>(
 
   const [count, setCount] = useState(0);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
-  const [quickSearchInput, setQuickSearchInput] = useState(
-    searchParams.get('name') ?? '',
-  );
 
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
@@ -221,7 +215,6 @@ export function MasterListPage<TRecord extends { id: number }>(
       data[key] = value;
     });
     setFormValues(data);
-    setQuickSearchInput(data.name ?? '');
   }, [searchParams]);
 
   useEffect(() => {
@@ -236,18 +229,6 @@ export function MasterListPage<TRecord extends { id: number }>(
     });
     setCount(sum);
   }, [searchParams]);
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      if ((searchParams.get('name') ?? '') === quickSearchInput) return;
-      const sp = new URLSearchParams(searchParams.toString());
-      if (quickSearchInput) sp.set('name', quickSearchInput);
-      else sp.delete('name');
-      sp.set('skip', '0');
-      setSearchParams(sp);
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [quickSearchInput]);
 
   useEffect(() => {
     if (state.create.message) {
@@ -417,20 +398,6 @@ export function MasterListPage<TRecord extends { id: number }>(
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={quickSearchInput}
-                onChange={(e) => setQuickSearchInput(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-56"
-              />
-            </div>
-
             <button
               type="button"
               onClick={() => setIsFilterDrawerOpen(true)}

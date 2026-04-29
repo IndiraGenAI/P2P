@@ -12,7 +12,7 @@ import { CreateStateDto } from './dto/create-state.dto';
 import { GetStateFilterDto } from './dto/state-filter.dto';
 import { UpdateStateDto } from './dto/update-state.dto';
 import { UpdateStateStatusDto } from './dto/update-status.dto';
-import { StateRepository } from './repository/state.repository';
+import { stateRepository } from './repository/state.repository';
 
 interface StateListResponse {
   rows: State[];
@@ -33,7 +33,7 @@ export class StateService {
       throw new ConflictException('Country is required');
     }
 
-    const existing = await StateRepository.createQueryBuilder('state')
+    const existing = await stateRepository.createQueryBuilder('state')
       .where('LOWER(state.name) = LOWER(:name)', { name })
       .andWhere('state.country_id = :country_id', {
         country_id: createStateDto.country_id,
@@ -45,7 +45,7 @@ export class StateService {
       );
     }
 
-    const state = StateRepository.create({
+    const state = stateRepository.create({
       ...createStateDto,
       name,
       status: createStateDto.status ?? true,
@@ -53,7 +53,7 @@ export class StateService {
       created_date: new Date(),
     });
 
-    return StateRepository.save(state);
+    return stateRepository.save(state);
   }
 
   async findAll(
@@ -61,10 +61,18 @@ export class StateService {
   ): Promise<PageDto<State> | StateListResponse> {
     const { name, country_id, status, orderBy, order } = filterDto;
 
-    const query = StateRepository.createQueryBuilder('state').leftJoinAndSelect(
-      'state.country',
-      'country',
-    );
+    const query = stateRepository.createQueryBuilder('state')
+      .leftJoin('state.country', 'country')
+      .select([
+        'state.id',
+        'state.name',
+        'state.country_id',
+        'state.status',
+        'state.created_date',
+        'state.updated_date',
+        'country.id',
+        'country.name',
+      ]);
 
     if (name) {
       query.andWhere('LOWER(state.name) LIKE LOWER(:name)', {
@@ -104,8 +112,15 @@ export class StateService {
   }
 
   async findOne(id: number): Promise<State> {
-    const state = await StateRepository.findOne({
+    const state = await stateRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+        country_id: true,
+        status: true,
+        country: { id: true, name: true },
+      },
       relations: { country: true },
     });
     if (!state) {
@@ -119,7 +134,7 @@ export class StateService {
     updateStateDto: UpdateStateDto,
     userEmailId: string | null,
   ): Promise<State> {
-    const state = await StateRepository.findOne({ where: { id } });
+    const state = await stateRepository.findOne({ where: { id } });
     if (!state) {
       throw new NotFoundException('State not found');
     }
@@ -131,7 +146,7 @@ export class StateService {
       nextName !== state.name ||
       nextCountryId !== state.country_id
     ) {
-      const conflict = await StateRepository.createQueryBuilder('state')
+      const conflict = await stateRepository.createQueryBuilder('state')
         .where('LOWER(state.name) = LOWER(:name)', { name: nextName })
         .andWhere('state.country_id = :country_id', {
           country_id: nextCountryId,
@@ -153,11 +168,11 @@ export class StateService {
     state.updated_by = userEmailId ?? updateStateDto.updated_by ?? null;
     state.updated_date = new Date();
 
-    return StateRepository.save(state);
+    return stateRepository.save(state);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await StateRepository.delete({ id });
+    const result = await stateRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -168,7 +183,7 @@ export class StateService {
     id: number,
     updateStateStatusDto: UpdateStateStatusDto,
   ): Promise<UpdateResult> {
-    const result = await StateRepository.update(id, {
+    const result = await stateRepository.update(id, {
       ...updateStateStatusDto,
       updated_date: new Date(),
     });

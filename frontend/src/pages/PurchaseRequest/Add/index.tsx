@@ -157,9 +157,32 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
   }, [initialValues]);
 
   const setField = (key: keyof FormValues, value: string) => {
-    setLocal((prev) => ({ ...prev, [key]: value }));
-    form.setFieldsValue({ [key]: value } as Partial<FormValues>);
+    setLocal((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'department_id') {
+        next.subdepartment_id = '';
+      }
+      return next;
+    });
+    if (key === 'department_id') {
+      form.setFieldsValue({
+        department_id: value,
+        subdepartment_id: '',
+      } as Partial<FormValues>);
+    } else {
+      form.setFieldsValue({ [key]: value } as Partial<FormValues>);
+    }
   };
+
+  const filteredSubdepartments = useMemo(
+    () =>
+      local.department_id
+        ? subdepartments.filter(
+            (sd) => sd.department_id === local.department_id,
+          )
+        : [],
+    [subdepartments, local.department_id],
+  );
 
   const updateRow = (index: number, patch: Partial<ItemRowDraft>) => {
     setRows((prev) => {
@@ -395,10 +418,20 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               value={local.subdepartment_id}
               onChange={(v) => setField('subdepartment_id', v)}
               options={[
-                { value: '', label: 'Select Sub-department…' },
-                ...subdepartments,
+                {
+                  value: '',
+                  label: local.department_id
+                    ? 'Select Sub-department…'
+                    : 'Select Department first…',
+                },
+                ...filteredSubdepartments,
               ]}
-              placeholder="Select Sub-department…"
+              placeholder={
+                local.department_id
+                  ? 'Select Sub-department…'
+                  : 'Select Department first…'
+              }
+              disabled={!local.department_id}
             />
           </Form.Item>
           <Form.Item name="center_id" label={wrapLabel('Center')}>

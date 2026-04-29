@@ -9,7 +9,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Search,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
@@ -96,10 +95,6 @@ export const ZonePage = () => {
 
   const [count, setCount] = useState<number>(0);
   const [formValues, setFormValues] = useState<IZoneFilterValues>({});
-  const [quickSearchInput, setQuickSearchInput] = useState(
-    searchParams.get('name') ?? '',
-  );
-
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<IZoneRecord | undefined>(
@@ -142,7 +137,6 @@ export const ZonePage = () => {
       (data as Record<string, string>)[key] = value;
     });
     setFormValues(data);
-    setQuickSearchInput(data.name ?? '');
   }, [searchParams]);
 
   useEffect(() => {
@@ -176,17 +170,6 @@ export const ZonePage = () => {
       .catch(() => setCountries([]));
   }, []);
 
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      if ((searchParams.get('name') ?? '') === quickSearchInput) return;
-      const sp = new URLSearchParams(searchParams.toString());
-      if (quickSearchInput) sp.set('name', quickSearchInput);
-      else sp.delete('name');
-      sp.set('skip', '0');
-      setSearchParams(sp);
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [quickSearchInput]);
 
   useEffect(() => {
     if (zoneState.createZone.message) {
@@ -399,20 +382,6 @@ export const ZonePage = () => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={quickSearchInput}
-                onChange={(e) => setQuickSearchInput(e.target.value)}
-                placeholder="Search by name or code…"
-                className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-56"
-              />
-            </div>
-
             <button
               type="button"
               onClick={() => setIsFilterDrawerOpen(true)}

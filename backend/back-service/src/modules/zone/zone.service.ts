@@ -12,7 +12,7 @@ import { CreateZoneDto } from './dto/create-zone.dto';
 import { GetZoneFilterDto } from './dto/zone-filter.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { UpdateZoneStatusDto } from './dto/update-status.dto';
-import { ZoneRepository } from './repository/zone.repository';
+import { zoneRepository } from './repository/zone.repository';
 
 interface ZoneListResponse {
   rows: Zone[];
@@ -33,7 +33,7 @@ export class ZoneService {
       throw new ConflictException('Country is required');
     }
 
-    const existing = await ZoneRepository.createQueryBuilder('zone')
+    const existing = await zoneRepository.createQueryBuilder('zone')
       .where('LOWER(zone.name) = LOWER(:name)', { name })
       .andWhere('zone.country_id = :country_id', {
         country_id: createZoneDto.country_id,
@@ -45,7 +45,7 @@ export class ZoneService {
       );
     }
 
-    const zone = ZoneRepository.create({
+    const zone = zoneRepository.create({
       ...createZoneDto,
       name,
       code: createZoneDto.code?.trim() ?? null,
@@ -54,7 +54,7 @@ export class ZoneService {
       created_date: new Date(),
     });
 
-    return ZoneRepository.save(zone);
+    return zoneRepository.save(zone);
   }
 
   async findAll(
@@ -62,10 +62,19 @@ export class ZoneService {
   ): Promise<PageDto<Zone> | ZoneListResponse> {
     const { name, country_id, status, orderBy, order } = filterDto;
 
-    const query = ZoneRepository.createQueryBuilder('zone').leftJoinAndSelect(
-      'zone.country',
-      'country',
-    );
+    const query = zoneRepository.createQueryBuilder('zone')
+      .leftJoin('zone.country', 'country')
+      .select([
+        'zone.id',
+        'zone.name',
+        'zone.code',
+        'zone.country_id',
+        'zone.status',
+        'zone.created_date',
+        'zone.updated_date',
+        'country.id',
+        'country.name',
+      ]);
 
     if (name) {
       query.andWhere(
@@ -106,8 +115,16 @@ export class ZoneService {
   }
 
   async findOne(id: number): Promise<Zone> {
-    const zone = await ZoneRepository.findOne({
+    const zone = await zoneRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        country_id: true,
+        status: true,
+        country: { id: true, name: true },
+      },
       relations: { country: true },
     });
     if (!zone) {
@@ -121,7 +138,7 @@ export class ZoneService {
     updateZoneDto: UpdateZoneDto,
     userEmailId: string | null,
   ): Promise<Zone> {
-    const zone = await ZoneRepository.findOne({ where: { id } });
+    const zone = await zoneRepository.findOne({ where: { id } });
     if (!zone) {
       throw new NotFoundException('Zone not found');
     }
@@ -130,7 +147,7 @@ export class ZoneService {
     const nextCountryId = updateZoneDto.country_id ?? zone.country_id;
 
     if (nextName !== zone.name || nextCountryId !== zone.country_id) {
-      const conflict = await ZoneRepository.createQueryBuilder('zone')
+      const conflict = await zoneRepository.createQueryBuilder('zone')
         .where('LOWER(zone.name) = LOWER(:name)', { name: nextName })
         .andWhere('zone.country_id = :country_id', {
           country_id: nextCountryId,
@@ -155,11 +172,11 @@ export class ZoneService {
     zone.updated_by = userEmailId ?? updateZoneDto.updated_by ?? null;
     zone.updated_date = new Date();
 
-    return ZoneRepository.save(zone);
+    return zoneRepository.save(zone);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await ZoneRepository.delete({ id });
+    const result = await zoneRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -170,7 +187,7 @@ export class ZoneService {
     id: number,
     updateZoneStatusDto: UpdateZoneStatusDto,
   ): Promise<UpdateResult> {
-    const result = await ZoneRepository.update(id, {
+    const result = await zoneRepository.update(id, {
       ...updateZoneStatusDto,
       updated_date: new Date(),
     });

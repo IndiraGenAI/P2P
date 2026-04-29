@@ -12,7 +12,7 @@ import { GetRoleFilterDto } from './dto/role-filter.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateRoleStatusDto } from './dto/update-status.dto';
 import { Pages, Roles } from 'erp-db';
-import { PagesRepository, RolesRepository } from './repository/roles.repository';
+import { pagesRepository, rolesRepository } from './repository/roles.repository';
 
 interface RoleListResponse {
   rows: Roles[];
@@ -43,19 +43,19 @@ export class RolesService {
       throw new ConflictException('Role name is required');
     }
 
-    const existing = await RolesRepository.findOne({ where: { name } });
+    const existing = await rolesRepository.findOne({ where: { name } });
     if (existing) {
       throw new ConflictException(`Role with name "${name}" already exists`);
     }
 
-    const role = RolesRepository.create({
+    const role = rolesRepository.create({
       ...createRoleDto,
       name,
       status: createRoleDto.status ?? true,
       created_by: userEmailId ?? createRoleDto.created_by ?? null,
     });
 
-    return RolesRepository.save(role);
+    return rolesRepository.save(role);
   }
 
   async findAll(
@@ -63,7 +63,15 @@ export class RolesService {
   ): Promise<PageDto<Roles> | RoleListResponse> {
     const { name, type, status, orderBy, order } = filterDto;
 
-    const query = RolesRepository.createQueryBuilder('roles');
+    const query = rolesRepository.createQueryBuilder('roles').select([
+      'roles.id',
+      'roles.name',
+      'roles.description',
+      'roles.type',
+      'roles.status',
+      'roles.created_date',
+      'roles.updated_date',
+    ]);
 
     if (name) {
       query.andWhere('LOWER(roles.name) LIKE LOWER(:name)', {
@@ -103,7 +111,10 @@ export class RolesService {
   }
 
   async findOne(id: number): Promise<Roles> {
-    const role = await RolesRepository.findOne({ where: { id } });
+    const role = await rolesRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'description', 'type', 'status'],
+    });
     if (!role) {
       throw new NotFoundException('Role not found');
     }
@@ -115,14 +126,14 @@ export class RolesService {
     updateRoleDto: UpdateRoleDto,
     userEmailId: string | null,
   ): Promise<Roles> {
-    const role = await RolesRepository.findOne({ where: { id } });
+    const role = await rolesRepository.findOne({ where: { id } });
     if (!role) {
       throw new NotFoundException('Role not found');
     }
 
     if (updateRoleDto.name && updateRoleDto.name.trim() !== role.name) {
       const newName = updateRoleDto.name.trim();
-      const conflict = await RolesRepository.findOne({
+      const conflict = await rolesRepository.findOne({
         where: { name: newName },
       });
       if (conflict && conflict.id !== id) {
@@ -145,11 +156,11 @@ export class RolesService {
 
     role.updated_by = userEmailId ?? updateRoleDto.updated_by ?? null;
 
-    return RolesRepository.save(role);
+    return rolesRepository.save(role);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await RolesRepository.delete({ id });
+    const result = await rolesRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -160,7 +171,7 @@ export class RolesService {
     id: number,
     updateRoleStatusDto: UpdateRoleStatusDto,
   ): Promise<UpdateResult> {
-    const result = await RolesRepository.update(id, updateRoleStatusDto);
+    const result = await rolesRepository.update(id, updateRoleStatusDto);
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -174,7 +185,7 @@ export class RolesService {
    * permission screen expected: pages by `sequence`, page_actions by id.
    */
   async getRolePermissionsById(id: number): Promise<RoleWithPermissions> {
-    const role = await RolesRepository.findOne({
+    const role = await rolesRepository.findOne({
       where: { id },
       relations: {
         role_permissions: {
@@ -186,7 +197,7 @@ export class RolesService {
       throw new NotFoundException('Role not found');
     }
 
-    const pages = await PagesRepository.find({
+    const pages = await pagesRepository.find({
       where: { active: true },
       relations: { page_actions: { action: true } },
     });

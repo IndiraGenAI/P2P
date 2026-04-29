@@ -20,10 +20,18 @@ export class CommonService {
 
   async findCountryStateCityArea(): Promise<AddressResponse> {
     const address = {} as AddressResponse;
-    const area = await areaRepository.find();
-    const city = await cityRepository.find();
-    const state = await stateRepository.find();
-    const country = await countryRepository.find();
+    const [area, city, state, country] = await Promise.all([
+      areaRepository.find({ select: ['id', 'name'] }),
+      cityRepository.find({
+        select: ['id', 'name', 'state_id', 'country_id', 'status'],
+      }),
+      stateRepository.find({
+        select: ['id', 'name', 'country_id', 'status'],
+      }),
+      countryRepository.find({
+        select: ['id', 'name', 'status'],
+      }),
+    ]);
     Object.assign(address, { country }, { state }, { city }, { area });
     return address;
   }

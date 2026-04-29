@@ -7,7 +7,6 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Search,
   ShoppingCart,
   Trash2,
   XCircle,
@@ -58,6 +57,7 @@ import {
   type IPurchaseRequestRecord,
 } from './PurchaseRequest.model';
 import PurchaseRequestAdd from './Add';
+import type { ISubdepartmentOption } from './Add/Add.model';
 
 const DEFAULT_TAKE = 10;
 const NON_FILTER_KEYS = new Set(['take', 'skip', 'orderBy', 'order']);
@@ -107,7 +107,9 @@ const useFkOptions = () => {
   const [entities, setEntities] = useState<SelectOption[]>([]);
   const [itemTypes, setItemTypes] = useState<SelectOption[]>([]);
   const [departments, setDepartments] = useState<SelectOption[]>([]);
-  const [subdepartments, setSubdepartments] = useState<SelectOption[]>([]);
+  const [subdepartments, setSubdepartments] = useState<ISubdepartmentOption[]>(
+    [],
+  );
   const [paymentTerms, setPaymentTerms] = useState<SelectOption[]>([]);
   const [centers, setCenters] = useState<SelectOption[]>([]);
   const [items, setItems] = useState<SelectOption[]>([]);
@@ -185,10 +187,14 @@ const useFkOptions = () => {
       .then((res) => {
         const rows =
           ((res.data as unknown) as {
-            rows?: { id: number; name: string }[];
+            rows?: { id: number; name: string; department_id: number }[];
           })?.rows ?? [];
         setSubdepartments(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
+          rows.map((r) => ({
+            value: String(r.id),
+            label: r.name,
+            department_id: String(r.department_id ?? ''),
+          })),
         );
       })
       .catch(() => setSubdepartments([]));
@@ -247,9 +253,6 @@ export const PurchaseRequestPage = () => {
   const skip = Number(searchParams.get('skip')) || 0;
   const page = Math.floor(skip / take) + 1;
 
-  const [quickSearchInput, setQuickSearchInput] = useState(
-    searchParams.get('search') ?? '',
-  );
   const [filterCount, setFilterCount] = useState(0);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -292,24 +295,11 @@ export const PurchaseRequestPage = () => {
     });
     setFormValues(data);
     setFilterCount(count);
-    setQuickSearchInput(data.search ?? '');
   }, [searchParams]);
 
   useEffect(() => {
     filterForm.resetFields();
   }, [formValues]);
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      if ((searchParams.get('search') ?? '') === quickSearchInput) return;
-      const sp = new URLSearchParams(searchParams.toString());
-      if (quickSearchInput) sp.set('search', quickSearchInput);
-      else sp.delete('search');
-      sp.set('skip', '0');
-      setSearchParams(sp);
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [quickSearchInput]);
 
   // Toast effects
   useEffect(() => {
@@ -515,20 +505,6 @@ export const PurchaseRequestPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={quickSearchInput}
-                onChange={(e) => setQuickSearchInput(e.target.value)}
-                placeholder="Search PR # or vendor…"
-                className="pl-9 pr-3 py-2 rounded-xl text-sm soft-input w-60"
-              />
-            </div>
-
             <button
               type="button"
               onClick={() => setIsFilterDrawerOpen(true)}

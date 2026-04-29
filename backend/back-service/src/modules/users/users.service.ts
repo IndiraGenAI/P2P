@@ -13,7 +13,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { GetUserFilterDto } from './dto/user-filter.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { UsersRepository } from './repository/users.repository';
+import { usersRepository } from './repository/users.repository';
 
 interface UserRoleSummary {
   id: number;
@@ -50,7 +50,7 @@ const loadRolesForUsers = async (
   if (userIds.length === 0) {
     return map;
   }
-  const rows: UserRoleJoinRow[] = await UsersRepository.query(
+  const rows: UserRoleJoinRow[] = await usersRepository.query(
     `SELECT ur.user_id, r.id, r.name
        FROM user_roles ur
        INNER JOIN roles r ON r.id = ur.role_id
@@ -85,7 +85,7 @@ export class UsersService {
       throw new ConflictException('Email is required');
     }
 
-    const existing = await UsersRepository.findOne({ where: { email } });
+    const existing = await usersRepository.findOne({ where: { email } });
     if (existing) {
       throw new ConflictException(
         `User with email "${email}" already exists`,
@@ -94,7 +94,7 @@ export class UsersService {
 
     const hash = await bcrypt.hash(createUserDto.password, BCRYPT_ROUNDS);
 
-    const user = UsersRepository.create({
+    const user = usersRepository.create({
       first_name: createUserDto.first_name?.trim(),
       last_name: createUserDto.last_name?.trim(),
       email,
@@ -104,7 +104,7 @@ export class UsersService {
       created_by: userEmailId ?? createUserDto.created_by ?? null,
     });
 
-    const saved = await UsersRepository.save(user);
+    const saved = await usersRepository.save(user);
 
     if (createUserDto.role_ids !== undefined) {
       await this.assignUserRoles(saved.id, createUserDto.role_ids, userEmailId);
@@ -120,7 +120,7 @@ export class UsersService {
     const { first_name, last_name, email, phone, status, orderBy, order } =
       filterDto;
 
-    const query = UsersRepository.createQueryBuilder('users').select([
+    const query = usersRepository.createQueryBuilder('users').select([
       'users.id',
       'users.first_name',
       'users.last_name',
@@ -191,12 +191,22 @@ export class UsersService {
   }
 
   async findOne(id: number): Promise<UserWithRoles> {
-    const user = await UsersRepository.findOne({ where: { id } });
+    const user = await usersRepository.findOne({
+      where: { id },
+      select: [
+        'id',
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'status',
+      ],
+    });
     if (!user) {
       throw new NotFoundException('User not found');
     }
     const roleMap = await loadRolesForUsers([id]);
-    return attachRoles(stripHash(user), roleMap);
+    return attachRoles(user, roleMap);
   }
 
   async update(
@@ -204,7 +214,7 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
     userEmailId: string | null,
   ): Promise<UserWithRoles> {
-    const user = await UsersRepository.findOne({ where: { id } });
+    const user = await usersRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -212,7 +222,7 @@ export class UsersService {
     if (updateUserDto.email) {
       const newEmail = updateUserDto.email.trim().toLowerCase();
       if (newEmail !== user.email) {
-        const conflict = await UsersRepository.findOne({
+        const conflict = await usersRepository.findOne({
           where: { email: newEmail },
         });
         if (conflict && conflict.id !== id) {
@@ -243,7 +253,7 @@ export class UsersService {
     user.updated_by = userEmailId ?? updateUserDto.updated_by ?? null;
     user.modified_date = new Date();
 
-    const saved = await UsersRepository.save(user);
+    const saved = await usersRepository.save(user);
 
     if (updateUserDto.role_ids !== undefined) {
       await this.assignUserRoles(saved.id, updateUserDto.role_ids, userEmailId);
@@ -268,14 +278,14 @@ export class UsersService {
     roleIds: number[],
     userEmailId: string | null,
   ): Promise<void> {
-    await UsersRepository.query(
+    await usersRepository.query(
       `SELECT assign_user_roles($1::int, $2::int[], $3::text) AS success`,
       [userId, roleIds ?? [], userEmailId],
     );
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await UsersRepository.delete({ id });
+    const result = await usersRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -286,7 +296,7 @@ export class UsersService {
     id: number,
     updateUserStatusDto: UpdateUserStatusDto,
   ): Promise<UpdateResult> {
-    const result = await UsersRepository.update(id, {
+    const result = await usersRepository.update(id, {
       status: updateUserStatusDto.status,
       updated_by: updateUserStatusDto.updated_by ?? null,
       modified_date: new Date(),

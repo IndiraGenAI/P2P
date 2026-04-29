@@ -12,7 +12,7 @@ import { CreateSubdepartmentDto } from './dto/create-subdepartment.dto';
 import { GetSubdepartmentFilterDto } from './dto/subdepartment-filter.dto';
 import { UpdateSubdepartmentDto } from './dto/update-subdepartment.dto';
 import { UpdateSubdepartmentStatusDto } from './dto/update-status.dto';
-import { SubdepartmentRepository } from './repository/subdepartment.repository';
+import { subdepartmentRepository } from './repository/subdepartment.repository';
 
 interface SubdepartmentListResponse {
   rows: Subdepartment[];
@@ -37,8 +37,8 @@ export class SubdepartmentService {
       throw new ConflictException('Subdepartment code is required');
     }
 
-    const codeConflict = await SubdepartmentRepository.createQueryBuilder('sub')
-      .where('LOWER(sub.code) = LOWER(:code)', { code })
+    const codeConflict = await subdepartmentRepository.createQueryBuilder('subdepartment')
+      .where('LOWER(subdepartment.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -46,9 +46,9 @@ export class SubdepartmentService {
       );
     }
 
-    const nameConflict = await SubdepartmentRepository.createQueryBuilder('sub')
-      .where('LOWER(sub.name) = LOWER(:name)', { name })
-      .andWhere('sub.department_id = :department_id', {
+    const nameConflict = await subdepartmentRepository.createQueryBuilder('subdepartment')
+      .where('LOWER(subdepartment.name) = LOWER(:name)', { name })
+      .andWhere('subdepartment.department_id = :department_id', {
         department_id: createSubdepartmentDto.department_id,
       })
       .getOne();
@@ -58,7 +58,7 @@ export class SubdepartmentService {
       );
     }
 
-    const subdepartment = SubdepartmentRepository.create({
+    const subdepartment = subdepartmentRepository.create({
       ...createSubdepartmentDto,
       name,
       code,
@@ -67,7 +67,7 @@ export class SubdepartmentService {
       created_date: new Date(),
     });
 
-    return SubdepartmentRepository.save(subdepartment);
+    return subdepartmentRepository.save(subdepartment);
   }
 
   async findAll(
@@ -75,26 +75,37 @@ export class SubdepartmentService {
   ): Promise<PageDto<Subdepartment> | SubdepartmentListResponse> {
     const { name, department_id, status, orderBy, order } = filterDto;
 
-    const query = SubdepartmentRepository.createQueryBuilder('sub')
-      .leftJoinAndSelect('sub.department', 'department');
+    const query = subdepartmentRepository.createQueryBuilder('subdepartment')
+      .leftJoin('subdepartment.department', 'department')
+      .select([
+        'subdepartment.id',
+        'subdepartment.name',
+        'subdepartment.code',
+        'subdepartment.department_id',
+        'subdepartment.status',
+        'subdepartment.created_date',
+        'subdepartment.updated_date',
+        'department.id',
+        'department.name',
+      ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(sub.name) LIKE LOWER(:name) OR LOWER(sub.code) LIKE LOWER(:name))',
+        '(LOWER(subdepartment.name) LIKE LOWER(:name) OR LOWER(subdepartment.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (department_id) {
-      query.andWhere('sub.department_id = :department_id', { department_id });
+      query.andWhere('subdepartment.department_id = :department_id', { department_id });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('sub.status = :status', { status });
+      query.andWhere('subdepartment.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`sub.${sortColumn}`, order);
+    query.orderBy(`subdepartment.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -117,14 +128,22 @@ export class SubdepartmentService {
   }
 
   async findOne(id: number): Promise<Subdepartment> {
-    const sub = await SubdepartmentRepository.findOne({
+    const subdepartment = await subdepartmentRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        department_id: true,
+        status: true,
+        department: { id: true, name: true },
+      },
       relations: { department: true },
     });
-    if (!sub) {
+    if (!subdepartment) {
       throw new NotFoundException('Subdepartment not found');
     }
-    return sub;
+    return subdepartment;
   }
 
   async update(
@@ -132,22 +151,22 @@ export class SubdepartmentService {
     updateSubdepartmentDto: UpdateSubdepartmentDto,
     userEmailId: string | null,
   ): Promise<Subdepartment> {
-    const sub = await SubdepartmentRepository.findOne({ where: { id } });
-    if (!sub) {
+    const subdepartment = await subdepartmentRepository.findOne({ where: { id } });
+    if (!subdepartment) {
       throw new NotFoundException('Subdepartment not found');
     }
 
-    const nextName = updateSubdepartmentDto.name?.trim() ?? sub.name;
-    const nextCode = updateSubdepartmentDto.code?.trim() ?? sub.code;
+    const nextName = updateSubdepartmentDto.name?.trim() ?? subdepartment.name;
+    const nextCode = updateSubdepartmentDto.code?.trim() ?? subdepartment.code;
     const nextDepartmentId =
-      updateSubdepartmentDto.department_id ?? sub.department_id;
+      updateSubdepartmentDto.department_id ?? subdepartment.department_id;
 
-    if (nextCode !== sub.code) {
-      const codeConflict = await SubdepartmentRepository.createQueryBuilder(
-        'sub',
+    if (nextCode !== subdepartment.code) {
+      const codeConflict = await subdepartmentRepository.createQueryBuilder(
+        'subdepartment',
       )
-        .where('LOWER(sub.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('sub.id != :id', { id })
+        .where('LOWER(subdepartment.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('subdepartment.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -156,15 +175,15 @@ export class SubdepartmentService {
       }
     }
 
-    if (nextName !== sub.name || nextDepartmentId !== sub.department_id) {
-      const nameConflict = await SubdepartmentRepository.createQueryBuilder(
-        'sub',
+    if (nextName !== subdepartment.name || nextDepartmentId !== subdepartment.department_id) {
+      const nameConflict = await subdepartmentRepository.createQueryBuilder(
+        'subdepartment',
       )
-        .where('LOWER(sub.name) = LOWER(:name)', { name: nextName })
-        .andWhere('sub.department_id = :department_id', {
+        .where('LOWER(subdepartment.name) = LOWER(:name)', { name: nextName })
+        .andWhere('subdepartment.department_id = :department_id', {
           department_id: nextDepartmentId,
         })
-        .andWhere('sub.id != :id', { id })
+        .andWhere('subdepartment.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -173,23 +192,23 @@ export class SubdepartmentService {
       }
     }
 
-    if (updateSubdepartmentDto.name !== undefined) sub.name = nextName;
-    if (updateSubdepartmentDto.code !== undefined) sub.code = nextCode;
+    if (updateSubdepartmentDto.name !== undefined) subdepartment.name = nextName;
+    if (updateSubdepartmentDto.code !== undefined) subdepartment.code = nextCode;
     if (updateSubdepartmentDto.department_id !== undefined) {
-      sub.department_id = nextDepartmentId;
+      subdepartment.department_id = nextDepartmentId;
     }
     if (updateSubdepartmentDto.status !== undefined) {
-      sub.status = updateSubdepartmentDto.status;
+      subdepartment.status = updateSubdepartmentDto.status;
     }
 
-    sub.updated_by = userEmailId ?? updateSubdepartmentDto.updated_by ?? null;
-    sub.updated_date = new Date();
+    subdepartment.updated_by = userEmailId ?? updateSubdepartmentDto.updated_by ?? null;
+    subdepartment.updated_date = new Date();
 
-    return SubdepartmentRepository.save(sub);
+    return subdepartmentRepository.save(subdepartment);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await SubdepartmentRepository.delete({ id });
+    const result = await subdepartmentRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -200,7 +219,7 @@ export class SubdepartmentService {
     id: number,
     updateSubdepartmentStatusDto: UpdateSubdepartmentStatusDto,
   ): Promise<UpdateResult> {
-    const result = await SubdepartmentRepository.update(id, {
+    const result = await subdepartmentRepository.update(id, {
       ...updateSubdepartmentStatusDto,
       updated_date: new Date(),
     });

@@ -1,177 +1,118 @@
-import { ArrowDown, ArrowUp, Box, Calendar, MoreVertical, Users } from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { StatCard } from '@/components/ui/StatCard';
-import { GaugeChart } from '@/components/ui/GaugeChart';
-import { MONTHLY_SALES_DATA, STATS_CHART_DATA } from '@/data';
-import { CHART_COLORS } from '@/common/constants';
-import { Trend } from '@/common/enums';
+import { useEffect, useState } from 'react';
+import { ShieldCheck, UserCheck, Users, UserX } from 'lucide-react';
+import userService from '@/services/user/user.service';
+import roleService from '@/services/role/role.service';
+
+interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  activeRoles: number;
+}
+
+const INITIAL_STATS: DashboardStats = {
+  totalUsers: 0,
+  activeUsers: 0,
+  inactiveUsers: 0,
+  activeRoles: 0,
+};
 
 export function EcommerceDashboard() {
+  const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStats = async () => {
+      setIsLoading(true);
+      try {
+        const [allUsers, activeUsers, activeRoles] = await Promise.all([
+          userService.searchUserData({ take: 1 }),
+          userService.searchUserData({ take: 1, status: 'ENABLE' }),
+          roleService.searchRoleData({ take: 1, status: true }),
+        ]);
+
+        if (cancelled) return;
+
+        const totalUsers = allUsers?.data?.meta?.itemCount ?? 0;
+        const active = activeUsers?.data?.meta?.itemCount ?? 0;
+
+        setStats({
+          totalUsers,
+          activeUsers: active,
+          inactiveUsers: Math.max(totalUsers - active, 0),
+          activeRoles: activeRoles?.data?.meta?.itemCount ?? 0,
+        });
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cards = [
+    {
+      label: 'Total Users',
+      value: stats.totalUsers,
+      icon: Users,
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+    },
+    {
+      label: 'Active Users',
+      value: stats.activeUsers,
+      icon: UserCheck,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+    },
+    {
+      label: 'Inactive Users',
+      value: stats.inactiveUsers,
+      icon: UserX,
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-600',
+    },
+    {
+      label: 'Active Roles',
+      value: stats.activeRoles,
+      icon: ShieldCheck,
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+    },
+  ];
+
   return (
     <div className="p-6 space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <StatCard label="Customers" value="3,782" change="11.01%" trend={Trend.Up} icon={Users} />
-        <StatCard label="Orders" value="5,359" change="9.05%" trend={Trend.Down} icon={Box} />
-
-        <div className="soft-card p-6">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <h3 className="font-semibold text-gray-900">Monthly Target</h3>
-              <p className="text-sm text-gray-500 mt-1">Target you've set for each month</p>
-            </div>
-            <button className="text-gray-400 hover:text-gray-600">
-              <MoreVertical size={18} />
-            </button>
-          </div>
-
-          <div className="flex flex-col items-center mt-2">
-            <GaugeChart value={75.55} size="md" />
-            <div className="-mt-16 text-center">
-              <p className="text-2xl font-bold text-gray-900">75.55%</p>
-              <span className="inline-block mt-1 text-xs font-semibold soft-pill-emerald text-emerald-700 px-2 py-0.5 rounded">
-                +10%
-              </span>
-            </div>
-          </div>
-        </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Overview of users and roles in the system
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-gray-900">Monthly Sales</h3>
-            <button className="text-gray-400 hover:text-gray-600">
-              <MoreVertical size={18} />
-            </button>
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={MONTHLY_SALES_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: '8px',
-                    border: '1px solid #E5E7EB',
-                    fontSize: '12px',
-                  }}
-                />
-                <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 flex flex-col justify-center">
-          <p className="text-center text-gray-600 mb-8 leading-relaxed">
-            You earn <span className="font-semibold">$3287</span> today, it's higher than last
-            month. Keep up your good work!
-          </p>
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200">
-            <div className="text-center">
-              <p className="text-xs text-gray-500 mb-1">Target</p>
-              <p className="text-sm font-semibold text-gray-900 flex items-center justify-center gap-1">
-                $20K <ArrowDown size={12} className="text-red-500" />
-              </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {cards.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="soft-card p-6">
+            <div
+              className={`w-11 h-11 ${iconBg} rounded-xl flex items-center justify-center mb-6`}
+            >
+              <Icon size={22} className={iconColor} />
             </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 mb-1">Revenue</p>
-              <p className="text-sm font-semibold text-gray-900 flex items-center justify-center gap-1">
-                $20K <ArrowUp size={12} className="text-emerald-500" />
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 mb-1">Today</p>
-              <p className="text-sm font-semibold text-gray-900 flex items-center justify-center gap-1">
-                $20K <ArrowUp size={12} className="text-emerald-500" />
-              </p>
-            </div>
+            <p className="text-sm text-gray-500 mb-2">{label}</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {isLoading ? (
+                <span className="inline-block h-6 w-16 bg-gray-100 rounded animate-pulse align-middle" />
+              ) : (
+                value.toLocaleString()
+              )}
+            </p>
           </div>
-        </div>
-      </div>
-
-      <div className="soft-card p-6">
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-          <div>
-            <h3 className="font-semibold text-gray-900">Statistics</h3>
-            <p className="text-sm text-gray-500 mt-1">Target you've set for each month</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              {['Overview', 'Sales', 'Revenue'].map((t, i) => (
-                <button
-                  key={t}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                    i === 0 ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <button className="flex items-center gap-2 text-sm text-gray-700 rounded-xl px-3 py-1.5 soft-btn">
-              <Calendar size={14} /> Apr 15 - Apr 21
-            </button>
-          </div>
-        </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={STATS_CHART_DATA} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorStat" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-              <XAxis
-                dataKey="month"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: '#9CA3AF' }}
-              />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: '8px',
-                  border: '1px solid #E5E7EB',
-                  fontSize: '12px',
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stroke={CHART_COLORS.primary}
-                strokeWidth={2}
-                fill="url(#colorStat)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        ))}
       </div>
     </div>
   );

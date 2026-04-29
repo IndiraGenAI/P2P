@@ -12,7 +12,7 @@ import { CreateGstDto } from './dto/create-gst.dto';
 import { GetGstFilterDto } from './dto/gst-filter.dto';
 import { UpdateGstDto } from './dto/update-gst.dto';
 import { UpdateGstStatusDto } from './dto/update-status.dto';
-import { GstRepository } from './repository/gst.repository';
+import { gstRepository } from './repository/gst.repository';
 
 interface GstListResponse {
   rows: Gst[];
@@ -30,21 +30,21 @@ export class GstService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await GstRepository.createQueryBuilder('g')
-      .where('LOWER(g.code) = LOWER(:code)', { code })
+    const codeConflict = await gstRepository.createQueryBuilder('gst')
+      .where('LOWER(gst.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`GST code "${code}" already exists`);
     }
 
-    const nameConflict = await GstRepository.createQueryBuilder('g')
-      .where('LOWER(g.name) = LOWER(:name)', { name })
+    const nameConflict = await gstRepository.createQueryBuilder('gst')
+      .where('LOWER(gst.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`GST name "${name}" already exists`);
     }
 
-    const entity = GstRepository.create({
+    const entity = gstRepository.create({
       ...createDto,
       code,
       name,
@@ -54,7 +54,7 @@ export class GstService {
       created_date: new Date(),
     });
 
-    return GstRepository.save(entity);
+    return gstRepository.save(entity);
   }
 
   async findAll(
@@ -62,21 +62,29 @@ export class GstService {
   ): Promise<PageDto<Gst> | GstListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = GstRepository.createQueryBuilder('g');
+    const query = gstRepository.createQueryBuilder('gst').select([
+      'gst.id',
+      'gst.name',
+      'gst.code',
+      'gst.percentage',
+      'gst.status',
+      'gst.created_date',
+      'gst.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(g.name) LIKE LOWER(:name) OR LOWER(g.code) LIKE LOWER(:name))',
+        '(LOWER(gst.name) LIKE LOWER(:name) OR LOWER(gst.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('g.status = :status', { status });
+      query.andWhere('gst.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`g.${sortColumn}`, order);
+    query.orderBy(`gst.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -99,7 +107,10 @@ export class GstService {
   }
 
   async findOne(id: number): Promise<Gst> {
-    const entity = await GstRepository.findOne({ where: { id } });
+    const entity = await gstRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'percentage', 'status'],
+    });
     if (!entity) throw new NotFoundException('GST not found');
     return entity;
   }
@@ -109,16 +120,16 @@ export class GstService {
     updateDto: UpdateGstDto,
     userEmailId: string | null,
   ): Promise<Gst> {
-    const entity = await GstRepository.findOne({ where: { id } });
+    const entity = await gstRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('GST not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await GstRepository.createQueryBuilder('g')
-        .where('LOWER(g.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('g.id != :id', { id })
+      const codeConflict = await gstRepository.createQueryBuilder('gst')
+        .where('LOWER(gst.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('gst.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(`GST code "${nextCode}" already exists`);
@@ -126,9 +137,9 @@ export class GstService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await GstRepository.createQueryBuilder('g')
-        .where('LOWER(g.name) = LOWER(:name)', { name: nextName })
-        .andWhere('g.id != :id', { id })
+      const nameConflict = await gstRepository.createQueryBuilder('gst')
+        .where('LOWER(gst.name) = LOWER(:name)', { name: nextName })
+        .andWhere('gst.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(`GST name "${nextName}" already exists`);
@@ -145,11 +156,11 @@ export class GstService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return GstRepository.save(entity);
+    return gstRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await GstRepository.delete({ id });
+    const result = await gstRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('GST not found');
   }
@@ -158,7 +169,7 @@ export class GstService {
     id: number,
     updateStatusDto: UpdateGstStatusDto,
   ): Promise<UpdateResult> {
-    const result = await GstRepository.update(id, {
+    const result = await gstRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

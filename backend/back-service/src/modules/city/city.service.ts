@@ -12,7 +12,7 @@ import { CreateCityDto } from './dto/create-city.dto';
 import { GetCityFilterDto } from './dto/city-filter.dto';
 import { UpdateCityDto } from './dto/update-city.dto';
 import { UpdateCityStatusDto } from './dto/update-status.dto';
-import { CityRepository } from './repository/city.repository';
+import { cityRepository } from './repository/city.repository';
 
 interface CityListResponse {
   rows: City[];
@@ -36,7 +36,7 @@ export class CityService {
       throw new ConflictException('State is required');
     }
 
-    const existing = await CityRepository.createQueryBuilder('city')
+    const existing = await cityRepository.createQueryBuilder('city')
       .where('LOWER(city.name) = LOWER(:name)', { name })
       .andWhere('city.state_id = :state_id', {
         state_id: createCityDto.state_id,
@@ -48,7 +48,7 @@ export class CityService {
       );
     }
 
-    const city = CityRepository.create({
+    const city = cityRepository.create({
       ...createCityDto,
       name,
       status: createCityDto.status ?? true,
@@ -56,7 +56,7 @@ export class CityService {
       created_date: new Date(),
     });
 
-    return CityRepository.save(city);
+    return cityRepository.save(city);
   }
 
   async findAll(
@@ -64,9 +64,22 @@ export class CityService {
   ): Promise<PageDto<City> | CityListResponse> {
     const { name, country_id, state_id, status, orderBy, order } = filterDto;
 
-    const query = CityRepository.createQueryBuilder('city')
-      .leftJoinAndSelect('city.country', 'country')
-      .leftJoinAndSelect('city.state', 'state');
+    const query = cityRepository.createQueryBuilder('city')
+      .leftJoin('city.country', 'country')
+      .leftJoin('city.state', 'state')
+      .select([
+        'city.id',
+        'city.name',
+        'city.country_id',
+        'city.state_id',
+        'city.status',
+        'city.created_date',
+        'city.updated_date',
+        'country.id',
+        'country.name',
+        'state.id',
+        'state.name',
+      ]);
 
     if (name) {
       query.andWhere('LOWER(city.name) LIKE LOWER(:name)', {
@@ -110,8 +123,17 @@ export class CityService {
   }
 
   async findOne(id: number): Promise<City> {
-    const city = await CityRepository.findOne({
+    const city = await cityRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+        country_id: true,
+        state_id: true,
+        status: true,
+        country: { id: true, name: true },
+        state: { id: true, name: true },
+      },
       relations: { country: true, state: true },
     });
     if (!city) {
@@ -125,7 +147,7 @@ export class CityService {
     updateCityDto: UpdateCityDto,
     userEmailId: string | null,
   ): Promise<City> {
-    const city = await CityRepository.findOne({ where: { id } });
+    const city = await cityRepository.findOne({ where: { id } });
     if (!city) {
       throw new NotFoundException('City not found');
     }
@@ -134,7 +156,7 @@ export class CityService {
     const nextStateId = updateCityDto.state_id ?? city.state_id;
 
     if (nextName !== city.name || nextStateId !== city.state_id) {
-      const conflict = await CityRepository.createQueryBuilder('city')
+      const conflict = await cityRepository.createQueryBuilder('city')
         .where('LOWER(city.name) = LOWER(:name)', { name: nextName })
         .andWhere('city.state_id = :state_id', { state_id: nextStateId })
         .getOne();
@@ -155,11 +177,11 @@ export class CityService {
     city.updated_by = userEmailId ?? updateCityDto.updated_by ?? null;
     city.updated_date = new Date();
 
-    return CityRepository.save(city);
+    return cityRepository.save(city);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CityRepository.delete({ id });
+    const result = await cityRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -170,7 +192,7 @@ export class CityService {
     id: number,
     updateCityStatusDto: UpdateCityStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CityRepository.update(id, {
+    const result = await cityRepository.update(id, {
       ...updateCityStatusDto,
       updated_date: new Date(),
     });

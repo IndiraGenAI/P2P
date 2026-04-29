@@ -12,7 +12,7 @@ import { CreatePaymentTermDto } from './dto/create-payment-term.dto';
 import { GetPaymentTermFilterDto } from './dto/payment-term-filter.dto';
 import { UpdatePaymentTermDto } from './dto/update-payment-term.dto';
 import { UpdatePaymentTermStatusDto } from './dto/update-status.dto';
-import { PaymentTermRepository } from './repository/payment-term.repository';
+import { paymentTermRepository } from './repository/payment-term.repository';
 
 interface PaymentTermListResponse {
   rows: PaymentTerm[];
@@ -30,8 +30,8 @@ export class PaymentTermService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await PaymentTermRepository.createQueryBuilder('p')
-      .where('LOWER(p.code) = LOWER(:code)', { code })
+    const codeConflict = await paymentTermRepository.createQueryBuilder('payment_term')
+      .where('LOWER(payment_term.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -39,8 +39,8 @@ export class PaymentTermService {
       );
     }
 
-    const nameConflict = await PaymentTermRepository.createQueryBuilder('p')
-      .where('LOWER(p.name) = LOWER(:name)', { name })
+    const nameConflict = await paymentTermRepository.createQueryBuilder('payment_term')
+      .where('LOWER(payment_term.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(
@@ -48,7 +48,7 @@ export class PaymentTermService {
       );
     }
 
-    const entity = PaymentTermRepository.create({
+    const entity = paymentTermRepository.create({
       ...createDto,
       code,
       name,
@@ -58,7 +58,7 @@ export class PaymentTermService {
       created_date: new Date(),
     });
 
-    return PaymentTermRepository.save(entity);
+    return paymentTermRepository.save(entity);
   }
 
   async findAll(
@@ -66,21 +66,29 @@ export class PaymentTermService {
   ): Promise<PageDto<PaymentTerm> | PaymentTermListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = PaymentTermRepository.createQueryBuilder('p');
+    const query = paymentTermRepository.createQueryBuilder('payment_term').select([
+      'payment_term.id',
+      'payment_term.name',
+      'payment_term.code',
+      'payment_term.oracle_code',
+      'payment_term.status',
+      'payment_term.created_date',
+      'payment_term.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(p.name) LIKE LOWER(:name) OR LOWER(p.code) LIKE LOWER(:name))',
+        '(LOWER(payment_term.name) LIKE LOWER(:name) OR LOWER(payment_term.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('p.status = :status', { status });
+      query.andWhere('payment_term.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`p.${sortColumn}`, order);
+    query.orderBy(`payment_term.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -103,7 +111,10 @@ export class PaymentTermService {
   }
 
   async findOne(id: number): Promise<PaymentTerm> {
-    const entity = await PaymentTermRepository.findOne({ where: { id } });
+    const entity = await paymentTermRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'oracle_code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Payment term not found');
     return entity;
   }
@@ -113,16 +124,16 @@ export class PaymentTermService {
     updateDto: UpdatePaymentTermDto,
     userEmailId: string | null,
   ): Promise<PaymentTerm> {
-    const entity = await PaymentTermRepository.findOne({ where: { id } });
+    const entity = await paymentTermRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Payment term not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await PaymentTermRepository.createQueryBuilder('p')
-        .where('LOWER(p.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('p.id != :id', { id })
+      const codeConflict = await paymentTermRepository.createQueryBuilder('payment_term')
+        .where('LOWER(payment_term.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('payment_term.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -132,9 +143,9 @@ export class PaymentTermService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await PaymentTermRepository.createQueryBuilder('p')
-        .where('LOWER(p.name) = LOWER(:name)', { name: nextName })
-        .andWhere('p.id != :id', { id })
+      const nameConflict = await paymentTermRepository.createQueryBuilder('payment_term')
+        .where('LOWER(payment_term.name) = LOWER(:name)', { name: nextName })
+        .andWhere('payment_term.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -153,11 +164,11 @@ export class PaymentTermService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return PaymentTermRepository.save(entity);
+    return paymentTermRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await PaymentTermRepository.delete({ id });
+    const result = await paymentTermRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Payment term not found');
   }
@@ -166,7 +177,7 @@ export class PaymentTermService {
     id: number,
     updateStatusDto: UpdatePaymentTermStatusDto,
   ): Promise<UpdateResult> {
-    const result = await PaymentTermRepository.update(id, {
+    const result = await paymentTermRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

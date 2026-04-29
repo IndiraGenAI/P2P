@@ -12,7 +12,7 @@ import { CreateUomDto } from './dto/create-uom.dto';
 import { GetUomFilterDto } from './dto/uom-filter.dto';
 import { UpdateUomDto } from './dto/update-uom.dto';
 import { UpdateUomStatusDto } from './dto/update-status.dto';
-import { UomRepository } from './repository/uom.repository';
+import { uomRepository } from './repository/uom.repository';
 
 interface UomListResponse {
   rows: Uom[];
@@ -30,21 +30,21 @@ export class UomService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await UomRepository.createQueryBuilder('u')
-      .where('LOWER(u.code) = LOWER(:code)', { code })
+    const codeConflict = await uomRepository.createQueryBuilder('uom')
+      .where('LOWER(uom.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`UOM code "${code}" already exists`);
     }
 
-    const nameConflict = await UomRepository.createQueryBuilder('u')
-      .where('LOWER(u.name) = LOWER(:name)', { name })
+    const nameConflict = await uomRepository.createQueryBuilder('uom')
+      .where('LOWER(uom.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`UOM name "${name}" already exists`);
     }
 
-    const entity = UomRepository.create({
+    const entity = uomRepository.create({
       ...createDto,
       code,
       name,
@@ -53,7 +53,7 @@ export class UomService {
       created_date: new Date(),
     });
 
-    return UomRepository.save(entity);
+    return uomRepository.save(entity);
   }
 
   async findAll(
@@ -61,21 +61,28 @@ export class UomService {
   ): Promise<PageDto<Uom> | UomListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = UomRepository.createQueryBuilder('u');
+    const query = uomRepository.createQueryBuilder('uom').select([
+      'uom.id',
+      'uom.name',
+      'uom.code',
+      'uom.status',
+      'uom.created_date',
+      'uom.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(u.name) LIKE LOWER(:name) OR LOWER(u.code) LIKE LOWER(:name))',
+        '(LOWER(uom.name) LIKE LOWER(:name) OR LOWER(uom.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('u.status = :status', { status });
+      query.andWhere('uom.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`u.${sortColumn}`, order);
+    query.orderBy(`uom.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -98,7 +105,10 @@ export class UomService {
   }
 
   async findOne(id: number): Promise<Uom> {
-    const entity = await UomRepository.findOne({ where: { id } });
+    const entity = await uomRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('UOM not found');
     return entity;
   }
@@ -108,16 +118,16 @@ export class UomService {
     updateDto: UpdateUomDto,
     userEmailId: string | null,
   ): Promise<Uom> {
-    const entity = await UomRepository.findOne({ where: { id } });
+    const entity = await uomRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('UOM not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await UomRepository.createQueryBuilder('u')
-        .where('LOWER(u.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('u.id != :id', { id })
+      const codeConflict = await uomRepository.createQueryBuilder('uom')
+        .where('LOWER(uom.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('uom.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(`UOM code "${nextCode}" already exists`);
@@ -125,9 +135,9 @@ export class UomService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await UomRepository.createQueryBuilder('u')
-        .where('LOWER(u.name) = LOWER(:name)', { name: nextName })
-        .andWhere('u.id != :id', { id })
+      const nameConflict = await uomRepository.createQueryBuilder('uom')
+        .where('LOWER(uom.name) = LOWER(:name)', { name: nextName })
+        .andWhere('uom.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(`UOM name "${nextName}" already exists`);
@@ -141,11 +151,11 @@ export class UomService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return UomRepository.save(entity);
+    return uomRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await UomRepository.delete({ id });
+    const result = await uomRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('UOM not found');
   }
@@ -154,7 +164,7 @@ export class UomService {
     id: number,
     updateStatusDto: UpdateUomStatusDto,
   ): Promise<UpdateResult> {
-    const result = await UomRepository.update(id, {
+    const result = await uomRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

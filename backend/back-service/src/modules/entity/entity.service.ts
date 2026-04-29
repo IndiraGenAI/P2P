@@ -12,7 +12,7 @@ import { CreateEntityDto } from './dto/create-entity.dto';
 import { GetEntityFilterDto } from './dto/entity-filter.dto';
 import { UpdateEntityDto } from './dto/update-entity.dto';
 import { UpdateEntityStatusDto } from './dto/update-status.dto';
-import { EntityRepository } from './repository/entity.repository';
+import { entityRepository } from './repository/entity.repository';
 
 interface EntityListResponse {
   rows: EntityMaster[];
@@ -41,21 +41,21 @@ export class EntityService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await EntityRepository.createQueryBuilder('e')
-      .where('LOWER(e.code) = LOWER(:code)', { code })
+    const codeConflict = await entityRepository.createQueryBuilder('entity')
+      .where('LOWER(entity.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Entity code "${code}" already exists`);
     }
 
-    const nameConflict = await EntityRepository.createQueryBuilder('e')
-      .where('LOWER(e.name) = LOWER(:name)', { name })
+    const nameConflict = await entityRepository.createQueryBuilder('entity')
+      .where('LOWER(entity.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`Entity name "${name}" already exists`);
     }
 
-    const entity = EntityRepository.create({
+    const entity = entityRepository.create({
       ...createDto,
       code,
       name,
@@ -72,7 +72,7 @@ export class EntityService {
       created_date: new Date(),
     });
 
-    return EntityRepository.save(entity);
+    return entityRepository.save(entity);
   }
 
   async findAll(
@@ -80,21 +80,28 @@ export class EntityService {
   ): Promise<PageDto<EntityMaster> | EntityListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = EntityRepository.createQueryBuilder('e');
+    const query = entityRepository.createQueryBuilder('entity').select([
+      'entity.id',
+      'entity.name',
+      'entity.code',
+      'entity.status',
+      'entity.created_date',
+      'entity.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(e.name) LIKE LOWER(:name) OR LOWER(e.code) LIKE LOWER(:name))',
+        '(LOWER(entity.name) LIKE LOWER(:name) OR LOWER(entity.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('e.status = :status', { status });
+      query.andWhere('entity.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`e.${sortColumn}`, order);
+    query.orderBy(`entity.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -117,7 +124,21 @@ export class EntityService {
   }
 
   async findOne(id: number): Promise<EntityMaster> {
-    const entity = await EntityRepository.findOne({ where: { id } });
+    const entity = await entityRepository.findOne({
+      where: { id },
+      select: [
+        'id',
+        'name',
+        'code',
+        'business_unit',
+        'legal_entity',
+        'liability_distribution',
+        'prepayment_distribution',
+        'shipping_addresses',
+        'billing_addresses',
+        'status',
+      ],
+    });
     if (!entity) throw new NotFoundException('Entity not found');
     return entity;
   }
@@ -127,16 +148,16 @@ export class EntityService {
     updateDto: UpdateEntityDto,
     userEmailId: string | null,
   ): Promise<EntityMaster> {
-    const entity = await EntityRepository.findOne({ where: { id } });
+    const entity = await entityRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Entity not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await EntityRepository.createQueryBuilder('e')
-        .where('LOWER(e.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('e.id != :id', { id })
+      const codeConflict = await entityRepository.createQueryBuilder('entity')
+        .where('LOWER(entity.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('entity.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -146,9 +167,9 @@ export class EntityService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await EntityRepository.createQueryBuilder('e')
-        .where('LOWER(e.name) = LOWER(:name)', { name: nextName })
-        .andWhere('e.id != :id', { id })
+      const nameConflict = await entityRepository.createQueryBuilder('entity')
+        .where('LOWER(entity.name) = LOWER(:name)', { name: nextName })
+        .andWhere('entity.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -186,11 +207,11 @@ export class EntityService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return EntityRepository.save(entity);
+    return entityRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await EntityRepository.delete({ id });
+    const result = await entityRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Entity not found');
   }
@@ -199,7 +220,7 @@ export class EntityService {
     id: number,
     updateStatusDto: UpdateEntityStatusDto,
   ): Promise<UpdateResult> {
-    const result = await EntityRepository.update(id, {
+    const result = await entityRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

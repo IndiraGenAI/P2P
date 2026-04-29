@@ -12,8 +12,8 @@ import { CreateCoaDto } from './dto/create-coa.dto';
 import { GetCoaFilterDto } from './dto/coa-filter.dto';
 import { UpdateCoaDto } from './dto/update-coa.dto';
 import { UpdateCoaStatusDto } from './dto/update-status.dto';
-import { CoaRepository } from './repository/coa.repository';
-import { CoaCategoryRepository } from '../coa-category/repository/coa-category.repository';
+import { coaRepository } from './repository/coa.repository';
+import { coaCategoryRepository } from '../coa-category/repository/coa-category.repository';
 
 interface CoaListResponse {
   rows: Coa[];
@@ -23,7 +23,7 @@ interface CoaListResponse {
 @Injectable()
 export class CoaService {
   private async assertCategoryExists(categoryId: number): Promise<void> {
-    const category = await CoaCategoryRepository.findOne({
+    const category = await coaCategoryRepository.findOne({
       where: { id: categoryId },
     });
     if (!category) {
@@ -48,21 +48,21 @@ export class CoaService {
 
     await this.assertCategoryExists(createDto.coa_category_id);
 
-    const codeConflict = await CoaRepository.createQueryBuilder('c')
-      .where('LOWER(c.gl_code) = LOWER(:code)', { code: glCode })
+    const codeConflict = await coaRepository.createQueryBuilder('coa')
+      .where('LOWER(coa.gl_code) = LOWER(:code)', { code: glCode })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`GL code "${glCode}" already exists`);
     }
 
-    const nameConflict = await CoaRepository.createQueryBuilder('c')
-      .where('LOWER(c.gl_name) = LOWER(:name)', { name: glName })
+    const nameConflict = await coaRepository.createQueryBuilder('coa')
+      .where('LOWER(coa.gl_name) = LOWER(:name)', { name: glName })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`GL name "${glName}" already exists`);
     }
 
-    const entity = CoaRepository.create({
+    const entity = coaRepository.create({
       ...createDto,
       gl_code: glCode,
       gl_name: glName,
@@ -72,7 +72,7 @@ export class CoaService {
       created_date: new Date(),
     });
 
-    return CoaRepository.save(entity);
+    return coaRepository.save(entity);
   }
 
   async findAll(
@@ -80,30 +80,40 @@ export class CoaService {
   ): Promise<PageDto<Coa> | CoaListResponse> {
     const { name, status, coa_category_id, orderBy, order } = filterDto;
 
-    const query = CoaRepository.createQueryBuilder('c').leftJoinAndSelect(
-      'c.coa_category',
-      'coa_category',
-    );
+    const query = coaRepository.createQueryBuilder('coa')
+      .leftJoin('coa.coa_category', 'coa_category')
+      .select([
+        'coa.id',
+        'coa.gl_code',
+        'coa.gl_name',
+        'coa.distribution_combination',
+        'coa.coa_category_id',
+        'coa.status',
+        'coa.created_date',
+        'coa.updated_date',
+        'coa_category.id',
+        'coa_category.name',
+      ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(c.gl_name) LIKE LOWER(:name) OR LOWER(c.gl_code) LIKE LOWER(:name))',
+        '(LOWER(coa.gl_name) LIKE LOWER(:name) OR LOWER(coa.gl_code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (coa_category_id !== undefined && coa_category_id !== null) {
-      query.andWhere('c.coa_category_id = :coa_category_id', {
+      query.andWhere('coa.coa_category_id = :coa_category_id', {
         coa_category_id,
       });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('c.status = :status', { status });
+      query.andWhere('coa.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`c.${sortColumn}`, order);
+    query.orderBy(`coa.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -126,8 +136,17 @@ export class CoaService {
   }
 
   async findOne(id: number): Promise<Coa> {
-    const entity = await CoaRepository.findOne({
+    const entity = await coaRepository.findOne({
       where: { id },
+      select: {
+        id: true,
+        gl_code: true,
+        gl_name: true,
+        distribution_combination: true,
+        coa_category_id: true,
+        status: true,
+        coa_category: { id: true, name: true },
+      },
       relations: ['coa_category'],
     });
     if (!entity) throw new NotFoundException('COA not found');
@@ -139,7 +158,7 @@ export class CoaService {
     updateDto: UpdateCoaDto,
     userEmailId: string | null,
   ): Promise<Coa> {
-    const entity = await CoaRepository.findOne({ where: { id } });
+    const entity = await coaRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('COA not found');
 
     if (
@@ -156,9 +175,9 @@ export class CoaService {
       entity.distribution_combination;
 
     if (nextGlCode !== entity.gl_code) {
-      const codeConflict = await CoaRepository.createQueryBuilder('c')
-        .where('LOWER(c.gl_code) = LOWER(:code)', { code: nextGlCode })
-        .andWhere('c.id != :id', { id })
+      const codeConflict = await coaRepository.createQueryBuilder('coa')
+        .where('LOWER(coa.gl_code) = LOWER(:code)', { code: nextGlCode })
+        .andWhere('coa.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -168,9 +187,9 @@ export class CoaService {
     }
 
     if (nextGlName !== entity.gl_name) {
-      const nameConflict = await CoaRepository.createQueryBuilder('c')
-        .where('LOWER(c.gl_name) = LOWER(:name)', { name: nextGlName })
-        .andWhere('c.id != :id', { id })
+      const nameConflict = await coaRepository.createQueryBuilder('coa')
+        .where('LOWER(coa.gl_name) = LOWER(:name)', { name: nextGlName })
+        .andWhere('coa.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -192,11 +211,11 @@ export class CoaService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return CoaRepository.save(entity);
+    return coaRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CoaRepository.delete({ id });
+    const result = await coaRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('COA not found');
   }
@@ -205,7 +224,7 @@ export class CoaService {
     id: number,
     updateStatusDto: UpdateCoaStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CoaRepository.update(id, {
+    const result = await coaRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

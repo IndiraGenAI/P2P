@@ -12,7 +12,7 @@ import { CreateItemTypeDto } from './dto/create-item-type.dto';
 import { GetItemTypeFilterDto } from './dto/item-type-filter.dto';
 import { UpdateItemTypeDto } from './dto/update-item-type.dto';
 import { UpdateItemTypeStatusDto } from './dto/update-status.dto';
-import { ItemTypeRepository } from './repository/item-type.repository';
+import { itemTypeRepository } from './repository/item-type.repository';
 
 interface ItemTypeListResponse {
   rows: ItemType[];
@@ -30,21 +30,21 @@ export class ItemTypeService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await ItemTypeRepository.createQueryBuilder('t')
-      .where('LOWER(t.code) = LOWER(:code)', { code })
+    const codeConflict = await itemTypeRepository.createQueryBuilder('item_type')
+      .where('LOWER(item_type.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Item type code "${code}" already exists`);
     }
 
-    const nameConflict = await ItemTypeRepository.createQueryBuilder('t')
-      .where('LOWER(t.name) = LOWER(:name)', { name })
+    const nameConflict = await itemTypeRepository.createQueryBuilder('item_type')
+      .where('LOWER(item_type.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`Item type name "${name}" already exists`);
     }
 
-    const entity = ItemTypeRepository.create({
+    const entity = itemTypeRepository.create({
       ...createDto,
       code,
       name,
@@ -53,7 +53,7 @@ export class ItemTypeService {
       created_date: new Date(),
     });
 
-    return ItemTypeRepository.save(entity);
+    return itemTypeRepository.save(entity);
   }
 
   async findAll(
@@ -61,21 +61,28 @@ export class ItemTypeService {
   ): Promise<PageDto<ItemType> | ItemTypeListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = ItemTypeRepository.createQueryBuilder('t');
+    const query = itemTypeRepository.createQueryBuilder('item_type').select([
+      'item_type.id',
+      'item_type.name',
+      'item_type.code',
+      'item_type.status',
+      'item_type.created_date',
+      'item_type.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(t.name) LIKE LOWER(:name) OR LOWER(t.code) LIKE LOWER(:name))',
+        '(LOWER(item_type.name) LIKE LOWER(:name) OR LOWER(item_type.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('t.status = :status', { status });
+      query.andWhere('item_type.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`t.${sortColumn}`, order);
+    query.orderBy(`item_type.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -98,7 +105,10 @@ export class ItemTypeService {
   }
 
   async findOne(id: number): Promise<ItemType> {
-    const entity = await ItemTypeRepository.findOne({ where: { id } });
+    const entity = await itemTypeRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Item type not found');
     return entity;
   }
@@ -108,16 +118,16 @@ export class ItemTypeService {
     updateDto: UpdateItemTypeDto,
     userEmailId: string | null,
   ): Promise<ItemType> {
-    const entity = await ItemTypeRepository.findOne({ where: { id } });
+    const entity = await itemTypeRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Item type not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await ItemTypeRepository.createQueryBuilder('t')
-        .where('LOWER(t.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('t.id != :id', { id })
+      const codeConflict = await itemTypeRepository.createQueryBuilder('item_type')
+        .where('LOWER(item_type.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('item_type.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -127,9 +137,9 @@ export class ItemTypeService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await ItemTypeRepository.createQueryBuilder('t')
-        .where('LOWER(t.name) = LOWER(:name)', { name: nextName })
-        .andWhere('t.id != :id', { id })
+      const nameConflict = await itemTypeRepository.createQueryBuilder('item_type')
+        .where('LOWER(item_type.name) = LOWER(:name)', { name: nextName })
+        .andWhere('item_type.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -145,11 +155,11 @@ export class ItemTypeService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return ItemTypeRepository.save(entity);
+    return itemTypeRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await ItemTypeRepository.delete({ id });
+    const result = await itemTypeRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Item type not found');
   }
@@ -158,7 +168,7 @@ export class ItemTypeService {
     id: number,
     updateStatusDto: UpdateItemTypeStatusDto,
   ): Promise<UpdateResult> {
-    const result = await ItemTypeRepository.update(id, {
+    const result = await itemTypeRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

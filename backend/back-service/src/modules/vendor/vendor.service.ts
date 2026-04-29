@@ -52,16 +52,16 @@ import {
   UpdateVendorSiteDto,
   UpdateVendorSiteStatusDto,
 } from './dto/vendor-site.dto';
-import { VendorRepository } from './repository/vendor.repository';
-import { VendorBankDetailRepository } from './repository/vendor-bank-detail.repository';
-import { VendorEntityRepository } from './repository/vendor-entity.repository';
-import { VendorCenterRepository } from './repository/vendor-center.repository';
-import { VendorDocumentRepository } from './repository/vendor-document.repository';
-import { VendorCategoryRepository } from './repository/vendor-category.repository';
-import { VendorSiteRepository } from './repository/vendor-site.repository';
-import { TdsRepository } from '../tds/repository/tds.repository';
-import { PaymentTermRepository } from '../other/payment-term/repository/payment-term.repository';
-import { ApplicantTypeRepository } from '../other/applicant-type/repository/applicant-type.repository';
+import { vendorRepository } from './repository/vendor.repository';
+import { vendorBankDetailRepository } from './repository/vendor-bank-detail.repository';
+import { vendorEntityRepository } from './repository/vendor-entity.repository';
+import { vendorCenterRepository } from './repository/vendor-center.repository';
+import { vendorDocumentRepository } from './repository/vendor-document.repository';
+import { vendorCategoryRepository } from './repository/vendor-category.repository';
+import { vendorSiteRepository } from './repository/vendor-site.repository';
+import { tdsRepository } from '../tds/repository/tds.repository';
+import { paymentTermRepository } from '../other/payment-term/repository/payment-term.repository';
+import { applicantTypeRepository } from '../other/applicant-type/repository/applicant-type.repository';
 
 interface VendorListResponse {
   rows: Vendor[];
@@ -85,40 +85,40 @@ const VENDOR_CODE_PAD = 4;
 export class VendorService {
   // ---------- shared helpers ----------
   private async assertVendorExists(id: number): Promise<Vendor> {
-    const found = await VendorRepository.findOne({ where: { id } });
+    const found = await vendorRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`Vendor id=${id} not found`);
     return found;
   }
 
   private async assertVendorCategoryExists(id: number): Promise<void> {
-    const found = await VendorCategoryRepository.findOne({ where: { id } });
+    const found = await vendorCategoryRepository.findOne({ where: { id } });
     if (!found) {
       throw new NotFoundException(`Vendor category id=${id} not found`);
     }
   }
 
   private async assertTdsExists(id: number): Promise<void> {
-    const found = await TdsRepository.findOne({ where: { id } });
+    const found = await tdsRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`TDS id=${id} not found`);
   }
 
   private async assertPaymentTermExists(id: number): Promise<void> {
-    const found = await PaymentTermRepository.findOne({ where: { id } });
+    const found = await paymentTermRepository.findOne({ where: { id } });
     if (!found) throw new NotFoundException(`Payment term id=${id} not found`);
   }
 
   private async assertApplicantTypeExists(id: number): Promise<void> {
-    const found = await ApplicantTypeRepository.findOne({ where: { id } });
+    const found = await applicantTypeRepository.findOne({ where: { id } });
     if (!found) {
       throw new NotFoundException(`Applicant type id=${id} not found`);
     }
   }
 
   private async generateVendorCode(): Promise<string> {
-    const last = await VendorRepository.createQueryBuilder('v')
-      .select('v.code', 'code')
-      .where("v.code ~ '^V[0-9]+$'")
-      .orderBy('CAST(SUBSTRING(v.code FROM 2) AS INTEGER)', 'DESC')
+    const last = await vendorRepository.createQueryBuilder('vendor')
+      .select('vendor.code', 'code')
+      .where("vendor.code ~ '^V[0-9]+$'")
+      .orderBy('CAST(SUBSTRING(vendor.code FROM 2) AS INTEGER)', 'DESC')
       .limit(1)
       .getRawOne<{ code: string }>();
 
@@ -159,8 +159,8 @@ export class VendorService {
     }
 
     if (code) {
-      const codeConflict = await VendorRepository.createQueryBuilder('v')
-        .where('LOWER(v.code) = LOWER(:code)', { code })
+      const codeConflict = await vendorRepository.createQueryBuilder('vendor')
+        .where('LOWER(vendor.code) = LOWER(:code)', { code })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(`Vendor code "${code}" already exists`);
@@ -169,7 +169,7 @@ export class VendorService {
       code = await this.generateVendorCode();
     }
 
-    const entity = VendorRepository.create({
+    const entity = vendorRepository.create({
       code,
       name,
       vendor_category_id: createDto.vendor_category_id ?? null,
@@ -201,7 +201,7 @@ export class VendorService {
       created_date: new Date(),
     });
 
-    return VendorRepository.save(entity);
+    return vendorRepository.save(entity);
   }
 
   async findAll(
@@ -209,31 +209,56 @@ export class VendorService {
   ): Promise<PageDto<Vendor> | VendorListResponse> {
     const { name, status, vendor_category_id, orderBy, order } = filterDto;
 
-    const query = VendorRepository.createQueryBuilder('v')
-      .leftJoinAndSelect('v.vendor_category', 'vendor_category')
-      .leftJoinAndSelect('v.tds', 'tds')
-      .leftJoinAndSelect('v.payment_term', 'payment_term')
-      .leftJoinAndSelect('v.applicant_type', 'applicant_type');
+    const query = vendorRepository.createQueryBuilder('vendor')
+      .leftJoin('vendor.vendor_category', 'vendor_category')
+      .leftJoin('vendor.tds', 'tds')
+      .leftJoin('vendor.payment_term', 'payment_term')
+      .leftJoin('vendor.applicant_type', 'applicant_type')
+      .select([
+        'vendor.id',
+        'vendor.code',
+        'vendor.name',
+        'vendor.supplier_number',
+        'vendor.supplier_name',
+        'vendor.vendor_category_id',
+        'vendor.tds_id',
+        'vendor.payment_term_id',
+        'vendor.applicant_type_id',
+        'vendor.pan_number',
+        'vendor.gst_number',
+        'vendor.is_msme',
+        'vendor.status',
+        'vendor.created_date',
+        'vendor.updated_date',
+        'vendor_category.id',
+        'vendor_category.name',
+        'tds.id',
+        'tds.name',
+        'payment_term.id',
+        'payment_term.name',
+        'applicant_type.id',
+        'applicant_type.name',
+      ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(v.name) LIKE LOWER(:name) OR LOWER(v.code) LIKE LOWER(:name) OR LOWER(v.supplier_number) LIKE LOWER(:name))',
+        '(LOWER(vendor.name) LIKE LOWER(:name) OR LOWER(vendor.code) LIKE LOWER(:name) OR LOWER(vendor.supplier_number) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (vendor_category_id !== undefined && vendor_category_id !== null) {
-      query.andWhere('v.vendor_category_id = :vendor_category_id', {
+      query.andWhere('vendor.vendor_category_id = :vendor_category_id', {
         vendor_category_id,
       });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('v.status = :status', { status });
+      query.andWhere('vendor.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`v.${sortColumn}`, order);
+    query.orderBy(`vendor.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -256,7 +281,7 @@ export class VendorService {
   }
 
   async findOne(id: number): Promise<Vendor> {
-    const entity = await VendorRepository.findOne({
+    const entity = await vendorRepository.findOne({
       where: { id },
       relations: ['vendor_category', 'tds', 'payment_term', 'applicant_type'],
     });
@@ -269,7 +294,7 @@ export class VendorService {
     updateDto: UpdateVendorDto,
     userEmailId: string | null,
   ): Promise<Vendor> {
-    const entity = await VendorRepository.findOne({ where: { id } });
+    const entity = await vendorRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Vendor not found');
 
     if (
@@ -308,9 +333,9 @@ export class VendorService {
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode && nextCode !== entity.code) {
-      const codeConflict = await VendorRepository.createQueryBuilder('v')
-        .where('LOWER(v.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('v.id != :id', { id })
+      const codeConflict = await vendorRepository.createQueryBuilder('vendor')
+        .where('LOWER(vendor.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('vendor.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -400,11 +425,11 @@ export class VendorService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return VendorRepository.save(entity);
+    return vendorRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await VendorRepository.delete({ id });
+    const result = await vendorRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor not found');
   }
@@ -413,7 +438,7 @@ export class VendorService {
     id: number,
     updateStatusDto: UpdateVendorStatusDto,
   ): Promise<UpdateResult> {
-    const result = await VendorRepository.update(id, {
+    const result = await vendorRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });
@@ -426,7 +451,7 @@ export class VendorService {
   // =====================================================================
   async listBankDetails(vendorId: number): Promise<VendorBankDetail[]> {
     await this.assertVendorExists(vendorId);
-    return VendorBankDetailRepository.find({
+    return vendorBankDetailRepository.find({
       where: { vendor_id: vendorId },
       order: { created_date: 'DESC' },
     });
@@ -436,7 +461,7 @@ export class VendorService {
     vendorId: number,
     id: number,
   ): Promise<VendorBankDetail> {
-    const row = await VendorBankDetailRepository.findOne({
+    const row = await vendorBankDetailRepository.findOne({
       where: { id, vendor_id: vendorId },
     });
     if (!row) throw new NotFoundException('Vendor bank detail not found');
@@ -449,7 +474,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<VendorBankDetail> {
     await this.assertVendorExists(vendorId);
-    const entity = VendorBankDetailRepository.create({
+    const entity = vendorBankDetailRepository.create({
       vendor_id: vendorId,
       account_number: this.trimOrNull(dto.account_number),
       bank_name: this.trimOrNull(dto.bank_name),
@@ -459,7 +484,7 @@ export class VendorService {
       created_by: userEmailId,
       created_date: new Date(),
     });
-    return VendorBankDetailRepository.save(entity);
+    return vendorBankDetailRepository.save(entity);
   }
 
   async updateBankDetail(
@@ -485,7 +510,7 @@ export class VendorService {
 
     row.updated_by = userEmailId;
     row.updated_date = new Date();
-    return VendorBankDetailRepository.save(row);
+    return vendorBankDetailRepository.save(row);
   }
 
   async updateBankDetailStatus(
@@ -495,7 +520,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<UpdateResult> {
     await this.findBankDetail(vendorId, id);
-    const result = await VendorBankDetailRepository.update(id, {
+    const result = await vendorBankDetailRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
       updated_date: new Date(),
@@ -509,7 +534,7 @@ export class VendorService {
     id: number,
   ): Promise<DeleteResult> {
     await this.findBankDetail(vendorId, id);
-    const result = await VendorBankDetailRepository.delete({ id });
+    const result = await vendorBankDetailRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor bank detail not found');
   }
@@ -519,7 +544,7 @@ export class VendorService {
   // =====================================================================
   async listEntities(vendorId: number): Promise<VendorEntity[]> {
     await this.assertVendorExists(vendorId);
-    return VendorEntityRepository.find({
+    return vendorEntityRepository.find({
       where: { vendor_id: vendorId },
       relations: ['entity'],
       order: { created_date: 'DESC' },
@@ -530,7 +555,7 @@ export class VendorService {
     vendorId: number,
     id: number,
   ): Promise<VendorEntity> {
-    const row = await VendorEntityRepository.findOne({
+    const row = await vendorEntityRepository.findOne({
       where: { id, vendor_id: vendorId },
       relations: ['entity'],
     });
@@ -545,7 +570,7 @@ export class VendorService {
   ): Promise<VendorEntity> {
     await this.assertVendorExists(vendorId);
 
-    const exists = await VendorEntityRepository.findOne({
+    const exists = await vendorEntityRepository.findOne({
       where: { vendor_id: vendorId, entity_id: dto.entity_id },
     });
     if (exists) {
@@ -554,14 +579,14 @@ export class VendorService {
       );
     }
 
-    const entity = VendorEntityRepository.create({
+    const entity = vendorEntityRepository.create({
       vendor_id: vendorId,
       entity_id: dto.entity_id,
       status: dto.status ?? true,
       created_by: userEmailId,
       created_date: new Date(),
     });
-    return VendorEntityRepository.save(entity);
+    return vendorEntityRepository.save(entity);
   }
 
   async updateEntityMapping(
@@ -576,12 +601,12 @@ export class VendorService {
       dto.entity_id !== undefined &&
       dto.entity_id !== row.entity_id
     ) {
-      const conflict = await VendorEntityRepository.createQueryBuilder('ve')
-        .where('ve.vendor_id = :vendor_id AND ve.entity_id = :entity_id', {
+      const conflict = await vendorEntityRepository.createQueryBuilder('vendor_entity')
+        .where('vendor_entity.vendor_id = :vendor_id AND vendor_entity.entity_id = :entity_id', {
           vendor_id: vendorId,
           entity_id: dto.entity_id,
         })
-        .andWhere('ve.id != :id', { id })
+        .andWhere('vendor_entity.id != :id', { id })
         .getOne();
       if (conflict) {
         throw new ConflictException(
@@ -595,7 +620,7 @@ export class VendorService {
 
     row.updated_by = userEmailId;
     row.updated_date = new Date();
-    return VendorEntityRepository.save(row);
+    return vendorEntityRepository.save(row);
   }
 
   async updateEntityMappingStatus(
@@ -605,7 +630,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<UpdateResult> {
     await this.findEntityMapping(vendorId, id);
-    const result = await VendorEntityRepository.update(id, {
+    const result = await vendorEntityRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
       updated_date: new Date(),
@@ -619,7 +644,7 @@ export class VendorService {
     id: number,
   ): Promise<DeleteResult> {
     await this.findEntityMapping(vendorId, id);
-    const result = await VendorEntityRepository.delete({ id });
+    const result = await vendorEntityRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor entity mapping not found');
   }
@@ -629,7 +654,7 @@ export class VendorService {
   // =====================================================================
   async listCenters(vendorId: number): Promise<VendorCenter[]> {
     await this.assertVendorExists(vendorId);
-    return VendorCenterRepository.find({
+    return vendorCenterRepository.find({
       where: { vendor_id: vendorId },
       relations: ['center'],
       order: { created_date: 'DESC' },
@@ -640,7 +665,7 @@ export class VendorService {
     vendorId: number,
     id: number,
   ): Promise<VendorCenter> {
-    const row = await VendorCenterRepository.findOne({
+    const row = await vendorCenterRepository.findOne({
       where: { id, vendor_id: vendorId },
       relations: ['center'],
     });
@@ -655,7 +680,7 @@ export class VendorService {
   ): Promise<VendorCenter> {
     await this.assertVendorExists(vendorId);
 
-    const exists = await VendorCenterRepository.findOne({
+    const exists = await vendorCenterRepository.findOne({
       where: { vendor_id: vendorId, center_id: dto.center_id },
     });
     if (exists) {
@@ -664,14 +689,14 @@ export class VendorService {
       );
     }
 
-    const entity = VendorCenterRepository.create({
+    const entity = vendorCenterRepository.create({
       vendor_id: vendorId,
       center_id: dto.center_id,
       status: dto.status ?? true,
       created_by: userEmailId,
       created_date: new Date(),
     });
-    return VendorCenterRepository.save(entity);
+    return vendorCenterRepository.save(entity);
   }
 
   async updateCenterMapping(
@@ -686,12 +711,12 @@ export class VendorService {
       dto.center_id !== undefined &&
       dto.center_id !== row.center_id
     ) {
-      const conflict = await VendorCenterRepository.createQueryBuilder('vc')
-        .where('vc.vendor_id = :vendor_id AND vc.center_id = :center_id', {
+      const conflict = await vendorCenterRepository.createQueryBuilder('vendor_center')
+        .where('vendor_center.vendor_id = :vendor_id AND vendor_center.center_id = :center_id', {
           vendor_id: vendorId,
           center_id: dto.center_id,
         })
-        .andWhere('vc.id != :id', { id })
+        .andWhere('vendor_center.id != :id', { id })
         .getOne();
       if (conflict) {
         throw new ConflictException(
@@ -705,7 +730,7 @@ export class VendorService {
 
     row.updated_by = userEmailId;
     row.updated_date = new Date();
-    return VendorCenterRepository.save(row);
+    return vendorCenterRepository.save(row);
   }
 
   async updateCenterMappingStatus(
@@ -715,7 +740,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<UpdateResult> {
     await this.findCenterMapping(vendorId, id);
-    const result = await VendorCenterRepository.update(id, {
+    const result = await vendorCenterRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
       updated_date: new Date(),
@@ -729,7 +754,7 @@ export class VendorService {
     id: number,
   ): Promise<DeleteResult> {
     await this.findCenterMapping(vendorId, id);
-    const result = await VendorCenterRepository.delete({ id });
+    const result = await vendorCenterRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor center mapping not found');
   }
@@ -739,14 +764,14 @@ export class VendorService {
   // =====================================================================
   async listDocuments(vendorId: number): Promise<VendorDocument[]> {
     await this.assertVendorExists(vendorId);
-    return VendorDocumentRepository.find({
+    return vendorDocumentRepository.find({
       where: { vendor_id: vendorId },
       order: { created_date: 'DESC' },
     });
   }
 
   async findDocument(vendorId: number, id: number): Promise<VendorDocument> {
-    const row = await VendorDocumentRepository.findOne({
+    const row = await vendorDocumentRepository.findOne({
       where: { id, vendor_id: vendorId },
     });
     if (!row) throw new NotFoundException('Vendor document not found');
@@ -759,7 +784,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<VendorDocument> {
     await this.assertVendorExists(vendorId);
-    const entity = VendorDocumentRepository.create({
+    const entity = vendorDocumentRepository.create({
       vendor_id: vendorId,
       file_name: dto.file_name.trim(),
       file_url: dto.file_url.trim(),
@@ -770,7 +795,7 @@ export class VendorService {
       created_by: userEmailId,
       created_date: new Date(),
     });
-    return VendorDocumentRepository.save(entity);
+    return vendorDocumentRepository.save(entity);
   }
 
   async updateDocument(
@@ -794,7 +819,7 @@ export class VendorService {
 
     row.updated_by = userEmailId;
     row.updated_date = new Date();
-    return VendorDocumentRepository.save(row);
+    return vendorDocumentRepository.save(row);
   }
 
   async updateDocumentStatus(
@@ -804,7 +829,7 @@ export class VendorService {
     userEmailId: string | null,
   ): Promise<UpdateResult> {
     await this.findDocument(vendorId, id);
-    const result = await VendorDocumentRepository.update(id, {
+    const result = await vendorDocumentRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
       updated_date: new Date(),
@@ -815,7 +840,7 @@ export class VendorService {
 
   async removeDocument(vendorId: number, id: number): Promise<DeleteResult> {
     await this.findDocument(vendorId, id);
-    const result = await VendorDocumentRepository.delete({ id });
+    const result = await vendorDocumentRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor document not found');
   }
@@ -832,8 +857,8 @@ export class VendorService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await VendorCategoryRepository.createQueryBuilder('c')
-      .where('LOWER(c.code) = LOWER(:code)', { code })
+    const codeConflict = await vendorCategoryRepository.createQueryBuilder('vendor_category')
+      .where('LOWER(vendor_category.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(
@@ -841,8 +866,8 @@ export class VendorService {
       );
     }
 
-    const nameConflict = await VendorCategoryRepository.createQueryBuilder('c')
-      .where('LOWER(c.name) = LOWER(:name)', { name })
+    const nameConflict = await vendorCategoryRepository.createQueryBuilder('vendor_category')
+      .where('LOWER(vendor_category.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(
@@ -850,7 +875,7 @@ export class VendorService {
       );
     }
 
-    const entity = VendorCategoryRepository.create({
+    const entity = vendorCategoryRepository.create({
       ...createDto,
       code,
       name,
@@ -859,7 +884,7 @@ export class VendorService {
       created_date: new Date(),
     });
 
-    return VendorCategoryRepository.save(entity);
+    return vendorCategoryRepository.save(entity);
   }
 
   async findAllCategoriesWithFilter(
@@ -867,21 +892,28 @@ export class VendorService {
   ): Promise<PageDto<VendorCategory> | VendorCategoryListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = VendorCategoryRepository.createQueryBuilder('c');
+    const query = vendorCategoryRepository.createQueryBuilder('vendor_category').select([
+      'vendor_category.id',
+      'vendor_category.name',
+      'vendor_category.code',
+      'vendor_category.status',
+      'vendor_category.created_date',
+      'vendor_category.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(c.name) LIKE LOWER(:name) OR LOWER(c.code) LIKE LOWER(:name))',
+        '(LOWER(vendor_category.name) LIKE LOWER(:name) OR LOWER(vendor_category.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('c.status = :status', { status });
+      query.andWhere('vendor_category.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`c.${sortColumn}`, order);
+    query.orderBy(`vendor_category.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -904,7 +936,10 @@ export class VendorService {
   }
 
   async findOneCategory(id: number): Promise<VendorCategory> {
-    const entity = await VendorCategoryRepository.findOne({ where: { id } });
+    const entity = await vendorCategoryRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Vendor category not found');
     return entity;
   }
@@ -914,18 +949,18 @@ export class VendorService {
     updateDto: UpdateVendorCategoryDto,
     userEmailId: string | null,
   ): Promise<VendorCategory> {
-    const entity = await VendorCategoryRepository.findOne({ where: { id } });
+    const entity = await vendorCategoryRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Vendor category not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await VendorCategoryRepository.createQueryBuilder(
+      const codeConflict = await vendorCategoryRepository.createQueryBuilder(
         'c',
       )
-        .where('LOWER(c.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('c.id != :id', { id })
+        .where('LOWER(vendor_category.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('vendor_category.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -935,11 +970,11 @@ export class VendorService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await VendorCategoryRepository.createQueryBuilder(
+      const nameConflict = await vendorCategoryRepository.createQueryBuilder(
         'c',
       )
-        .where('LOWER(c.name) = LOWER(:name)', { name: nextName })
-        .andWhere('c.id != :id', { id })
+        .where('LOWER(vendor_category.name) = LOWER(:name)', { name: nextName })
+        .andWhere('vendor_category.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -955,11 +990,11 @@ export class VendorService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return VendorCategoryRepository.save(entity);
+    return vendorCategoryRepository.save(entity);
   }
 
   async removeCategory(id: number): Promise<DeleteResult> {
-    const result = await VendorCategoryRepository.delete({ id });
+    const result = await vendorCategoryRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor category not found');
   }
@@ -968,7 +1003,7 @@ export class VendorService {
     id: number,
     updateStatusDto: UpdateVendorCategoryStatusDto,
   ): Promise<UpdateResult> {
-    const result = await VendorCategoryRepository.update(id, {
+    const result = await vendorCategoryRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });
@@ -984,13 +1019,13 @@ export class VendorService {
     siteCode: string,
     excludeId?: number,
   ): Promise<void> {
-    const query = VendorSiteRepository.createQueryBuilder('s')
-      .where('s.vendor_id = :vendor_id', { vendor_id: vendorId })
-      .andWhere('LOWER(s.site_code) = LOWER(:site_code)', {
+    const query = vendorSiteRepository.createQueryBuilder('vendor_site')
+      .where('vendor_site.vendor_id = :vendor_id', { vendor_id: vendorId })
+      .andWhere('LOWER(vendor_site.site_code) = LOWER(:site_code)', {
         site_code: siteCode,
       });
     if (excludeId !== undefined) {
-      query.andWhere('s.id != :id', { id: excludeId });
+      query.andWhere('vendor_site.id != :id', { id: excludeId });
     }
     const conflict = await query.getOne();
     if (conflict) {
@@ -1010,7 +1045,7 @@ export class VendorService {
     await this.assertVendorExists(createDto.vendor_id);
     await this.assertSiteCodeUnique(createDto.vendor_id, siteCode);
 
-    const entity = VendorSiteRepository.create({
+    const entity = vendorSiteRepository.create({
       ...createDto,
       site_code: siteCode,
       site_name: createDto.site_name?.trim() || null,
@@ -1025,7 +1060,7 @@ export class VendorService {
       created_date: new Date(),
     });
 
-    return VendorSiteRepository.save(entity);
+    return vendorSiteRepository.save(entity);
   }
 
   async findAllSitesWithFilter(
@@ -1033,28 +1068,44 @@ export class VendorService {
   ): Promise<PageDto<VendorSite> | VendorSiteListResponse> {
     const { name, status, vendor_id, orderBy, order } = filterDto;
 
-    const query = VendorSiteRepository.createQueryBuilder('s').leftJoinAndSelect(
-      's.vendor',
-      'vendor',
-    );
+    const query = vendorSiteRepository.createQueryBuilder('vendor_site')
+      .leftJoin('vendor_site.vendor', 'vendor')
+      .select([
+        'vendor_site.id',
+        'vendor_site.site_code',
+        'vendor_site.site_name',
+        'vendor_site.address',
+        'vendor_site.contact_person',
+        'vendor_site.contact_phone',
+        'vendor_site.contact_email',
+        'vendor_site.supplier_site_name',
+        'vendor_site.oracle_address_name',
+        'vendor_site.vendor_id',
+        'vendor_site.status',
+        'vendor_site.created_date',
+        'vendor_site.updated_date',
+        'vendor.id',
+        'vendor.code',
+        'vendor.name',
+      ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(s.site_name) LIKE LOWER(:name) OR LOWER(s.site_code) LIKE LOWER(:name) OR LOWER(s.contact_person) LIKE LOWER(:name))',
+        '(LOWER(vendor_site.site_name) LIKE LOWER(:name) OR LOWER(vendor_site.site_code) LIKE LOWER(:name) OR LOWER(vendor_site.contact_person) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (vendor_id !== undefined && vendor_id !== null) {
-      query.andWhere('s.vendor_id = :vendor_id', { vendor_id });
+      query.andWhere('vendor_site.vendor_id = :vendor_id', { vendor_id });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('s.status = :status', { status });
+      query.andWhere('vendor_site.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`s.${sortColumn}`, order);
+    query.orderBy(`vendor_site.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -1077,7 +1128,7 @@ export class VendorService {
   }
 
   async findOneSite(id: number): Promise<VendorSite> {
-    const entity = await VendorSiteRepository.findOne({
+    const entity = await vendorSiteRepository.findOne({
       where: { id },
       relations: ['vendor'],
     });
@@ -1090,7 +1141,7 @@ export class VendorService {
     updateDto: UpdateVendorSiteDto,
     userEmailId: string | null,
   ): Promise<VendorSite> {
-    const entity = await VendorSiteRepository.findOne({ where: { id } });
+    const entity = await vendorSiteRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Vendor site not found');
 
     if (
@@ -1138,11 +1189,11 @@ export class VendorService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return VendorSiteRepository.save(entity);
+    return vendorSiteRepository.save(entity);
   }
 
   async removeSite(id: number): Promise<DeleteResult> {
-    const result = await VendorSiteRepository.delete({ id });
+    const result = await vendorSiteRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor site not found');
   }
@@ -1151,7 +1202,7 @@ export class VendorService {
     id: number,
     updateStatusDto: UpdateVendorSiteStatusDto,
   ): Promise<UpdateResult> {
-    const result = await VendorSiteRepository.update(id, {
+    const result = await vendorSiteRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

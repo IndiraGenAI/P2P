@@ -1,4 +1,4 @@
 import { dataSource } from '@core/data-source';
 import { ItemType } from 'erp-db';
 
-export const ItemTypeRepository = dataSource.getRepository(ItemType).extend({});
+export const itemTypeRepository = dataSource.getRepository(ItemType).extend({});

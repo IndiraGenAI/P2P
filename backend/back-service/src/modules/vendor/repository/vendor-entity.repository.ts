@@ -1,6 +1,6 @@
 import { dataSource } from '@core/data-source';
 import { VendorEntity } from 'erp-db';
 
-export const VendorEntityRepository = dataSource
+export const vendorEntityRepository = dataSource
   .getRepository(VendorEntity)
   .extend({});

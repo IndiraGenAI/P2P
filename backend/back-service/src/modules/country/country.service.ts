@@ -12,7 +12,7 @@ import { CreateCountryDto } from './dto/create-country.dto';
 import { GetCountryFilterDto } from './dto/country-filter.dto';
 import { UpdateCountryDto } from './dto/update-country.dto';
 import { UpdateCountryStatusDto } from './dto/update-status.dto';
-import { CountryRepository } from './repository/country.repository';
+import { countryRepository } from './repository/country.repository';
 
 interface CountryListResponse {
   rows: Country[];
@@ -30,14 +30,14 @@ export class CountryService {
       throw new ConflictException('Country name is required');
     }
 
-    const existing = await CountryRepository.createQueryBuilder('country')
+    const existing = await countryRepository.createQueryBuilder('country')
       .where('LOWER(country.name) = LOWER(:name)', { name })
       .getOne();
     if (existing) {
       throw new ConflictException(`Country "${name}" already exists`);
     }
 
-    const country = CountryRepository.create({
+    const country = countryRepository.create({
       ...createCountryDto,
       name,
       status: createCountryDto.status ?? true,
@@ -45,7 +45,7 @@ export class CountryService {
       created_date: new Date(),
     });
 
-    return CountryRepository.save(country);
+    return countryRepository.save(country);
   }
 
   async findAll(
@@ -53,7 +53,13 @@ export class CountryService {
   ): Promise<PageDto<Country> | CountryListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = CountryRepository.createQueryBuilder('country');
+    const query = countryRepository.createQueryBuilder('country').select([
+      'country.id',
+      'country.name',
+      'country.status',
+      'country.created_date',
+      'country.updated_date',
+    ]);
 
     if (name) {
       query.andWhere('LOWER(country.name) LIKE LOWER(:name)', {
@@ -89,7 +95,10 @@ export class CountryService {
   }
 
   async findOne(id: number): Promise<Country> {
-    const country = await CountryRepository.findOne({ where: { id } });
+    const country = await countryRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'status'],
+    });
     if (!country) {
       throw new NotFoundException('Country not found');
     }
@@ -101,7 +110,7 @@ export class CountryService {
     updateCountryDto: UpdateCountryDto,
     userEmailId: string | null,
   ): Promise<Country> {
-    const country = await CountryRepository.findOne({ where: { id } });
+    const country = await countryRepository.findOne({ where: { id } });
     if (!country) {
       throw new NotFoundException('Country not found');
     }
@@ -112,7 +121,7 @@ export class CountryService {
         (country.name ?? '').toLowerCase()
     ) {
       const newName = updateCountryDto.name.trim();
-      const conflict = await CountryRepository.createQueryBuilder('country')
+      const conflict = await countryRepository.createQueryBuilder('country')
         .where('LOWER(country.name) = LOWER(:name)', { name: newName })
         .getOne();
       if (conflict && conflict.id !== id) {
@@ -128,11 +137,11 @@ export class CountryService {
     country.updated_by = userEmailId ?? updateCountryDto.updated_by ?? null;
     country.updated_date = new Date();
 
-    return CountryRepository.save(country);
+    return countryRepository.save(country);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CountryRepository.delete({ id });
+    const result = await countryRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -143,7 +152,7 @@ export class CountryService {
     id: number,
     updateCountryStatusDto: UpdateCountryStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CountryRepository.update(id, {
+    const result = await countryRepository.update(id, {
       ...updateCountryStatusDto,
       updated_date: new Date(),
     });

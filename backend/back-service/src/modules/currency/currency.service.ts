@@ -12,7 +12,7 @@ import { CreateCurrencyDto } from './dto/create-currency.dto';
 import { GetCurrencyFilterDto } from './dto/currency-filter.dto';
 import { UpdateCurrencyDto } from './dto/update-currency.dto';
 import { UpdateCurrencyStatusDto } from './dto/update-status.dto';
-import { CurrencyRepository } from './repository/currency.repository';
+import { currencyRepository } from './repository/currency.repository';
 
 interface CurrencyListResponse {
   rows: Currency[];
@@ -31,21 +31,21 @@ export class CurrencyService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await CurrencyRepository.createQueryBuilder('c')
-      .where('LOWER(c.code) = LOWER(:code)', { code })
+    const codeConflict = await currencyRepository.createQueryBuilder('currency')
+      .where('LOWER(currency.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Currency code "${code}" already exists`);
     }
 
-    const nameConflict = await CurrencyRepository.createQueryBuilder('c')
-      .where('LOWER(c.name) = LOWER(:name)', { name })
+    const nameConflict = await currencyRepository.createQueryBuilder('currency')
+      .where('LOWER(currency.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`Currency name "${name}" already exists`);
     }
 
-    const entity = CurrencyRepository.create({
+    const entity = currencyRepository.create({
       ...createDto,
       code,
       name,
@@ -55,7 +55,7 @@ export class CurrencyService {
       created_date: new Date(),
     });
 
-    return CurrencyRepository.save(entity);
+    return currencyRepository.save(entity);
   }
 
   async findAll(
@@ -63,21 +63,29 @@ export class CurrencyService {
   ): Promise<PageDto<Currency> | CurrencyListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = CurrencyRepository.createQueryBuilder('c');
+    const query = currencyRepository.createQueryBuilder('currency').select([
+      'currency.id',
+      'currency.name',
+      'currency.code',
+      'currency.symbol',
+      'currency.status',
+      'currency.created_date',
+      'currency.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(c.name) LIKE LOWER(:name) OR LOWER(c.code) LIKE LOWER(:name))',
+        '(LOWER(currency.name) LIKE LOWER(:name) OR LOWER(currency.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('c.status = :status', { status });
+      query.andWhere('currency.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`c.${sortColumn}`, order);
+    query.orderBy(`currency.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -100,7 +108,10 @@ export class CurrencyService {
   }
 
   async findOne(id: number): Promise<Currency> {
-    const entity = await CurrencyRepository.findOne({ where: { id } });
+    const entity = await currencyRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'symbol', 'status'],
+    });
     if (!entity) throw new NotFoundException('Currency not found');
     return entity;
   }
@@ -110,7 +121,7 @@ export class CurrencyService {
     updateDto: UpdateCurrencyDto,
     userEmailId: string | null,
   ): Promise<Currency> {
-    const entity = await CurrencyRepository.findOne({ where: { id } });
+    const entity = await currencyRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Currency not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
@@ -123,9 +134,9 @@ export class CurrencyService {
           : updateDto.symbol.trim();
 
     if (nextCode !== entity.code) {
-      const codeConflict = await CurrencyRepository.createQueryBuilder('c')
-        .where('LOWER(c.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('c.id != :id', { id })
+      const codeConflict = await currencyRepository.createQueryBuilder('currency')
+        .where('LOWER(currency.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('currency.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -135,9 +146,9 @@ export class CurrencyService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await CurrencyRepository.createQueryBuilder('c')
-        .where('LOWER(c.name) = LOWER(:name)', { name: nextName })
-        .andWhere('c.id != :id', { id })
+      const nameConflict = await currencyRepository.createQueryBuilder('currency')
+        .where('LOWER(currency.name) = LOWER(:name)', { name: nextName })
+        .andWhere('currency.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -154,11 +165,11 @@ export class CurrencyService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return CurrencyRepository.save(entity);
+    return currencyRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CurrencyRepository.delete({ id });
+    const result = await currencyRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Currency not found');
   }
@@ -167,7 +178,7 @@ export class CurrencyService {
     id: number,
     updateStatusDto: UpdateCurrencyStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CurrencyRepository.update(id, {
+    const result = await currencyRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

@@ -12,7 +12,7 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { GetDepartmentFilterDto } from './dto/department-filter.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { UpdateDepartmentStatusDto } from './dto/update-status.dto';
-import { DepartmentRepository } from './repository/department.repository';
+import { departmentRepository } from './repository/department.repository';
 
 interface DepartmentListResponse {
   rows: Department[];
@@ -34,7 +34,7 @@ export class DepartmentService {
       throw new ConflictException('Department code is required');
     }
 
-    const existing = await DepartmentRepository.createQueryBuilder('department')
+    const existing = await departmentRepository.createQueryBuilder('department')
       .where('LOWER(department.name) = LOWER(:name)', { name })
       .orWhere('LOWER(department.code) = LOWER(:code)', { code })
       .getOne();
@@ -46,7 +46,7 @@ export class DepartmentService {
       );
     }
 
-    const department = DepartmentRepository.create({
+    const department = departmentRepository.create({
       ...createDepartmentDto,
       name,
       code,
@@ -55,7 +55,7 @@ export class DepartmentService {
       created_date: new Date(),
     });
 
-    return DepartmentRepository.save(department);
+    return departmentRepository.save(department);
   }
 
   async findAll(
@@ -63,7 +63,14 @@ export class DepartmentService {
   ): Promise<PageDto<Department> | DepartmentListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = DepartmentRepository.createQueryBuilder('department');
+    const query = departmentRepository.createQueryBuilder('department').select([
+      'department.id',
+      'department.name',
+      'department.code',
+      'department.status',
+      'department.created_date',
+      'department.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
@@ -100,7 +107,10 @@ export class DepartmentService {
   }
 
   async findOne(id: number): Promise<Department> {
-    const department = await DepartmentRepository.findOne({ where: { id } });
+    const department = await departmentRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!department) {
       throw new NotFoundException('Department not found');
     }
@@ -112,7 +122,7 @@ export class DepartmentService {
     updateDepartmentDto: UpdateDepartmentDto,
     userEmailId: string | null,
   ): Promise<Department> {
-    const department = await DepartmentRepository.findOne({ where: { id } });
+    const department = await departmentRepository.findOne({ where: { id } });
     if (!department) {
       throw new NotFoundException('Department not found');
     }
@@ -121,7 +131,7 @@ export class DepartmentService {
     const nextCode = updateDepartmentDto.code?.trim() ?? department.code;
 
     if (nextName !== department.name || nextCode !== department.code) {
-      const conflict = await DepartmentRepository.createQueryBuilder('department')
+      const conflict = await departmentRepository.createQueryBuilder('department')
         .where(
           '(LOWER(department.name) = LOWER(:name) OR LOWER(department.code) = LOWER(:code))',
           { name: nextName, code: nextCode },
@@ -148,11 +158,11 @@ export class DepartmentService {
     department.updated_by = userEmailId ?? updateDepartmentDto.updated_by ?? null;
     department.updated_date = new Date();
 
-    return DepartmentRepository.save(department);
+    return departmentRepository.save(department);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await DepartmentRepository.delete({ id });
+    const result = await departmentRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -163,7 +173,7 @@ export class DepartmentService {
     id: number,
     updateDepartmentStatusDto: UpdateDepartmentStatusDto,
   ): Promise<UpdateResult> {
-    const result = await DepartmentRepository.update(id, {
+    const result = await departmentRepository.update(id, {
       ...updateDepartmentStatusDto,
       updated_date: new Date(),
     });

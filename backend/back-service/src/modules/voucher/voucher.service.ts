@@ -12,7 +12,7 @@ import { CreateVoucherDto } from './dto/create-voucher.dto';
 import { GetVoucherFilterDto } from './dto/voucher-filter.dto';
 import { UpdateVoucherDto } from './dto/update-voucher.dto';
 import { UpdateVoucherStatusDto } from './dto/update-status.dto';
-import { VoucherRepository } from './repository/voucher.repository';
+import { voucherRepository } from './repository/voucher.repository';
 
 interface VoucherListResponse {
   rows: Voucher[];
@@ -30,21 +30,21 @@ export class VoucherService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await VoucherRepository.createQueryBuilder('v')
-      .where('LOWER(v.code) = LOWER(:code)', { code })
+    const codeConflict = await voucherRepository.createQueryBuilder('voucher')
+      .where('LOWER(voucher.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Voucher code "${code}" already exists`);
     }
 
-    const nameConflict = await VoucherRepository.createQueryBuilder('v')
-      .where('LOWER(v.name) = LOWER(:name)', { name })
+    const nameConflict = await voucherRepository.createQueryBuilder('voucher')
+      .where('LOWER(voucher.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`Voucher name "${name}" already exists`);
     }
 
-    const entity = VoucherRepository.create({
+    const entity = voucherRepository.create({
       ...createDto,
       code,
       name,
@@ -53,7 +53,7 @@ export class VoucherService {
       created_date: new Date(),
     });
 
-    return VoucherRepository.save(entity);
+    return voucherRepository.save(entity);
   }
 
   async findAll(
@@ -61,21 +61,28 @@ export class VoucherService {
   ): Promise<PageDto<Voucher> | VoucherListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = VoucherRepository.createQueryBuilder('v');
+    const query = voucherRepository.createQueryBuilder('voucher').select([
+      'voucher.id',
+      'voucher.name',
+      'voucher.code',
+      'voucher.status',
+      'voucher.created_date',
+      'voucher.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(v.name) LIKE LOWER(:name) OR LOWER(v.code) LIKE LOWER(:name))',
+        '(LOWER(voucher.name) LIKE LOWER(:name) OR LOWER(voucher.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('v.status = :status', { status });
+      query.andWhere('voucher.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`v.${sortColumn}`, order);
+    query.orderBy(`voucher.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -98,7 +105,10 @@ export class VoucherService {
   }
 
   async findOne(id: number): Promise<Voucher> {
-    const entity = await VoucherRepository.findOne({ where: { id } });
+    const entity = await voucherRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Voucher not found');
     return entity;
   }
@@ -108,16 +118,16 @@ export class VoucherService {
     updateDto: UpdateVoucherDto,
     userEmailId: string | null,
   ): Promise<Voucher> {
-    const entity = await VoucherRepository.findOne({ where: { id } });
+    const entity = await voucherRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Voucher not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await VoucherRepository.createQueryBuilder('v')
-        .where('LOWER(v.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('v.id != :id', { id })
+      const codeConflict = await voucherRepository.createQueryBuilder('voucher')
+        .where('LOWER(voucher.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('voucher.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -127,9 +137,9 @@ export class VoucherService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await VoucherRepository.createQueryBuilder('v')
-        .where('LOWER(v.name) = LOWER(:name)', { name: nextName })
-        .andWhere('v.id != :id', { id })
+      const nameConflict = await voucherRepository.createQueryBuilder('voucher')
+        .where('LOWER(voucher.name) = LOWER(:name)', { name: nextName })
+        .andWhere('voucher.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -145,11 +155,11 @@ export class VoucherService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return VoucherRepository.save(entity);
+    return voucherRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await VoucherRepository.delete({ id });
+    const result = await voucherRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Voucher not found');
   }
@@ -158,7 +168,7 @@ export class VoucherService {
     id: number,
     updateStatusDto: UpdateVoucherStatusDto,
   ): Promise<UpdateResult> {
-    const result = await VoucherRepository.update(id, {
+    const result = await voucherRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

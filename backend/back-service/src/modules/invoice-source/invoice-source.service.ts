@@ -12,7 +12,7 @@ import { CreateInvoiceSourceDto } from './dto/create-invoice-source.dto';
 import { GetInvoiceSourceFilterDto } from './dto/invoice-source-filter.dto';
 import { UpdateInvoiceSourceDto } from './dto/update-invoice-source.dto';
 import { UpdateInvoiceSourceStatusDto } from './dto/update-status.dto';
-import { InvoiceSourceRepository } from './repository/invoice-source.repository';
+import { invoiceSourceRepository } from './repository/invoice-source.repository';
 
 interface InvoiceSourceListResponse {
   rows: InvoiceSource[];
@@ -30,21 +30,21 @@ export class InvoiceSourceService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await InvoiceSourceRepository.createQueryBuilder('s')
-      .where('LOWER(s.code) = LOWER(:code)', { code })
+    const codeConflict = await invoiceSourceRepository.createQueryBuilder('invoice_source')
+      .where('LOWER(invoice_source.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Invoice source code "${code}" already exists`);
     }
 
-    const nameConflict = await InvoiceSourceRepository.createQueryBuilder('s')
-      .where('LOWER(s.name) = LOWER(:name)', { name })
+    const nameConflict = await invoiceSourceRepository.createQueryBuilder('invoice_source')
+      .where('LOWER(invoice_source.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`Invoice source name "${name}" already exists`);
     }
 
-    const entity = InvoiceSourceRepository.create({
+    const entity = invoiceSourceRepository.create({
       ...createDto,
       code,
       name,
@@ -53,7 +53,7 @@ export class InvoiceSourceService {
       created_date: new Date(),
     });
 
-    return InvoiceSourceRepository.save(entity);
+    return invoiceSourceRepository.save(entity);
   }
 
   async findAll(
@@ -61,21 +61,28 @@ export class InvoiceSourceService {
   ): Promise<PageDto<InvoiceSource> | InvoiceSourceListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = InvoiceSourceRepository.createQueryBuilder('s');
+    const query = invoiceSourceRepository.createQueryBuilder('invoice_source').select([
+      'invoice_source.id',
+      'invoice_source.name',
+      'invoice_source.code',
+      'invoice_source.status',
+      'invoice_source.created_date',
+      'invoice_source.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(s.name) LIKE LOWER(:name) OR LOWER(s.code) LIKE LOWER(:name))',
+        '(LOWER(invoice_source.name) LIKE LOWER(:name) OR LOWER(invoice_source.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('s.status = :status', { status });
+      query.andWhere('invoice_source.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`s.${sortColumn}`, order);
+    query.orderBy(`invoice_source.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -98,7 +105,10 @@ export class InvoiceSourceService {
   }
 
   async findOne(id: number): Promise<InvoiceSource> {
-    const entity = await InvoiceSourceRepository.findOne({ where: { id } });
+    const entity = await invoiceSourceRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!entity) throw new NotFoundException('Invoice source not found');
     return entity;
   }
@@ -108,16 +118,16 @@ export class InvoiceSourceService {
     updateDto: UpdateInvoiceSourceDto,
     userEmailId: string | null,
   ): Promise<InvoiceSource> {
-    const entity = await InvoiceSourceRepository.findOne({ where: { id } });
+    const entity = await invoiceSourceRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('Invoice source not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await InvoiceSourceRepository.createQueryBuilder('s')
-        .where('LOWER(s.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('s.id != :id', { id })
+      const codeConflict = await invoiceSourceRepository.createQueryBuilder('invoice_source')
+        .where('LOWER(invoice_source.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('invoice_source.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(
@@ -127,9 +137,9 @@ export class InvoiceSourceService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await InvoiceSourceRepository.createQueryBuilder('s')
-        .where('LOWER(s.name) = LOWER(:name)', { name: nextName })
-        .andWhere('s.id != :id', { id })
+      const nameConflict = await invoiceSourceRepository.createQueryBuilder('invoice_source')
+        .where('LOWER(invoice_source.name) = LOWER(:name)', { name: nextName })
+        .andWhere('invoice_source.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -145,11 +155,11 @@ export class InvoiceSourceService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return InvoiceSourceRepository.save(entity);
+    return invoiceSourceRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await InvoiceSourceRepository.delete({ id });
+    const result = await invoiceSourceRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Invoice source not found');
   }
@@ -158,7 +168,7 @@ export class InvoiceSourceService {
     id: number,
     updateStatusDto: UpdateInvoiceSourceStatusDto,
   ): Promise<UpdateResult> {
-    const result = await InvoiceSourceRepository.update(id, {
+    const result = await invoiceSourceRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

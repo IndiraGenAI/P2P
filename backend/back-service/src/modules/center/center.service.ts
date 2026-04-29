@@ -12,7 +12,7 @@ import { CreateCenterDto } from './dto/create-center.dto';
 import { GetCenterFilterDto } from './dto/center-filter.dto';
 import { UpdateCenterDto } from './dto/update-center.dto';
 import { UpdateCenterStatusDto } from './dto/update-status.dto';
-import { CenterRepository } from './repository/center.repository';
+import { centerRepository } from './repository/center.repository';
 
 interface CenterListResponse {
   rows: Center[];
@@ -34,14 +34,14 @@ export class CenterService {
       throw new ConflictException('Center name is required');
     }
 
-    const codeConflict = await CenterRepository.createQueryBuilder('center')
+    const codeConflict = await centerRepository.createQueryBuilder('center')
       .where('LOWER(center.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`Center code "${code}" already exists`);
     }
 
-    const center = CenterRepository.create({
+    const center = centerRepository.create({
       ...createCenterDto,
       code,
       name,
@@ -50,7 +50,7 @@ export class CenterService {
       created_date: new Date(),
     });
 
-    return CenterRepository.save(center);
+    return centerRepository.save(center);
   }
 
   async findAll(
@@ -58,7 +58,14 @@ export class CenterService {
   ): Promise<PageDto<Center> | CenterListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = CenterRepository.createQueryBuilder('center');
+    const query = centerRepository.createQueryBuilder('center').select([
+      'center.id',
+      'center.name',
+      'center.code',
+      'center.status',
+      'center.created_date',
+      'center.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
@@ -95,7 +102,10 @@ export class CenterService {
   }
 
   async findOne(id: number): Promise<Center> {
-    const center = await CenterRepository.findOne({ where: { id } });
+    const center = await centerRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'status'],
+    });
     if (!center) {
       throw new NotFoundException('Center not found');
     }
@@ -107,7 +117,7 @@ export class CenterService {
     updateCenterDto: UpdateCenterDto,
     userEmailId: string | null,
   ): Promise<Center> {
-    const center = await CenterRepository.findOne({ where: { id } });
+    const center = await centerRepository.findOne({ where: { id } });
     if (!center) {
       throw new NotFoundException('Center not found');
     }
@@ -116,7 +126,7 @@ export class CenterService {
     const nextName = updateCenterDto.name?.trim() ?? center.name;
 
     if (nextCode !== center.code) {
-      const codeConflict = await CenterRepository.createQueryBuilder('center')
+      const codeConflict = await centerRepository.createQueryBuilder('center')
         .where('LOWER(center.code) = LOWER(:code)', { code: nextCode })
         .andWhere('center.id != :id', { id })
         .getOne();
@@ -136,11 +146,11 @@ export class CenterService {
     center.updated_by = userEmailId ?? updateCenterDto.updated_by ?? null;
     center.updated_date = new Date();
 
-    return CenterRepository.save(center);
+    return centerRepository.save(center);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CenterRepository.delete({ id });
+    const result = await centerRepository.delete({ id });
     if (result?.affected && result.affected > 0) {
       return result;
     }
@@ -151,7 +161,7 @@ export class CenterService {
     id: number,
     updateCenterStatusDto: UpdateCenterStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CenterRepository.update(id, {
+    const result = await centerRepository.update(id, {
       ...updateCenterStatusDto,
       updated_date: new Date(),
     });

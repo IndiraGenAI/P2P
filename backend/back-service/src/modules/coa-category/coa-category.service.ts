@@ -12,7 +12,7 @@ import { CreateCoaCategoryDto } from './dto/create-coa-category.dto';
 import { GetCoaCategoryFilterDto } from './dto/coa-category-filter.dto';
 import { UpdateCoaCategoryDto } from './dto/update-coa-category.dto';
 import { UpdateCoaCategoryStatusDto } from './dto/update-status.dto';
-import { CoaCategoryRepository } from './repository/coa-category.repository';
+import { coaCategoryRepository } from './repository/coa-category.repository';
 
 interface CoaCategoryListResponse {
   rows: CoaCategory[];
@@ -28,8 +28,8 @@ export class CoaCategoryService {
     const name = createDto.name?.trim();
     if (!name) throw new ConflictException('Name is required');
 
-    const nameConflict = await CoaCategoryRepository.createQueryBuilder('c')
-      .where('LOWER(c.name) = LOWER(:name)', { name })
+    const nameConflict = await coaCategoryRepository.createQueryBuilder('coa_category')
+      .where('LOWER(coa_category.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(
@@ -37,7 +37,7 @@ export class CoaCategoryService {
       );
     }
 
-    const entity = CoaCategoryRepository.create({
+    const entity = coaCategoryRepository.create({
       ...createDto,
       name,
       status: createDto.status ?? true,
@@ -45,7 +45,7 @@ export class CoaCategoryService {
       created_date: new Date(),
     });
 
-    return CoaCategoryRepository.save(entity);
+    return coaCategoryRepository.save(entity);
   }
 
   async findAll(
@@ -53,20 +53,26 @@ export class CoaCategoryService {
   ): Promise<PageDto<CoaCategory> | CoaCategoryListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = CoaCategoryRepository.createQueryBuilder('c');
+    const query = coaCategoryRepository.createQueryBuilder('coa_category').select([
+      'coa_category.id',
+      'coa_category.name',
+      'coa_category.status',
+      'coa_category.created_date',
+      'coa_category.updated_date',
+    ]);
 
     if (name) {
-      query.andWhere('LOWER(c.name) LIKE LOWER(:name)', {
+      query.andWhere('LOWER(coa_category.name) LIKE LOWER(:name)', {
         name: `%${name}%`,
       });
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('c.status = :status', { status });
+      query.andWhere('coa_category.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`c.${sortColumn}`, order);
+    query.orderBy(`coa_category.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -89,7 +95,10 @@ export class CoaCategoryService {
   }
 
   async findOne(id: number): Promise<CoaCategory> {
-    const entity = await CoaCategoryRepository.findOne({ where: { id } });
+    const entity = await coaCategoryRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'status'],
+    });
     if (!entity) throw new NotFoundException('COA category not found');
     return entity;
   }
@@ -99,15 +108,15 @@ export class CoaCategoryService {
     updateDto: UpdateCoaCategoryDto,
     userEmailId: string | null,
   ): Promise<CoaCategory> {
-    const entity = await CoaCategoryRepository.findOne({ where: { id } });
+    const entity = await coaCategoryRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('COA category not found');
 
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextName !== entity.name) {
-      const nameConflict = await CoaCategoryRepository.createQueryBuilder('c')
-        .where('LOWER(c.name) = LOWER(:name)', { name: nextName })
-        .andWhere('c.id != :id', { id })
+      const nameConflict = await coaCategoryRepository.createQueryBuilder('coa_category')
+        .where('LOWER(coa_category.name) = LOWER(:name)', { name: nextName })
+        .andWhere('coa_category.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(
@@ -122,11 +131,11 @@ export class CoaCategoryService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return CoaCategoryRepository.save(entity);
+    return coaCategoryRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await CoaCategoryRepository.delete({ id });
+    const result = await coaCategoryRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('COA category not found');
   }
@@ -135,7 +144,7 @@ export class CoaCategoryService {
     id: number,
     updateStatusDto: UpdateCoaCategoryStatusDto,
   ): Promise<UpdateResult> {
-    const result = await CoaCategoryRepository.update(id, {
+    const result = await coaCategoryRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });

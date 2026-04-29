@@ -12,7 +12,7 @@ import { CreateTdsDto } from './dto/create-tds.dto';
 import { GetTdsFilterDto } from './dto/tds-filter.dto';
 import { UpdateTdsDto } from './dto/update-tds.dto';
 import { UpdateTdsStatusDto } from './dto/update-status.dto';
-import { TdsRepository } from './repository/tds.repository';
+import { tdsRepository } from './repository/tds.repository';
 
 interface TdsListResponse {
   rows: Tds[];
@@ -30,21 +30,21 @@ export class TdsService {
     if (!code) throw new ConflictException('Code is required');
     if (!name) throw new ConflictException('Name is required');
 
-    const codeConflict = await TdsRepository.createQueryBuilder('t')
-      .where('LOWER(t.code) = LOWER(:code)', { code })
+    const codeConflict = await tdsRepository.createQueryBuilder('tds')
+      .where('LOWER(tds.code) = LOWER(:code)', { code })
       .getOne();
     if (codeConflict) {
       throw new ConflictException(`TDS code "${code}" already exists`);
     }
 
-    const nameConflict = await TdsRepository.createQueryBuilder('t')
-      .where('LOWER(t.name) = LOWER(:name)', { name })
+    const nameConflict = await tdsRepository.createQueryBuilder('tds')
+      .where('LOWER(tds.name) = LOWER(:name)', { name })
       .getOne();
     if (nameConflict) {
       throw new ConflictException(`TDS name "${name}" already exists`);
     }
 
-    const entity = TdsRepository.create({
+    const entity = tdsRepository.create({
       ...createDto,
       code,
       name,
@@ -54,7 +54,7 @@ export class TdsService {
       created_date: new Date(),
     });
 
-    return TdsRepository.save(entity);
+    return tdsRepository.save(entity);
   }
 
   async findAll(
@@ -62,21 +62,29 @@ export class TdsService {
   ): Promise<PageDto<Tds> | TdsListResponse> {
     const { name, status, orderBy, order } = filterDto;
 
-    const query = TdsRepository.createQueryBuilder('t');
+    const query = tdsRepository.createQueryBuilder('tds').select([
+      'tds.id',
+      'tds.name',
+      'tds.code',
+      'tds.percentage',
+      'tds.status',
+      'tds.created_date',
+      'tds.updated_date',
+    ]);
 
     if (name) {
       query.andWhere(
-        '(LOWER(t.name) LIKE LOWER(:name) OR LOWER(t.code) LIKE LOWER(:name))',
+        '(LOWER(tds.name) LIKE LOWER(:name) OR LOWER(tds.code) LIKE LOWER(:name))',
         { name: `%${name}%` },
       );
     }
 
     if (status !== undefined && status !== null) {
-      query.andWhere('t.status = :status', { status });
+      query.andWhere('tds.status = :status', { status });
     }
 
     const sortColumn = orderBy ?? 'created_date';
-    query.orderBy(`t.${sortColumn}`, order);
+    query.orderBy(`tds.${sortColumn}`, order);
 
     if (String(filterDto.noLimit) === 'true') {
       const [rows, count] = await query.getManyAndCount();
@@ -99,7 +107,10 @@ export class TdsService {
   }
 
   async findOne(id: number): Promise<Tds> {
-    const entity = await TdsRepository.findOne({ where: { id } });
+    const entity = await tdsRepository.findOne({
+      where: { id },
+      select: ['id', 'name', 'code', 'percentage', 'status'],
+    });
     if (!entity) throw new NotFoundException('TDS not found');
     return entity;
   }
@@ -109,16 +120,16 @@ export class TdsService {
     updateDto: UpdateTdsDto,
     userEmailId: string | null,
   ): Promise<Tds> {
-    const entity = await TdsRepository.findOne({ where: { id } });
+    const entity = await tdsRepository.findOne({ where: { id } });
     if (!entity) throw new NotFoundException('TDS not found');
 
     const nextCode = updateDto.code?.trim() ?? entity.code;
     const nextName = updateDto.name?.trim() ?? entity.name;
 
     if (nextCode !== entity.code) {
-      const codeConflict = await TdsRepository.createQueryBuilder('t')
-        .where('LOWER(t.code) = LOWER(:code)', { code: nextCode })
-        .andWhere('t.id != :id', { id })
+      const codeConflict = await tdsRepository.createQueryBuilder('tds')
+        .where('LOWER(tds.code) = LOWER(:code)', { code: nextCode })
+        .andWhere('tds.id != :id', { id })
         .getOne();
       if (codeConflict) {
         throw new ConflictException(`TDS code "${nextCode}" already exists`);
@@ -126,9 +137,9 @@ export class TdsService {
     }
 
     if (nextName !== entity.name) {
-      const nameConflict = await TdsRepository.createQueryBuilder('t')
-        .where('LOWER(t.name) = LOWER(:name)', { name: nextName })
-        .andWhere('t.id != :id', { id })
+      const nameConflict = await tdsRepository.createQueryBuilder('tds')
+        .where('LOWER(tds.name) = LOWER(:name)', { name: nextName })
+        .andWhere('tds.id != :id', { id })
         .getOne();
       if (nameConflict) {
         throw new ConflictException(`TDS name "${nextName}" already exists`);
@@ -145,11 +156,11 @@ export class TdsService {
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
     entity.updated_date = new Date();
 
-    return TdsRepository.save(entity);
+    return tdsRepository.save(entity);
   }
 
   async remove(id: number): Promise<DeleteResult> {
-    const result = await TdsRepository.delete({ id });
+    const result = await tdsRepository.delete({ id });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('TDS not found');
   }
@@ -158,7 +169,7 @@ export class TdsService {
     id: number,
     updateStatusDto: UpdateTdsStatusDto,
   ): Promise<UpdateResult> {
-    const result = await TdsRepository.update(id, {
+    const result = await tdsRepository.update(id, {
       ...updateStatusDto,
       updated_date: new Date(),
     });
