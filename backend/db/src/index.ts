@@ -29,6 +29,7 @@ export { EntityMaster } from './entities/entity-master';
 export { ApplicantType } from './entities/applicant-type';
 export { Uom } from './entities/uom';
 export { PaymentTerm } from './entities/payment-term';
+export { TermsCondition } from './entities/terms-condition';
 export { ItemCategory } from './entities/item-category';
 export { ItemType } from './entities/item-type';
 export { Item } from './entities/item';

@@ -466,7 +466,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       }
                       min={0}
                       precision={2}
-                      className="w-full rounded-lg"
+                      controls={false}
+                      className="w-full rounded-lg pr-num-input"
                     />
                   </td>
                   <td className="px-2 py-1.5">
@@ -479,7 +480,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       }
                       min={0}
                       precision={2}
-                      className="w-full rounded-lg"
+                      controls={false}
+                      className="w-full rounded-lg pr-num-input"
                     />
                   </td>
                   <td className="px-2 py-1.5 text-right text-sm font-medium text-gray-700">

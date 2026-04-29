@@ -104,6 +104,7 @@ SELECT v.page_code, v.name, parent.id, v.sequence FROM (
         ('MASTER_ITEM_CATEGORY',   'Item Category',    'MASTER_PURCHASING',  7),
         ('MASTER_UOM',             'UOM',              'MASTER_PURCHASING',  8),
         ('MASTER_PAYMENT_TERMS',   'Payment Terms',    'MASTER_PURCHASING',  9),
+        ('MASTER_TERMS_CONDITIONS','Terms & Conditions','MASTER_PURCHASING', 10),
 
         -- Organization
         ('MASTER_DEPARTMENT',      'Department',       'MASTER_ORGANIZATION', 1),

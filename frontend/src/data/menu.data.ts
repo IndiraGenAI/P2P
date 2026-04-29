@@ -212,6 +212,14 @@ export const APP_MENU_ITEMS: MenuItem[] = [
             pageCode: Modules.MASTER.PAYMENT_TERMS,
             action: Actions.CAN_VIEW,
           },
+          {
+            key: 'masters-terms-conditions',
+            label: 'Terms & Conditions',
+            icon: FileSignature,
+            to: '/masters/terms-conditions',
+            pageCode: Modules.MASTER.TERMS_CONDITIONS,
+            action: Actions.CAN_VIEW,
+          },
         ],
       },
       {

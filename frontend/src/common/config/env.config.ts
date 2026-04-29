@@ -22,8 +22,7 @@ export const ENV = {
     baseUrl: readString(env.VITE_API_BASE_URL, 'http://localhost:3010/bs'),
     mainBaseUrl: readString(
       env.VITE_MAIN_API_BASE_URL,
-      'http://localhost:4000/api',
-    ),
+      'http://localhost:3011/ms',    ),
     timeoutMs: readNumber(env.VITE_API_TIMEOUT, 30000),
   },
   app: {

@@ -38,7 +38,7 @@ export class PurchaseRequestController {
   constructor(private readonly service: PurchaseRequestService) {}
 
   // ---------- header CRUD ----------
-  @Role('PURCHASE_REQUEST_CREATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_CREATE')
   @Post()
   async create(
     @Body() data: CreatePurchaseRequestDto,
@@ -54,7 +54,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_VIEW')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get()
   async findAll(
     @Query() filterDto: GetPurchaseRequestFilterDto,
@@ -69,7 +69,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_VIEW')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
@@ -84,7 +84,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -101,7 +101,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Patch(':id/status')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -118,7 +118,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_DELETE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_DELETE')
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,
@@ -134,7 +134,7 @@ export class PurchaseRequestController {
   }
 
   // ---------- item endpoints ----------
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Post(':id/items')
   async addItem(
     @Param('id', ParseIntPipe) id: number,
@@ -151,7 +151,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Put(':id/items/:itemId')
   async updateItem(
     @Param('id', ParseIntPipe) id: number,
@@ -174,7 +174,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Delete(':id/items/:itemId')
   async removeItem(
     @Param('id', ParseIntPipe) id: number,
@@ -191,7 +191,7 @@ export class PurchaseRequestController {
   }
 
   // ---------- document endpoints ----------
-  @Role('PURCHASE_REQUEST_VIEW')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id/documents')
   async listDocuments(
     @Param('id', ParseIntPipe) id: number,
@@ -206,7 +206,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Post(':id/documents')
   async addDocument(
     @Param('id', ParseIntPipe) id: number,
@@ -223,7 +223,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Put(':id/documents/:docId')
   async updateDocument(
     @Param('id', ParseIntPipe) id: number,
@@ -240,7 +240,7 @@ export class PurchaseRequestController {
     );
   }
 
-  @Role('PURCHASE_REQUEST_UPDATE')
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Delete(':id/documents/:docId')
   async removeDocument(
     @Param('id', ParseIntPipe) id: number,

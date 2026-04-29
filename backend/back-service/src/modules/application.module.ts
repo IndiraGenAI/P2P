@@ -21,6 +21,7 @@ import { RolesModule } from './roles/roles.module';
 import { StateModule } from './state/state.module';
 import { SubdepartmentModule } from './subdepartment/subdepartment.module';
 import { TdsModule } from './tds/tds.module';
+import { TermsConditionModule } from './other/terms-condition/terms-condition.module';
 import { UomModule } from './other/uom/uom.module';
 import { UsersModule } from './users/users.module';
 import { VendorModule } from './vendor/vendor.module';
@@ -52,6 +53,7 @@ export const ApplicationModules = [
   ApplicantTypeModule,
   UomModule,
   PaymentTermModule,
+  TermsConditionModule,
   ItemCategoryModule,
   ItemTypeModule,
   ItemModule,

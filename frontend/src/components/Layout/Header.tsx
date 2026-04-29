@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, Menu, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/state/app.hooks';
@@ -14,7 +14,38 @@ export function Header({
   toggleSidebar,
 }: Readonly<HeaderProps>) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+
+  // Close the profile dropdown when the user clicks anywhere outside of it
+  // or presses Escape, matching standard dropdown behavior.
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (
+        dropdownRef.current &&
+        target &&
+        !dropdownRef.current.contains(target)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsDropdownOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDropdownOpen]);
 
   const { profile } = useAppSelector(authSelector);
   const user = profile.data;
@@ -51,10 +82,12 @@ export function Header({
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full" />
         </button>
 
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            aria-haspopup="menu"
+            aria-expanded={isDropdownOpen}
             className="flex items-center gap-2 pl-1 pr-3 py-1 hover:bg-gray-50 rounded-full"
           >
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm">

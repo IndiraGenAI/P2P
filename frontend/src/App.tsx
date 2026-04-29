@@ -32,6 +32,7 @@ import CoaPage from '@/pages/Coa';
 import ApplicantTypePage from '@/pages/Other/ApplicantType';
 import UomPage from '@/pages/Other/Uom';
 import PaymentTermPage from '@/pages/Other/PaymentTerm';
+import TermsConditionPage from '@/pages/Other/TermsCondition';
 import ItemCategoryPage from '@/pages/Item/ItemCategory';
 import ItemTypePage from '@/pages/Item/ItemType';
 import ItemPage from '@/pages/Item/Item';
@@ -205,6 +206,12 @@ function AppRoutes({
         </Route>
         <Route element={<RequirePage pageCode={Modules.MASTER.PAYMENT_TERMS} />}>
           <Route path="/masters/payment-terms" element={<PaymentTermPage />} />
+        </Route>
+        <Route element={<RequirePage pageCode={Modules.MASTER.TERMS_CONDITIONS} />}>
+          <Route
+            path="/masters/terms-conditions"
+            element={<TermsConditionPage />}
+          />
         </Route>
 
         {/* Masters - Organization */}

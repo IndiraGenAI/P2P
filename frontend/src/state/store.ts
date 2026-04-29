@@ -22,6 +22,7 @@ import zoneMasterReducer from './zone/zone.reducer';
 import applicantTypeMasterReducer from './applicantType/applicantType.reducer';
 import uomMasterReducer from './uom/uom.reducer';
 import paymentTermMasterReducer from './paymentTerm/paymentTerm.reducer';
+import termsConditionMasterReducer from './termsCondition/termsCondition.reducer';
 import itemCategoryMasterReducer from './itemCategory/itemCategory.reducer';
 import itemTypeMasterReducer from './itemType/itemType.reducer';
 import itemMasterReducer from './item/item.reducer';
@@ -55,6 +56,7 @@ export const store = configureStore({
     applicantTypeMaster: applicantTypeMasterReducer,
     uomMaster: uomMasterReducer,
     paymentTermMaster: paymentTermMasterReducer,
+    termsConditionMaster: termsConditionMasterReducer,
     itemCategoryMaster: itemCategoryMasterReducer,
     itemTypeMaster: itemTypeMasterReducer,
     itemMaster: itemMasterReducer,
