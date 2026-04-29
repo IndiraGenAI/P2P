@@ -239,10 +239,8 @@ table thead th,
   letter-spacing: normal !important;
 }
 
-/* ───── Right-aligned numeric inputs (e.g. PR item Qty / Rate) ─────
-   Aligns the digits flush-right inside the input box so they sit directly
-   under right-aligned column headers like "Qty", "Rate", "Amount". */
+/* Centered numeric inputs (e.g. PR item Qty / Rate) — keeps the digits
+   visually under the centered column headers like "Qty", "Rate". */
 .pr-num-input.ant-input-number .ant-input-number-input {
-  text-align: right;
-  padding-right: 11px;
+  text-align: center;
 }

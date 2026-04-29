@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Form, Input, InputNumber } from 'antd';
+import { DatePicker, Form, Input, InputNumber } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { Plus, Trash2 } from 'lucide-react';
 import { Select } from '@/components/ui/Select';
+
+dayjs.extend(customParseFormat);
+
+const DATE_FORMAT = 'DD MMM YYYY';
+const toDayjs = (value: string) => {
+  if (!value) return null;
+  const d = dayjs(value, ['YYYY-MM-DD', DATE_FORMAT], true);
+  return d.isValid() ? d : null;
+};
+const fromDayjs = (value: Dayjs | null) =>
+  value?.isValid() ? value.format('YYYY-MM-DD') : '';
 import type { IPurchaseRequestRecord } from '../PurchaseRequest.model';
 import type { IPurchaseRequestAddProps } from './Add.model';
 
@@ -314,28 +327,38 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
       <div className={SECTION_DIVIDER}>
         <p className={SECTION_TITLE}>Validity & Schedule</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6">
-          <Form.Item name="validity_from" label={wrapLabel('Validity From')}>
-            <input
-              type="date"
-              value={local.validity_from}
-              onChange={(e) => setField('validity_from', e.target.value)}
-              className={FIELD_INPUT_CLASS + ' w-full px-3 border'}
+          <Form.Item label={wrapLabel('Validity From')}>
+            <DatePicker
+              value={toDayjs(local.validity_from)}
+              onChange={(d) => setField('validity_from', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
             />
           </Form.Item>
-          <Form.Item name="validity_to" label={wrapLabel('Validity To')}>
-            <input
-              type="date"
-              value={local.validity_to}
-              onChange={(e) => setField('validity_to', e.target.value)}
-              className={FIELD_INPUT_CLASS + ' w-full px-3 border'}
+          <Form.Item label={wrapLabel('Validity To')}>
+            <DatePicker
+              value={toDayjs(local.validity_to)}
+              onChange={(d) => setField('validity_to', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              disabledDate={(current) => {
+                const from = toDayjs(local.validity_from);
+                return !!(current && from && current.isBefore(from, 'day'));
+              }}
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
             />
           </Form.Item>
-          <Form.Item name="required_date" label={wrapLabel('Required Date')}>
-            <input
-              type="date"
-              value={local.required_date}
-              onChange={(e) => setField('required_date', e.target.value)}
-              className={FIELD_INPUT_CLASS + ' w-full px-3 border'}
+          <Form.Item label={wrapLabel('Required Date')}>
+            <DatePicker
+              value={toDayjs(local.required_date)}
+              onChange={(d) => setField('required_date', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
             />
           </Form.Item>
           <Form.Item name="frequency" label={wrapLabel('Frequency')}>
@@ -415,13 +438,13 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-24">
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-24">
                   Qty
                 </th>
-                <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
                   Rate
                 </th>
-                <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
                   Amount
                 </th>
                 <th className="px-3 py-2 text-center w-12"> </th>
@@ -484,7 +507,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       className="w-full rounded-lg pr-num-input"
                     />
                   </td>
-                  <td className="px-2 py-1.5 text-right text-sm font-medium text-gray-700">
+                  <td className="px-2 py-1.5 text-center text-sm font-medium text-gray-700">
                     {Number(row.amount).toFixed(2)}
                   </td>
                   <td className="px-2 py-1.5 text-center">
@@ -504,7 +527,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 <td colSpan={5} className="px-3 py-2 text-right font-semibold">
                   Net Amount
                 </td>
-                <td className="px-3 py-2 text-right font-semibold text-emerald-700">
+                <td className="px-2 py-2 text-center font-semibold text-emerald-700">
                   {totalNet.toFixed(2)}
                 </td>
                 <td />
