@@ -9,7 +9,9 @@ import {
   Plus,
   ShieldCheck,
   Trash2,
+  Upload,
   Users as UsersIcon,
+  X,
 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
@@ -31,7 +33,11 @@ import type {
   IUserDetails,
   UserStatus,
 } from '@/services/user/user.model';
-import { Common } from '@/utils/constants/constant';
+import commonService from '@/services/common/common.service';
+import { Common, StoragePath } from '@/utils/constants/constant';
+
+const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+const PROFILE_IMAGE_ACCEPT = 'image/png,image/jpeg,image/jpg,image/webp';
 
 type SortKey =
   | 'first_name'
@@ -58,6 +64,7 @@ interface UserFormState {
   email: string;
   phone: string;
   password: string;
+  image: string | null;
   status: UserStatus;
   role_ids: number[];
 }
@@ -77,6 +84,7 @@ const EMPTY_FORM: UserFormState = {
   email: '',
   phone: '',
   password: '',
+  image: null,
   status: 'PENDING',
   role_ids: [],
 };
@@ -178,6 +186,14 @@ export const UsersPage = () => {
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
   const [form, setForm] = useState<UserFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  // The image S3 key that was already saved on the user when the drawer
+  // opened. Used to decide whether deleting the file should happen
+  // immediately (it's a session-only orphan) or be deferred to "save"
+  // (it's the persisted value the user might still cancel out of).
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
 
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<IUserDetails | null>(null);
 
@@ -306,11 +322,14 @@ export const UsersPage = () => {
 
   const openCreateDrawer = () => {
     setForm(EMPTY_FORM);
+    setOriginalImage(null);
+    setPendingDeleteKey(null);
     setFormError(null);
     setIsFormDrawerOpen(true);
   };
 
   const openEditDrawer = (row: IUserDetails) => {
+    const seededImage = row.image ?? null;
     setForm({
       id: row.id,
       first_name: row.first_name ?? '',
@@ -318,11 +337,85 @@ export const UsersPage = () => {
       email: row.email ?? '',
       phone: row.phone ?? '',
       password: '',
+      image: seededImage,
       status: row.status ?? 'PENDING',
       role_ids: (row.roles ?? []).map((r) => r.id),
     });
+    setOriginalImage(seededImage);
+    setPendingDeleteKey(null);
     setFormError(null);
     setIsFormDrawerOpen(true);
+  };
+
+  const closeFormDrawer = () => {
+    // Clean up any newly-uploaded file the user is abandoning.
+    if (form.image && form.image !== originalImage) {
+      void commonService.deleteS3File(form.image);
+    }
+    setPendingDeleteKey(null);
+    setIsFormDrawerOpen(false);
+  };
+
+  const handleProfileImageChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      message.error('Please select an image file.');
+      return;
+    }
+    if (file.size > PROFILE_IMAGE_MAX_BYTES) {
+      message.error('Image must be 2 MB or smaller.');
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const result = await commonService.s3FileUpload(
+        file,
+        StoragePath.PROFILE_IMAGES,
+      );
+      if (result.data?.fileUrl) {
+        const newKey = result.data.fileUrl;
+        const previousKey = form.image;
+        if (previousKey && previousKey !== newKey) {
+          if (previousKey === originalImage) {
+            // The DB still points at this key — only delete it from
+            // S3 once the user confirms by saving the form.
+            setPendingDeleteKey(previousKey);
+          } else {
+            // Session-only orphan from a previous in-drawer upload —
+            // safe to delete from S3 right away.
+            void commonService.deleteS3File(previousKey);
+          }
+        }
+        setForm((prev) => ({ ...prev, image: newKey }));
+        message.success('Profile image uploaded.');
+      } else {
+        message.error('Failed to upload profile image.');
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to upload profile image.';
+      message.error(errorMessage);
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleRemoveProfileImage = () => {
+    const currentKey = form.image;
+    if (currentKey) {
+      if (currentKey === originalImage) {
+        setPendingDeleteKey(currentKey);
+      } else {
+        void commonService.deleteS3File(currentKey);
+      }
+    }
+    setForm((prev) => ({ ...prev, image: null }));
   };
 
   const toggleFormRole = (roleId: number) => {
@@ -384,6 +477,7 @@ export const UsersPage = () => {
         last_name: string;
         email: string;
         phone: string;
+        image: string | null;
         status: UserStatus;
         password?: string;
         role_ids: number[];
@@ -393,6 +487,7 @@ export const UsersPage = () => {
         last_name: trimmed.last_name,
         email: trimmed.email,
         phone: trimmed.phone,
+        image: trimmed.image,
         status: trimmed.status,
         role_ids: trimmed.role_ids,
       };
@@ -400,6 +495,11 @@ export const UsersPage = () => {
 
       const result = await dispatch(editUserById(payload));
       if (editUserById.fulfilled.match(result)) {
+        if (pendingDeleteKey && pendingDeleteKey !== trimmed.image) {
+          void commonService.deleteS3File(pendingDeleteKey);
+        }
+        setPendingDeleteKey(null);
+        setOriginalImage(trimmed.image ?? null);
         setIsFormDrawerOpen(false);
         refresh(true);
       }
@@ -411,11 +511,14 @@ export const UsersPage = () => {
           email: trimmed.email,
           phone: trimmed.phone,
           password: trimmed.password,
+          image: trimmed.image,
           status: trimmed.status,
           role_ids: trimmed.role_ids,
         }),
       );
       if (createNewUser.fulfilled.match(result)) {
+        setPendingDeleteKey(null);
+        setOriginalImage(trimmed.image ?? null);
         setIsFormDrawerOpen(false);
         setPage(1);
         refresh(true);
@@ -431,9 +534,11 @@ export const UsersPage = () => {
 
   const handleConfirmDelete = async () => {
     if (!confirmDeleteRow) return;
+    const imageKey = confirmDeleteRow.image ?? null;
     const result = await dispatch(removeUserById(confirmDeleteRow.id));
     setConfirmDeleteRow(null);
     if (removeUserById.fulfilled.match(result)) {
+      if (imageKey) void commonService.deleteS3File(imageKey);
       if (rows.length === 1 && page > 1) setPage(page - 1);
       else refresh(true);
     }
@@ -551,8 +656,16 @@ export const UsersPage = () => {
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold flex items-center justify-center">
-                          {initials || '?'}
+                        <div className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold flex items-center justify-center overflow-hidden">
+                          {row.image ? (
+                            <img
+                              src={commonService.resolvePublicUrl(row.image) ?? ''}
+                              alt={fullName || row.email}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            initials || '?'
+                          )}
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900 text-sm">
@@ -828,7 +941,7 @@ export const UsersPage = () => {
 
       <FormModal
         isOpen={isFormDrawerOpen}
-        onClose={() => setIsFormDrawerOpen(false)}
+        onClose={closeFormDrawer}
         title={isEdit ? 'Edit User' : 'Create New User'}
         subtitle={
           isEdit
@@ -839,7 +952,7 @@ export const UsersPage = () => {
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={() => setIsFormDrawerOpen(false)}
+              onClick={closeFormDrawer}
               className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
             >
               Cancel
@@ -862,6 +975,66 @@ export const UsersPage = () => {
               {formError}
             </div>
           )}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+              Profile Image
+            </label>
+            <div className="flex items-center gap-4">
+              <div className="relative h-20 w-20 rounded-full bg-emerald-50 text-emerald-700 text-base font-semibold flex items-center justify-center overflow-hidden border border-emerald-100">
+                {form.image ? (
+                  <img
+                    src={commonService.resolvePublicUrl(form.image) ?? ''}
+                    alt="Profile preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>
+                    {(form.first_name?.[0] ?? '').toUpperCase() +
+                      (form.last_name?.[0] ?? '').toUpperCase() || '?'}
+                  </span>
+                )}
+                {imageUploading && (
+                  <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <Loader2 size={18} className="animate-spin text-emerald-600" />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept={PROFILE_IMAGE_ACCEPT}
+                    onChange={handleProfileImageChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageUploading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Upload size={12} />
+                    {form.image ? 'Replace image' : 'Upload image'}
+                  </button>
+                  {form.image && !imageUploading && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveProfileImage}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 border border-red-100 transition"
+                    >
+                      <X size={12} />
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  PNG, JPG or WEBP &middot; up to 2 MB.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

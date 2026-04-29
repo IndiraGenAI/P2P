@@ -13,6 +13,7 @@ export interface IAuthUser {
   last_name: string;
   email: string;
   phone: string | null;
+  image: string | null;
   status: string;
   role_permissions?: IAuthRolePermission[];
 }

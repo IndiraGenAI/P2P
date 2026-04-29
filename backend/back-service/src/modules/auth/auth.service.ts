@@ -29,6 +29,7 @@ export interface AuthSafeUser {
   last_name: string;
   email: string;
   phone: string | null;
+  image: string | null;
   status: string;
   role_permissions?: AuthRolePermission[];
 }
@@ -45,6 +46,7 @@ const toSafeUser = (user: Users): AuthSafeUser => ({
   last_name: user.last_name,
   email: user.email,
   phone: user.phone ?? null,
+  image: user.image ?? null,
   status: user.status,
 });
 

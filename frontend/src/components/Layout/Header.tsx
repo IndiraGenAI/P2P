@@ -3,6 +3,7 @@ import { Bell, ChevronDown, LogOut, Menu, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/state/app.hooks';
 import { authSelector } from '@/state/auth/auth.reducer';
+import commonService from '@/services/common/common.service';
 
 interface HeaderProps {
   onSignOut: () => void;
@@ -58,6 +59,7 @@ export function Header({
     user?.email?.[0]?.toUpperCase() ||
     'U';
   const email = user?.email ?? '';
+  const avatarUrl = commonService.resolvePublicUrl(user?.image ?? null);
 
   return (
     <header className="h-16 flex-shrink-0 bg-white soft-header flex items-center justify-between px-6 z-20">
@@ -90,8 +92,16 @@ export function Header({
             aria-expanded={isDropdownOpen}
             className="flex items-center gap-2 pl-1 pr-3 py-1 hover:bg-gray-50 rounded-full"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm">
-              {initial}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={fullName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initial
+              )}
             </div>
             <span className="text-sm font-medium text-gray-700">{shortName}</span>
             <ChevronDown size={14} className="text-gray-500" />
@@ -99,9 +109,22 @@ export function Header({
 
           {isDropdownOpen && (
             <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="font-semibold text-gray-900">{fullName}</p>
-                <p className="text-sm text-gray-500 truncate">{email}</p>
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm overflow-hidden flex-shrink-0">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={fullName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initial
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{fullName}</p>
+                  <p className="text-sm text-gray-500 truncate">{email}</p>
+                </div>
               </div>
               <div className="py-2">
                 <button

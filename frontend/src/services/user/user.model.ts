@@ -13,6 +13,7 @@ export interface IUserDetails {
   last_name: string;
   email: string;
   phone: string;
+  image?: string | null;
   status: UserStatus;
   last_seen?: string | null;
   created_date?: string | null;
@@ -33,6 +34,7 @@ export interface IUserCreatePayload {
   email: string;
   password: string;
   phone: string;
+  image?: string | null;
   status?: UserStatus;
   role_ids?: number[];
 }
@@ -44,6 +46,7 @@ export interface IUserUpdatePayload {
   email?: string;
   password?: string;
   phone?: string;
+  image?: string | null;
   status?: UserStatus;
   role_ids?: number[];
 }

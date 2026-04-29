@@ -6,6 +6,7 @@ const {
     AWS_USERPOOLID,
     AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY,
+    AWS_S3_RESOURCE_BUCKET,
   } = process.env;
 
 export interface AWSConfig {
@@ -31,7 +32,7 @@ export const commonConfig: CommonConfig = {
       userPoolId: AWS_USERPOOLID || '',
       accessKeyId: AWS_ACCESS_KEY_ID || '',
       secretAccessKey: AWS_SECRET_ACCESS_KEY || '',
-      s3ResourceBucket: '',
+      s3ResourceBucket: (AWS_S3_RESOURCE_BUCKET || '').toLowerCase(),
     }
 }
 

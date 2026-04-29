@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Res, Req, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CommonService } from './common.service';
 import { Response } from 'express';
@@ -7,6 +16,7 @@ import { getLookupType } from './dto/getLookupType.dto';
 import { baseController } from '@core/baseController';
 import { AddArea } from './dto/address.interface';
 import { PreSignedURLParams } from './dto/presignurl-s3file-upload.dto';
+import { DeleteS3FileParams } from './dto/delete-s3file.dto';
 
 @ApiTags('Common')
 @ApiBearerAuth()
@@ -50,6 +60,20 @@ export class CommonController {
       200,
       result,
       'S3 bucket file upload Successfully',
+    );
+  }
+
+  @Delete('/file')
+  async deleteS3File(
+    @Query() params: DeleteS3FileParams,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const result = await this.commonService.deleteS3File(params);
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'S3 file deleted successfully',
     );
   }
 

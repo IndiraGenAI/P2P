@@ -100,6 +100,7 @@ export class UsersService {
       email,
       hash,
       phone: createUserDto.phone?.trim(),
+      image: createUserDto.image ?? null,
       status: createUserDto.status ?? UserStatus.PENDING,
       created_by: userEmailId ?? createUserDto.created_by ?? null,
     });
@@ -126,6 +127,7 @@ export class UsersService {
       'users.last_name',
       'users.email',
       'users.phone',
+      'users.image',
       'users.status',
       'users.last_seen',
       'users.created_date',
@@ -199,6 +201,7 @@ export class UsersService {
         'last_name',
         'email',
         'phone',
+        'image',
         'status',
       ],
     });
@@ -242,6 +245,9 @@ export class UsersService {
     }
     if (updateUserDto.phone !== undefined) {
       user.phone = updateUserDto.phone.trim();
+    }
+    if (updateUserDto.image !== undefined) {
+      user.image = updateUserDto.image;
     }
     if (updateUserDto.status !== undefined) {
       user.status = updateUserDto.status;

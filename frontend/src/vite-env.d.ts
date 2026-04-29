@@ -1,11 +1,15 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_BASE_URL: string;
-  readonly VITE_API_TIMEOUT: string;
-  readonly VITE_APP_NAME: string;
-  readonly VITE_APP_TAGLINE: string;
-  readonly VITE_ENABLE_DEVTOOLS: string;
+  readonly API_BASE_URL: string;
+  readonly MAIN_API_BASE_URL: string;
+  readonly API_TIMEOUT: string;
+  readonly APP_NAME: string;
+  readonly APP_TAGLINE: string;
+  readonly ENABLE_DEVTOOLS: string;
+  readonly GOOGLE_MAPS_API_KEY: string;
+  readonly S3_PUBLIC_BUCKET: string;
+  readonly S3_PUBLIC_BASE_URL: string;
 }
 
 interface ImportMeta {

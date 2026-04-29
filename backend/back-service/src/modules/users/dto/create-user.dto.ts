@@ -53,6 +53,15 @@ export class CreateUserDto {
   @MaxLength(15)
   phone: string;
 
+  @ApiPropertyOptional({
+    example: 'ProfileImages/abc-123.png',
+    description: 'S3 object key (path) of the uploaded profile image.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  image?: string | null;
+
   @ApiPropertyOptional({ enum: UserStatus, example: UserStatus.PENDING })
   @IsOptional()
   @IsEnum(UserStatus)

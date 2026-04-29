@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) NOT NULL UNIQUE,
     hash VARCHAR(255) NOT NULL,
     phone VARCHAR(15) NOT NULL,
+    image VARCHAR(500),
     status user_status NOT NULL DEFAULT 'PENDING',
     last_seen TIMESTAMP,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

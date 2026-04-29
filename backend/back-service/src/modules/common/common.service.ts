@@ -4,7 +4,8 @@ import { areaRepository, cityRepository, ConfigurationsRepository, countryReposi
 import { AddArea, AddressResponse } from './dto/address.interface';
 import { getLookupType } from './dto/getLookupType.dto';
 import { PreSignedURLParams } from './dto/presignurl-s3file-upload.dto';
-import { getPreSignedURL } from "src/commons/helper";
+import { DeleteS3FileParams } from './dto/delete-s3file.dto';
+import { deleteS3File, getPreSignedURL } from "src/commons/helper";
 import { SourceResponse } from './dto/source.interface.dto';
 import { PaymentModeResponse } from './dto/payment-mode.interface.dto';
 import { LabelRemarksResponse } from './dto/label-emarks.interface.dto';
@@ -45,6 +46,13 @@ export class CommonService {
       params.bucket_name,
       params.storage_path
     );
+  }
+
+  async deleteS3File(
+    params: DeleteS3FileParams,
+  ): Promise<{ deleted: true; file_key: string }> {
+    await deleteS3File(params.bucket_name, params.file_key);
+    return { deleted: true, file_key: params.file_key };
   }
 
   async getSource(): Promise<SourceResponse> {

@@ -35,6 +35,13 @@ export class Users {
   @Column('character varying', { name: 'phone', length: 15 })
   phone: string;
 
+  @Column('character varying', {
+    name: 'image',
+    nullable: true,
+    length: 500,
+  })
+  image: string | null;
+
   @Column('timestamp without time zone', { name: 'last_seen', nullable: true })
   last_seen: Date | null;
 

@@ -1,6 +1,13 @@
 
 
 
+export enum StoragePath {
+  DEFAULT = '/',
+  PROFILE_IMAGES = 'ProfileImages',
+  VENDOR_DOCUMENTS = 'VendorDocuments',
+  PURCHASE_REQUEST_DOCUMENTS = 'PurchaseRequestDocuments',
+}
+
 export const ActionType = {
   VIEW: 'VIEW',
   CREATE: 'CREATE',

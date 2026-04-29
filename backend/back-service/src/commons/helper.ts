@@ -38,6 +38,26 @@ export async function getPreSignedURL(
   };
 }
 
+/**
+ * Permanently delete an object from S3. Used when a user replaces or
+ * removes their profile image (and other future "swap a file" flows).
+ * Note: S3 `deleteObject` is idempotent — it returns 204 even if the
+ * key doesn't exist, so callers don't need to pre-check.
+ */
+export async function deleteS3File(
+  bucket_name: string,
+  file_key: string,
+): Promise<void> {
+  if (!bucket_name || !file_key) {
+    throw new BadRequestException(
+      'bucket_name and file_key are required to delete an S3 object.',
+    );
+  }
+  await new S3()
+    .deleteObject({ Bucket: bucket_name, Key: file_key })
+    .promise();
+}
+
 export async function setACLPublicRead(bucketName: string): Promise<boolean> {
   if (
     new RegExp([commonConfig.aws.s3ResourceBucket].join('|')).test(

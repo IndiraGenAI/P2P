@@ -9,6 +9,8 @@ interface ModalProps {
   children: ReactNode;
   onSave: () => void;
   wide?: boolean;
+  saveLabel?: string;
+  saveDisabled?: boolean;
 }
 
 export function Modal({
@@ -19,6 +21,8 @@ export function Modal({
   children,
   onSave,
   wide = false,
+  saveLabel = 'Save Changes',
+  saveDisabled = false,
 }: ModalProps) {
   if (!isOpen) return null;
 
@@ -53,9 +57,10 @@ export function Modal({
           </button>
           <button
             onClick={onSave}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium"
+            disabled={saveDisabled}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Save Changes
+            {saveLabel}
           </button>
         </div>
       </div>
