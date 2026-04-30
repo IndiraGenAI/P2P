@@ -81,6 +81,16 @@ export interface IPurchaseRequestListResult {
   meta: IMetaProps;
 }
 
+export interface IPurchaseRequestStatusCounts {
+  ALL: number;
+  DRAFT: number;
+  SUBMITTED: number;
+  APPROVED: number;
+  REJECTED: number;
+  CANCELLED: number;
+  CLOSED: number;
+}
+
 export interface IPurchaseRequestPayload {
   pr_number?: string | null;
   entity_id?: number | null;
@@ -129,6 +139,12 @@ const purchaseRequestService = {
     mainRequest({ url: `${ENDPOINT}/${id}`, method: 'GET' }).then(
       (res) => res.data,
     ),
+
+  getStatusCounts: (): Promise<IApiResponse<IPurchaseRequestStatusCounts>> =>
+    mainRequest({
+      url: `${ENDPOINT}/status-counts`,
+      method: 'GET',
+    }).then((res) => res.data),
 
   create: (
     data: IPurchaseRequestPayload,

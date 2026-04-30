@@ -10,7 +10,6 @@ export interface IPurchaseRequestAddProps {
   onSubmit: (val: IPurchaseRequestRecord) => void;
   myRef?: React.Ref<HTMLButtonElement>;
   vendors: SelectOption[];
-  vendorSites: SelectOption[];
   entities: SelectOption[];
   itemTypes: SelectOption[];
   departments: SelectOption[];

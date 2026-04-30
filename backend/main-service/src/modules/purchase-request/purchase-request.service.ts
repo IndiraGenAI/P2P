@@ -354,6 +354,32 @@ export class PurchaseRequestService {
     return new PageDto(entities, pageMetaDto);
   }
 
+  async getStatusCounts(): Promise<Record<string, number> & { ALL: number }> {
+    const rows: { status: string | null; count: string }[] =
+      await PurchaseRequestRepository.createQueryBuilder('purchaseRequest')
+        .select('purchaseRequest.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('purchaseRequest.status')
+        .getRawMany();
+
+    const counts: Record<string, number> & { ALL: number } = {
+      ALL: 0,
+      DRAFT: 0,
+      SUBMITTED: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+      CANCELLED: 0,
+      CLOSED: 0,
+    };
+    for (const row of rows) {
+      const key = row.status ?? 'DRAFT';
+      const value = Number(row.count) || 0;
+      counts[key] = (counts[key] ?? 0) + value;
+      counts.ALL += value;
+    }
+    return counts;
+  }
+
   async findOne(purchaseRequestId: number): Promise<
     PurchaseRequest & {
       items: PurchaseRequestItem[];

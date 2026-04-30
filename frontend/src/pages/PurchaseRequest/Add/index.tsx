@@ -4,6 +4,10 @@ import dayjs, { type Dayjs } from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { Plus, Trash2 } from 'lucide-react';
 import { Select } from '@/components/ui/Select';
+import vendorSiteService, {
+  type IVendorSiteRow,
+} from '@/services/vendorSite/vendorSite.service';
+import type { SelectOption } from '@/common/models';
 
 dayjs.extend(customParseFormat);
 
@@ -83,7 +87,6 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
     onSubmit,
     myRef,
     vendors,
-    vendorSites,
     entities,
     itemTypes,
     departments,
@@ -122,6 +125,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
   );
 
   const [local, setLocal] = useState<FormValues>(initialValues);
+  const [vendorSites, setVendorSites] = useState<SelectOption[]>([]);
+  const [vendorSitesLoading, setVendorSitesLoading] = useState(false);
   const [rows, setRows] = useState<ItemRowDraft[]>(() =>
     data?.items?.length
       ? data.items.map((item) => ({
@@ -162,6 +167,9 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
       if (key === 'department_id') {
         next.subdepartment_id = '';
       }
+      if (key === 'vendor_id' && value !== prev.vendor_id) {
+        next.vendor_site_id = '';
+      }
       return next;
     });
     if (key === 'department_id') {
@@ -169,10 +177,52 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
         department_id: value,
         subdepartment_id: '',
       } as Partial<FormValues>);
+    } else if (key === 'vendor_id') {
+      form.setFieldsValue({
+        vendor_id: value,
+        vendor_site_id: '',
+      } as Partial<FormValues>);
     } else {
       form.setFieldsValue({ [key]: value } as Partial<FormValues>);
     }
   };
+
+  useEffect(() => {
+    const vendorId = local.vendor_id;
+    if (!vendorId) {
+      setVendorSites([]);
+      return;
+    }
+    let cancelled = false;
+    setVendorSitesLoading(true);
+    const params = new URLSearchParams();
+    params.set('noLimit', 'true');
+    params.set('status', 'true');
+    params.set('vendor_id', vendorId);
+    vendorSiteService
+      .search(params)
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res.data as { rows: IVendorSiteRow[] }).rows ?? [];
+        setVendorSites(
+          list.map((s) => ({
+            value: String(s.id),
+            label: s.site_name
+              ? `${s.site_code} — ${s.site_name}`
+              : s.site_code,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setVendorSites([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVendorSitesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [local.vendor_id]);
 
   const filteredSubdepartments = useMemo(
     () =>
@@ -243,10 +293,10 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
         ? Number(values.payment_term_id)
         : null,
       center_id: values.center_id ? Number(values.center_id) : null,
-      validity_from: values.validity_from || null,
-      validity_to: values.validity_to || null,
-      required_date: values.required_date || null,
-      frequency: values.frequency || null,
+      validity_from: local.validity_from || null,
+      validity_to: local.validity_to || null,
+      required_date: local.required_date || null,
+      frequency: local.frequency || null,
       remarks: values.remarks?.trim() || null,
       terms_conditions: values.terms_conditions?.trim() || null,
       overall_summary: values.overall_summary?.trim() || null,
@@ -307,10 +357,22 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               value={local.vendor_site_id}
               onChange={(v) => setField('vendor_site_id', v)}
               options={[
-                { value: '', label: 'Select Site…' },
+                {
+                  value: '',
+                  label: local.vendor_id
+                    ? vendorSitesLoading
+                      ? 'Loading sites…'
+                      : vendorSites.length === 0
+                        ? 'No sites for this vendor'
+                        : 'Select Site…'
+                    : 'Select Vendor first…',
+                },
                 ...vendorSites,
               ]}
-              placeholder="Select Site…"
+              placeholder={
+                local.vendor_id ? 'Select Site…' : 'Select Vendor first…'
+              }
+              disabled={!local.vendor_id || vendorSitesLoading}
             />
           </Form.Item>
           <Form.Item name="entity_id" label={wrapLabel('Entity')}>
@@ -475,10 +537,10 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                   Qty
                 </th>
                 <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
-                  Rate
+                  Rate (₹)
                 </th>
                 <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
-                  Amount
+                  Amount (₹)
                 </th>
                 <th className="px-3 py-2 text-center w-12"> </th>
               </tr>
@@ -540,8 +602,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       className="w-full rounded-lg pr-num-input"
                     />
                   </td>
-                  <td className="px-2 py-1.5 text-center text-sm font-medium text-gray-700">
-                    {Number(row.amount).toFixed(2)}
+                  <td className="px-2 py-1.5 text-center text-sm font-medium text-gray-700 tabular-nums">
+                    ₹ {Number(row.amount).toFixed(2)}
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     <button
@@ -560,8 +622,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 <td colSpan={5} className="px-3 py-2 text-right font-semibold">
                   Net Amount
                 </td>
-                <td className="px-2 py-2 text-center font-semibold text-emerald-700">
-                  {totalNet.toFixed(2)}
+                <td className="px-2 py-2 text-center font-semibold text-emerald-700 tabular-nums">
+                  ₹ {totalNet.toFixed(2)}
                 </td>
                 <td />
               </tr>

@@ -104,6 +104,8 @@ export interface IMasterListPageProps<TRecord extends { id: number }> {
   }) => JSX.Element;
   extraColumns?: IExtraColumn[];
   showCodeColumn?: boolean;
+  nameField?: string;
+  nameRender?: (row: IMasterRow) => ReactNode;
   filterFields?: ReactNode;
   formInitialValues?: Record<string, unknown>;
   formSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -138,6 +140,8 @@ export function MasterListPage<TRecord extends { id: number }>(
     AddForm,
     extraColumns = [],
     showCodeColumn = true,
+    nameField = 'name',
+    nameRender,
     filterFields,
     formSize = 'lg',
     submitButtonLabel,
@@ -162,7 +166,7 @@ export function MasterListPage<TRecord extends { id: number }>(
       [];
     if (showCodeColumn)
       cols.push({ key: 'code', label: 'Code', sortable: true });
-    cols.push({ key: 'name', label: singularLabel, sortable: true });
+    cols.push({ key: nameField, label: singularLabel, sortable: true });
     extraColumns.forEach((c) =>
       cols.push({
         key: c.sortKey ?? c.key,
@@ -173,7 +177,7 @@ export function MasterListPage<TRecord extends { id: number }>(
     cols.push({ key: 'created_date', label: 'Created Date', sortable: true });
     cols.push({ key: 'status', label: 'Status', sortable: true });
     return cols;
-  }, [extraColumns, singularLabel, showCodeColumn]);
+  }, [extraColumns, singularLabel, showCodeColumn, nameField]);
 
   const [count, setCount] = useState(0);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -505,7 +509,13 @@ export function MasterListPage<TRecord extends { id: number }>(
                   )}
                   <td className="px-4 py-4 border-b border-slate-100/80">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {showTooltip(row.name, 40)}
+                      {nameRender
+                        ? nameRender(row)
+                        : showTooltip(
+                            (row[nameField] as string | null | undefined) ??
+                              row.name,
+                            40,
+                          )}
                     </p>
                   </td>
                   {extraColumns.map((c) => (

@@ -69,6 +69,7 @@ export const VendorSitePage = () => {
       updateStatusAction={updateVendorSiteStatus}
       AddForm={AddForm}
       showCodeColumn={false}
+      nameField="site_name"
       extraColumns={[
         {
           key: 'site_code',

@@ -48,9 +48,10 @@ import subdepartmentService from '@/services/subdepartment/subdepartment.service
 import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import type { SelectOption } from '@/common/models';
-import type {
-  IPurchaseRequestRow,
-  PurchaseRequestStatus,
+import purchaseRequestService, {
+  type IPurchaseRequestRow,
+  type IPurchaseRequestStatusCounts,
+  type PurchaseRequestStatus,
 } from '@/services/purchaseRequest/purchaseRequest.service';
 import {
   buildRecordFromRow,
@@ -92,18 +93,21 @@ const formatDate = (value: unknown): string => {
   });
 };
 
+const CURRENCY_SYMBOL = '\u20B9';
+
 const formatMoney = (value: unknown): string => {
   const num = Number(value ?? 0);
-  if (Number.isNaN(num)) return '0.00';
-  return num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const formatted = Number.isNaN(num)
+    ? '0.00'
+    : num.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+  return `${CURRENCY_SYMBOL} ${formatted}`;
 };
 
 const useFkOptions = () => {
   const [vendors, setVendors] = useState<SelectOption[]>([]);
-  const [vendorSites, setVendorSites] = useState<SelectOption[]>([]);
   const [entities, setEntities] = useState<SelectOption[]>([]);
   const [itemTypes, setItemTypes] = useState<SelectOption[]>([]);
   const [departments, setDepartments] = useState<SelectOption[]>([]);
@@ -226,10 +230,8 @@ const useFkOptions = () => {
       .catch(() => setEntities([]));
   }, []);
 
-  // Vendor sites are large – just empty for now; can be filtered by vendor later.
   return {
     vendors,
-    vendorSites,
     entities,
     itemTypes,
     departments,
@@ -237,7 +239,6 @@ const useFkOptions = () => {
     paymentTerms,
     centers,
     items,
-    setVendorSites,
   };
 };
 
@@ -264,6 +265,30 @@ export const PurchaseRequestPage = () => {
     useState<IPurchaseRequestRow | null>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
 
+  const activeStatus = (searchParams.get('status') ?? '') as
+    | ''
+    | PurchaseRequestStatus;
+
+  const [statusCounts, setStatusCounts] =
+    useState<IPurchaseRequestStatusCounts>({
+      ALL: 0,
+      DRAFT: 0,
+      SUBMITTED: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+      CANCELLED: 0,
+      CLOSED: 0,
+    });
+
+  const refreshStatusCounts = () => {
+    purchaseRequestService
+      .getStatusCounts()
+      .then((res) => {
+        if (res?.data) setStatusCounts(res.data);
+      })
+      .catch(() => {});
+  };
+
   const dataFromSearch = (): Record<string, unknown> => {
     const data: Record<string, unknown> = {};
     searchParams.forEach((value, key) => {
@@ -284,6 +309,10 @@ export const PurchaseRequestPage = () => {
     }
     dispatch(searchPurchaseRequestData(dataFromSearch()));
   }, [searchParams]);
+
+  useEffect(() => {
+    refreshStatusCounts();
+  }, []);
 
   useEffect(() => {
     const data: Record<string, string> = {};
@@ -406,6 +435,7 @@ export const PurchaseRequestPage = () => {
       if (result.meta.requestStatus === 'fulfilled') {
         closeFormDrawer();
         refresh();
+        refreshStatusCounts();
       }
     } else {
       const result = await dispatch(createNewPurchaseRequest(payload));
@@ -417,6 +447,7 @@ export const PurchaseRequestPage = () => {
           sp.set('skip', '0');
           setSearchParams(sp);
         }
+        refreshStatusCounts();
       }
     }
   };
@@ -433,6 +464,7 @@ export const PurchaseRequestPage = () => {
       } else {
         refresh();
       }
+      refreshStatusCounts();
     }
   };
 
@@ -443,8 +475,61 @@ export const PurchaseRequestPage = () => {
     const result = await dispatch(
       updatePurchaseRequestStatus({ id: row.id, status: nextStatus }),
     );
-    if (result.meta.requestStatus === 'fulfilled') refresh();
+    if (result.meta.requestStatus === 'fulfilled') {
+      refresh();
+      refreshStatusCounts();
+    }
   };
+
+  const setStatusTab = (status: '' | PurchaseRequestStatus) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (status) sp.set('status', status);
+    else sp.delete('status');
+    sp.set('skip', '0');
+    setSearchParams(sp);
+  };
+
+  const STATUS_TABS: {
+    key: '' | PurchaseRequestStatus;
+    label: string;
+    countKey: keyof IPurchaseRequestStatusCounts;
+    text: string;
+    badge: string;
+    activeRing: string;
+  }[] = [
+    {
+      key: '',
+      label: 'All',
+      countKey: 'ALL',
+      text: 'text-gray-600',
+      badge: 'bg-gray-100 text-gray-600',
+      activeRing: 'ring-1 ring-gray-300',
+    },
+    {
+      key: 'SUBMITTED',
+      label: 'Pending',
+      countKey: 'SUBMITTED',
+      text: 'text-amber-600',
+      badge: 'bg-amber-50 text-amber-600',
+      activeRing: 'ring-1 ring-amber-300',
+    },
+    {
+      key: 'APPROVED',
+      label: 'Approved',
+      countKey: 'APPROVED',
+      text: 'text-emerald-600',
+      badge: 'bg-emerald-50 text-emerald-600',
+      activeRing: 'ring-1 ring-emerald-300',
+    },
+    {
+      key: 'REJECTED',
+      label: 'Rejected',
+      countKey: 'REJECTED',
+      text: 'text-red-500',
+      badge: 'bg-red-50 text-red-500',
+      activeRing: 'ring-1 ring-red-300',
+    },
+  ];
 
   const onFinishFilter = (values: Record<string, unknown>) => {
     const existing: Record<string, string> = {};
@@ -475,16 +560,16 @@ export const PurchaseRequestPage = () => {
     setIsFilterDrawerOpen(false);
   };
 
-  const tableHead = useMemo(
+  const tableHead = useMemo<{ label: string; align?: 'left' | 'right' }[]>(
     () => [
-      'PR Number',
-      'Vendor',
-      'Department',
-      'Required',
-      'Net Amount',
-      'Status',
-      'Created',
-      'Actions',
+      { label: 'PR Number' },
+      { label: 'Vendor' },
+      { label: 'Department' },
+      { label: 'Required' },
+      { label: 'Net Amount', align: 'right' },
+      { label: 'Status' },
+      { label: 'Created' },
+      { label: 'Actions' },
     ],
     [],
   );
@@ -505,10 +590,36 @@ export const PurchaseRequestPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {STATUS_TABS.map((tab) => {
+                const isActive = activeStatus === tab.key;
+                const count = statusCounts[tab.countKey] ?? 0;
+                return (
+                  <button
+                    key={tab.key || 'all'}
+                    type="button"
+                    onClick={() => setStatusTab(tab.key)}
+                    className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-white border border-gray-100 text-xs font-medium tracking-wide transition hover:border-gray-200 ${
+                      tab.text
+                    } ${isActive ? tab.activeRing : ''}`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`min-w-[20px] h-[20px] inline-flex items-center justify-center text-[10px] font-semibold rounded-full px-1 ${tab.badge}`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <span className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />
+
             <button
               type="button"
               onClick={() => setIsFilterDrawerOpen(true)}
-              className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 soft-btn"
+              className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 soft-btn border border-gray-100"
             >
               Filter <Filter size={14} />
               {filterCount > 0 && (
@@ -540,12 +651,14 @@ export const PurchaseRequestPage = () => {
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   No
                 </th>
-                {tableHead.map((label) => (
+                {tableHead.map((col) => (
                   <th
-                    key={label}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200"
+                    key={col.label}
+                    className={`px-4 py-3 ${
+                      col.align === 'right' ? 'text-right' : 'text-left'
+                    } text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200`}
                   >
-                    {label}
+                    {col.label}
                   </th>
                 ))}
               </tr>
@@ -554,7 +667,10 @@ export const PurchaseRequestPage = () => {
               {isLoading && rows.length === 0 && (
                 <TableRowSkeleton
                   rows={Math.min(take, 10)}
-                  columns={tableHead.map((h) => ({ key: h, width: 'w-24' }))}
+                  columns={tableHead.map((h) => ({
+                    key: h.label,
+                    width: 'w-24',
+                  }))}
                 />
               )}
               {rows.map((row, index) => {
@@ -830,7 +946,6 @@ export const PurchaseRequestPage = () => {
             onSubmit={handleFormSubmit}
             myRef={submitBtnRef}
             vendors={fkOptions.vendors}
-            vendorSites={fkOptions.vendorSites}
             entities={fkOptions.entities}
             itemTypes={fkOptions.itemTypes}
             departments={fkOptions.departments}

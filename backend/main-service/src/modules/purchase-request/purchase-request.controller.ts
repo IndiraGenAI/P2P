@@ -70,6 +70,18 @@ export class PurchaseRequestController {
   }
 
   @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
+  @Get('status-counts')
+  async getStatusCounts(@Res() res: Response): Promise<Response> {
+    const result = await this.service.getStatusCounts();
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'Purchase request status counts fetched successfully',
+    );
+  }
+
+  @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
