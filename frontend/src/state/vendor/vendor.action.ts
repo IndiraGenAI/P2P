@@ -36,3 +36,10 @@ export const updateVendorStatus = createAsyncThunk(
     return vendorService.updateStatus(data);
   },
 );
+
+export const bulkUploadVendors = createAsyncThunk(
+  'vendorMaster/bulkUploadVendors',
+  async (file: File) => {
+    return vendorService.bulkUpload(file);
+  },
+);

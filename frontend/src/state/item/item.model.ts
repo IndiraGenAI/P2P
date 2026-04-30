@@ -19,4 +19,5 @@ export interface IItemMasterState {
   editById: { loading: boolean; hasErrors: boolean; message: string };
   removeById: { loading: boolean; hasErrors: boolean; message: string };
   updateById: { loading: boolean; hasErrors: boolean; message: string };
+  bulkUpload: { loading: boolean; hasErrors: boolean; message: string };
 }

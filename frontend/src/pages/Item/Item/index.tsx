@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { message } from 'antd';
 import { Package } from 'lucide-react';
 import {
   MasterListPage,
@@ -6,6 +7,7 @@ import {
 } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
+  bulkUploadItems,
   createNewItem,
   editItemById,
   removeItemById,
@@ -16,6 +18,8 @@ import {
   clearItemMessage,
   itemMasterSelector,
 } from '@/state/item/item.reducer';
+import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
+import BulkUploadButton from '@/components/master/BulkUploadButton';
 import itemTypeService, {
   type IItemTypeRow,
 } from '@/services/itemType/itemType.service';
@@ -71,8 +75,32 @@ const useFkOptions = () => {
   return { itemTypes, itemCategories, uoms, coas };
 };
 
+const ITEM_SAMPLE_HEADERS = [
+  'Code',
+  'Name',
+  'Item Type',
+  'Item Category',
+  'UOM',
+  'COA Code',
+  'Status',
+];
+
 export const ItemPage = () => {
   const { itemTypes, itemCategories, uoms, coas } = useFkOptions();
+  const dispatch = useAppDispatch();
+  const bulkUploadState = useAppSelector(
+    (s) => itemMasterSelector(s).bulkUpload,
+  );
+
+  useEffect(() => {
+    if (!bulkUploadState.message) return;
+    if (bulkUploadState.hasErrors) {
+      message.error(bulkUploadState.message);
+    } else {
+      message.success(bulkUploadState.message);
+    }
+    dispatch(clearItemMessage());
+  }, [bulkUploadState.message, bulkUploadState.hasErrors, dispatch]);
 
   const AddForm = (props: any) => (
     <ItemAdd
@@ -98,6 +126,15 @@ export const ItemPage = () => {
       removeAction={removeItemById}
       updateStatusAction={updateItemStatus}
       AddForm={AddForm}
+      headerActions={({ refresh }) => (
+        <BulkUploadButton
+          label="Bulk Upload Items"
+          sampleFileName="item_master_sample.csv"
+          sampleHeaders={ITEM_SAMPLE_HEADERS}
+          onUpload={(file) => dispatch(bulkUploadItems(file)).unwrap()}
+          onUploaded={refresh}
+        />
+      )}
       extraColumns={[
         {
           key: 'item_type',

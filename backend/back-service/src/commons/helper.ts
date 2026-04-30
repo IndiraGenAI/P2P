@@ -2,6 +2,10 @@ import { S3 } from 'aws-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import { BadRequestException } from '@nestjs/common';
 import { commonConfig, SystemEnums } from './common';
+import { extname } from 'path';
+import * as fs from 'fs';
+import * as csvParser from 'csv-parser';
+import { Request } from 'express';
 
 export async function getPreSignedURL(
   file_name: string,
@@ -85,4 +89,44 @@ export async function getBranchIds(
   throw new BadRequestException(
     'getBranchIds is not available: branches module not wired up.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Bulk-upload helpers (CSV)
+// Used by master modules (Item, Vendor, ...) to accept a CSV file via Multer
+// and stream-parse it into an array of row objects keyed by the header row.
+// ---------------------------------------------------------------------------
+
+export const editFileName = (
+  _req: Request,
+  file: Express.Multer.File,
+  callback: (error: Error | null, filename?: string) => void,
+): void => {
+  const name = file.originalname.split('.').slice(0, -1).join('.');
+  const fileExtName = extname(file.originalname);
+  if (fileExtName.toLowerCase() === '.csv') {
+    const safeName = `${name}-${Date.now()}${fileExtName}`;
+    callback(null, safeName);
+  } else {
+    callback(new BadRequestException('Only CSV file is allowed'));
+  }
+};
+
+export const readCSV = (filepath: string): Promise<Record<string, string>[]> => {
+  return new Promise((resolve, reject) => {
+    const results: Record<string, string>[] = [];
+    fs.createReadStream(filepath)
+      .pipe(csvParser())
+      .on('data', (data: Record<string, string>) => results.push(data))
+      .on('error', (err) => reject(err))
+      .on('end', () => resolve(results));
+  });
+};
+
+export interface IBulkUploadResult<T = unknown> {
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  inserted: T[];
+  errors: { row: number; message: string; data?: Record<string, string> }[];
 }

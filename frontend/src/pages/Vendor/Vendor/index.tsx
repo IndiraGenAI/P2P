@@ -6,6 +6,7 @@ import {
 } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
+  bulkUploadVendors,
   createNewVendor,
   editVendorById,
   removeVendorById,
@@ -16,6 +17,8 @@ import {
   clearVendorMessage,
   vendorMasterSelector,
 } from '@/state/vendor/vendor.reducer';
+import { useAppDispatch } from '@/state/app.hooks';
+import BulkUploadButton from '@/components/master/BulkUploadButton';
 import vendorCategoryService, {
   type IVendorCategoryRow,
 } from '@/services/vendorCategory/vendorCategory.service';
@@ -114,6 +117,34 @@ const useFkOptions = () => {
   };
 };
 
+const VENDOR_SAMPLE_HEADERS = [
+  'Code',
+  'Name',
+  'Vendor Category',
+  'Supplier Number',
+  'Supplier Name',
+  'TDS',
+  'Payment Term',
+  'Applicant Type',
+  'Resident Status',
+  'PAN Number',
+  'GST Number',
+  'Country Code',
+  'Vendor Type',
+  'Is MSME',
+  'Address Line 1',
+  'Address Line 2',
+  'Address Line 3',
+  'State Code',
+  'City',
+  'Pincode',
+  'Contact First Name',
+  'Contact Last Name',
+  'Contact Phone',
+  'Contact Email',
+  'Status',
+];
+
 export const VendorPage = () => {
   const {
     vendorCategories,
@@ -123,6 +154,7 @@ export const VendorPage = () => {
     countries,
     currencies,
   } = useFkOptions();
+  const dispatch = useAppDispatch();
 
   const AddForm = (props: {
     data?: IVendorRecord;
@@ -157,6 +189,15 @@ export const VendorPage = () => {
       updateStatusAction={updateVendorStatus}
       AddForm={AddForm}
       formSize="xl"
+      headerActions={({ refresh }) => (
+        <BulkUploadButton
+          label="Bulk Upload Vendors"
+          sampleFileName="vendor_master_sample.csv"
+          sampleHeaders={VENDOR_SAMPLE_HEADERS}
+          onUpload={(file) => dispatch(bulkUploadVendors(file)).unwrap()}
+          onUploaded={refresh}
+        />
+      )}
       extraColumns={[
         {
           key: 'vendor_category',

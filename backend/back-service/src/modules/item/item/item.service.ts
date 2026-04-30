@@ -1,4 +1,5 @@
 ﻿import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -17,11 +18,22 @@ import { itemTypeRepository } from '../item-type/repository/item-type.repository
 import { itemCategoryRepository } from '../item-category/repository/item-category.repository';
 import { uomRepository } from '../../other/uom/repository/uom.repository';
 import { coaRepository } from '../../coa/repository/coa.repository';
+import { IBulkUploadResult } from '@commons/helper';
 
 interface ItemListResponse {
   rows: Item[];
   count: number;
 }
+
+const ITEM_CSV_HEADERS = [
+  'Code',
+  'Name',
+  'Item Type',
+  'Item Category',
+  'UOM',
+  'COA Code',
+  'Status',
+];
 
 @Injectable()
 export class ItemService {
@@ -280,5 +292,163 @@ export class ItemService {
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Item not found');
+  }
+
+  // ---------------------------------------------------------------
+  // Bulk upload via CSV
+  // Expected headers: Code, Name, Item Type, Item Category, UOM,
+  //                   COA Code (optional), Status (true/false, optional)
+  // ---------------------------------------------------------------
+  async createItemByUploadCSV(
+    csvFileData: Record<string, string>[],
+    userEmailId: string | null,
+  ): Promise<IBulkUploadResult<Item>> {
+    const inserted: Item[] = [];
+
+    if (csvFileData) {
+      const itemTypes = await itemTypeRepository.find();
+      const itemCategories = await itemCategoryRepository.find();
+      const uoms = await uomRepository.find();
+      const coas = await coaRepository.find();
+      const existingCodes = new Set(
+        (await itemRepository.find({ select: ['code'] })).map((r) =>
+          (r.code ?? '').toLowerCase(),
+        ),
+      );
+
+      const findRefId = (
+        list: {
+          id: number;
+          name?: string;
+          code?: string;
+          gl_code?: string;
+          gl_name?: string;
+        }[],
+        raw: string | undefined,
+      ): number | null => {
+        if (!raw) return null;
+        const value = raw.trim();
+        if (value === '') return null;
+        if (/^\d+$/.test(value)) {
+          const byId = list.find((r) => r.id === Number(value));
+          if (byId) return byId.id;
+        }
+        const lower = value.toLowerCase();
+        const match = list.find(
+          (r) =>
+            r.name?.toLowerCase() === lower ||
+            r.code?.toLowerCase() === lower ||
+            r.gl_code?.toLowerCase() === lower ||
+            r.gl_name?.toLowerCase() === lower,
+        );
+        return match?.id ?? null;
+      };
+
+      let sum = 0;
+      const seenCodes = new Set<string>();
+
+      csvFileData.map((x) => {
+        if (x['Code'] && x['Name']) {
+          const code = x['Code'].trim();
+          const name = x['Name'].trim();
+
+          if (code === '') {
+            throw new BadRequestException(
+              `Please Enter Code In Item ${name}.`,
+            );
+          }
+          if (name === '') {
+            throw new BadRequestException(
+              `Please Enter Name In Item Code ${code}.`,
+            );
+          }
+
+          const codeKey = code.toLowerCase();
+          if (seenCodes.has(codeKey)) {
+            throw new BadRequestException(
+              `Duplicate Item Code ${code} Found In CSV.`,
+            );
+          }
+          if (existingCodes.has(codeKey)) {
+            throw new BadRequestException(
+              `Item Code ${code} Already Exists.`,
+            );
+          }
+          seenCodes.add(codeKey);
+
+          if (x['Item Type'] && !findRefId(itemTypes, x['Item Type'])) {
+            throw new BadRequestException(
+              `Item Type "${x['Item Type']}" Not Found In Item ${name}.`,
+            );
+          }
+          if (
+            x['Item Category'] &&
+            !findRefId(itemCategories, x['Item Category'])
+          ) {
+            throw new BadRequestException(
+              `Item Category "${x['Item Category']}" Not Found In Item ${name}.`,
+            );
+          }
+          if (x['UOM'] && !findRefId(uoms, x['UOM'])) {
+            throw new BadRequestException(
+              `UOM "${x['UOM']}" Not Found In Item ${name}.`,
+            );
+          }
+          if (x['COA Code'] && !findRefId(coas, x['COA Code'])) {
+            throw new BadRequestException(
+              `COA "${x['COA Code']}" Not Found In Item ${name}.`,
+            );
+          }
+
+          sum += 1;
+        } else {
+          throw new BadRequestException(
+            `Please Enter Valid Item Data Then After Upload file.`,
+          );
+        }
+      });
+
+      if (csvFileData.length === sum) {
+        for (let i = 0; i < csvFileData.length; i++) {
+          const statusRaw = (csvFileData[i]['Status'] ?? '')
+            .trim()
+            .toLowerCase();
+          const status =
+            statusRaw === ''
+              ? true
+              : !['false', '0', 'inactive', 'no'].includes(statusRaw);
+
+          const item = {
+            code: csvFileData[i]['Code'].trim(),
+            name: csvFileData[i]['Name'].trim(),
+            item_type_id: findRefId(itemTypes, csvFileData[i]['Item Type']),
+            item_category_id: findRefId(
+              itemCategories,
+              csvFileData[i]['Item Category'],
+            ),
+            uom_id: findRefId(uoms, csvFileData[i]['UOM']),
+            coa_id: findRefId(coas, csvFileData[i]['COA Code']),
+            status,
+            created_by: userEmailId,
+            created_date: new Date(),
+          };
+          const saved = await itemRepository.save(itemRepository.create(item));
+          inserted.push(saved);
+        }
+        return {
+          totalRows: csvFileData.length,
+          successCount: inserted.length,
+          failureCount: 0,
+          inserted,
+          errors: [],
+        };
+      }
+    } else {
+      throw new BadRequestException('This file is empty ');
+    }
+  }
+
+  getCsvHeaders(): string[] {
+    return [...ITEM_CSV_HEADERS];
   }
 }

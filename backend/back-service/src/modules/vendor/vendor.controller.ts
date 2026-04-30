@@ -1,6 +1,7 @@
 import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -13,10 +14,22 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as fs from 'fs';
 import { Response } from 'express';
 import { baseController } from 'src/core/baseController';
+import { editFileName, readCSV } from '@commons/helper';
 import { VendorService } from './vendor.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { GetVendorFilterDto } from './dto/vendor-filter.dto';
@@ -271,6 +284,73 @@ export class VendorController {
       result,
       'Vendor site deleted successfully',
     );
+  }
+
+  // =====================================================================
+  // VENDOR BULK UPLOAD (declared BEFORE /:id to avoid ParseIntPipe conflicts)
+  // =====================================================================
+  @Role('MASTER_VENDOR_CREATE')
+  @Get('bulk-upload/sample')
+  async getBulkSampleHeaders(@Res() res: Response): Promise<Response> {
+    const headers = this.service.getCsvHeaders();
+    return baseController.getResult(
+      res,
+      200,
+      { headers },
+      'Vendor bulk-upload sample headers fetched successfully',
+    );
+  }
+
+  @Role('MASTER_VENDOR_CREATE')
+  @Post('bulk-upload')
+  @ApiOperation({ summary: 'Bulk upload vendors from a CSV file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: editFileName,
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Res() res: Response,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Response> {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+    try {
+      const csvData = await readCSV(file.path);
+      const result = await this.service.bulkUploadFromCSV(
+        csvData,
+        req.user.email,
+      );
+      return baseController.getResult(
+        res,
+        200,
+        result,
+        `Vendor bulk upload completed: ${result.successCount} created, ${result.failureCount} failed`,
+      );
+    } finally {
+      try {
+        if (file?.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      } catch {
+        // ignore cleanup errors
+      }
+    }
   }
 
   // =====================================================================

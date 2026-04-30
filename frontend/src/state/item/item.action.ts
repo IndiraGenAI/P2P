@@ -36,3 +36,10 @@ export const updateItemStatus = createAsyncThunk(
     return itemService.updateStatus(data);
   },
 );
+
+export const bulkUploadItems = createAsyncThunk(
+  'itemMaster/bulkUploadItems',
+  async (file: File) => {
+    return itemService.bulkUpload(file);
+  },
+);

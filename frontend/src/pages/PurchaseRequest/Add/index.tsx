@@ -19,7 +19,7 @@ import type { IPurchaseRequestRecord } from '../PurchaseRequest.model';
 import type { IPurchaseRequestAddProps } from './Add.model';
 
 const SECTION_TITLE =
-  'text-[11px] font-semibold tracking-[0.14em] text-gray-400 uppercase mb-4';
+  'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
 const SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
 const FIELD_INPUT_CLASS = 'rounded-xl soft-input !py-2.5';
 

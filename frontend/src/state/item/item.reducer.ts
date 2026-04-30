@@ -1,6 +1,7 @@
 import { createSelector, createSlice } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
 import {
+  bulkUploadItems,
   createNewItem,
   editItemById,
   removeItemById,
@@ -29,6 +30,7 @@ export const initialState: IItemMasterState = {
   editById: { loading: false, hasErrors: false, message: '' },
   removeById: { loading: false, hasErrors: false, message: '' },
   updateById: { loading: false, hasErrors: false, message: '' },
+  bulkUpload: { loading: false, hasErrors: false, message: '' },
 };
 
 export const itemMasterSlice = createSlice({
@@ -41,6 +43,7 @@ export const itemMasterSlice = createSlice({
       state.editById.message = '';
       state.removeById.message = '';
       state.updateById.message = '';
+      state.bulkUpload.message = '';
     },
   },
   extraReducers: (builder) => {
@@ -114,6 +117,22 @@ export const itemMasterSlice = createSlice({
         state.updateById.loading = false;
         state.updateById.hasErrors = true;
         state.updateById.message = action.error.message ?? '';
+      })
+
+      .addCase(bulkUploadItems.pending, (state) => {
+        state.bulkUpload.loading = true;
+        state.bulkUpload.hasErrors = false;
+        state.bulkUpload.message = '';
+      })
+      .addCase(bulkUploadItems.fulfilled, (state, action) => {
+        state.bulkUpload.loading = false;
+        state.bulkUpload.hasErrors = false;
+        state.bulkUpload.message = action.payload?.message ?? '';
+      })
+      .addCase(bulkUploadItems.rejected, (state, action) => {
+        state.bulkUpload.loading = false;
+        state.bulkUpload.hasErrors = true;
+        state.bulkUpload.message = action.error.message ?? '';
       });
   },
 });
@@ -128,6 +147,7 @@ export const itemMasterSelector = createSelector(
     edit: s.editById,
     remove: s.removeById,
     status: s.updateById,
+    bulkUpload: s.bulkUpload,
   }),
 );
 

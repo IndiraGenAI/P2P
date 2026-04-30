@@ -108,6 +108,7 @@ export interface IMasterListPageProps<TRecord extends { id: number }> {
   formInitialValues?: Record<string, unknown>;
   formSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   submitButtonLabel?: { create?: string; update?: string };
+  headerActions?: ReactNode | ((ctx: { refresh: () => void }) => ReactNode);
 }
 
 const STATUS_OPTIONS = [
@@ -140,6 +141,7 @@ export function MasterListPage<TRecord extends { id: number }>(
     filterFields,
     formSize = 'lg',
     submitButtonLabel,
+    headerActions,
   } = props;
 
   const dispatch = useAppDispatch();
@@ -410,6 +412,16 @@ export function MasterListPage<TRecord extends { id: number }>(
                 </span>
               )}
             </button>
+
+            {headerActions && (
+              <Can I={Common.Actions.CAN_ADD} a={pageCode}>
+                <>
+                  {typeof headerActions === 'function'
+                    ? headerActions({ refresh: refreshCurrent })
+                    : headerActions}
+                </>
+              </Can>
+            )}
 
             <Can I={Common.Actions.CAN_ADD} a={pageCode}>
               <button

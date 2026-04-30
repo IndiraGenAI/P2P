@@ -1,6 +1,7 @@
 ﻿import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -13,10 +14,22 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import { Response } from 'express';
+import * as fs from 'fs';
 import { baseController } from 'src/core/baseController';
+import { editFileName, readCSV } from '@commons/helper';
 import { ItemService } from './item.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { GetItemFilterDto } from './dto/item-filter.dto';
@@ -126,6 +139,65 @@ export class ItemController {
       200,
       result,
       'Item deleted successfully',
+    );
+  }
+
+  @Role('MASTER_ITEM_CREATE')
+  @Get('bulk-upload/sample')
+  async getBulkSampleHeaders(@Res() res: Response): Promise<Response> {
+    const headers = this.service.getCsvHeaders();
+    return baseController.getResult(
+      res,
+      200,
+      { headers },
+      'Item bulk-upload sample headers fetched successfully',
+    );
+  }
+
+  @Role('MASTER_ITEM_CREATE')
+  @Post('bulk-upload')
+  @ApiOperation({ summary: 'Upload a CSV File' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: editFileName,
+      }),
+    }),
+  )
+  async uploadFile(
+    @Res() res: Response,
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<Response> {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+    const csvFileData = await readCSV(file.path);
+    if (file?.path && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    const result = await this.service.createItemByUploadCSV(
+      csvFileData,
+      req.user.email,
+    );
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'Item is created successfully ',
     );
   }
 }

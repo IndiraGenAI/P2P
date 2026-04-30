@@ -62,6 +62,35 @@ import { vendorSiteRepository } from './repository/vendor-site.repository';
 import { tdsRepository } from '../tds/repository/tds.repository';
 import { paymentTermRepository } from '../other/payment-term/repository/payment-term.repository';
 import { applicantTypeRepository } from '../other/applicant-type/repository/applicant-type.repository';
+import { IBulkUploadResult } from '@commons/helper';
+
+const VENDOR_CSV_HEADERS = [
+  'Code',
+  'Name',
+  'Vendor Category',
+  'Supplier Number',
+  'Supplier Name',
+  'TDS',
+  'Payment Term',
+  'Applicant Type',
+  'Resident Status',
+  'PAN Number',
+  'GST Number',
+  'Country Code',
+  'Vendor Type',
+  'Is MSME',
+  'Address Line 1',
+  'Address Line 2',
+  'Address Line 3',
+  'State Code',
+  'City',
+  'Pincode',
+  'Contact First Name',
+  'Contact Last Name',
+  'Contact Phone',
+  'Contact Email',
+  'Status',
+];
 
 interface VendorListResponse {
   rows: Vendor[];
@@ -1208,5 +1237,155 @@ export class VendorService {
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor site not found');
+  }
+
+  // =====================================================================
+  // VENDOR BULK UPLOAD (CSV)
+  // FK columns (Vendor Category, TDS, Payment Term, Applicant Type) are
+  // matched by NAME (case-insensitive), or numeric ID, for human-friendly
+  // CSV authoring. Code is auto-generated when blank.
+  // =====================================================================
+  getCsvHeaders(): string[] {
+    return [...VENDOR_CSV_HEADERS];
+  }
+
+  async bulkUploadFromCSV(
+    rows: Record<string, string>[],
+    userEmailId: string | null,
+  ): Promise<IBulkUploadResult<Vendor>> {
+    if (!rows || rows.length === 0) {
+      throw new ConflictException('Uploaded CSV file is empty');
+    }
+
+    const inserted: Vendor[] = [];
+    const errors: IBulkUploadResult<Vendor>['errors'] = [];
+
+    const categories = await vendorCategoryRepository.find();
+    const tdsList = await tdsRepository.find();
+    const paymentTerms = await paymentTermRepository.find();
+    const applicantTypes = await applicantTypeRepository.find();
+
+    const findRefId = (
+      list: { id: number; name?: string; code?: string }[],
+      raw: string | undefined,
+    ): number | null => {
+      if (!raw) return null;
+      const value = raw.trim();
+      if (value === '') return null;
+      if (/^\d+$/.test(value)) {
+        const byId = list.find((r) => r.id === Number(value));
+        if (byId) return byId.id;
+      }
+      const lower = value.toLowerCase();
+      const match = list.find(
+        (r) =>
+          (r.name && r.name.toLowerCase() === lower) ||
+          (r.code && r.code.toLowerCase() === lower),
+      );
+      return match?.id ?? null;
+    };
+
+    const parseBool = (raw: string | undefined, defaultVal: boolean): boolean => {
+      if (raw === undefined || raw === null) return defaultVal;
+      const v = String(raw).trim().toLowerCase();
+      if (v === '') return defaultVal;
+      return !['false', '0', 'no', 'inactive', 'n'].includes(v);
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
+      try {
+        const name = (row['Name'] ?? '').trim();
+        if (!name) throw new Error('"Name" column is required');
+
+        let code = (row['Code'] ?? '').trim();
+
+        const categoryRaw = row['Vendor Category'];
+        const vendorCategoryId = findRefId(categories, categoryRaw);
+        if (categoryRaw && !vendorCategoryId) {
+          throw new Error(`Vendor Category "${categoryRaw}" not found`);
+        }
+
+        const tdsRaw = row['TDS'];
+        const tdsId = findRefId(tdsList, tdsRaw);
+        if (tdsRaw && !tdsId) {
+          throw new Error(`TDS "${tdsRaw}" not found`);
+        }
+
+        const paymentTermRaw = row['Payment Term'];
+        const paymentTermId = findRefId(paymentTerms, paymentTermRaw);
+        if (paymentTermRaw && !paymentTermId) {
+          throw new Error(`Payment Term "${paymentTermRaw}" not found`);
+        }
+
+        const applicantTypeRaw = row['Applicant Type'];
+        const applicantTypeId = findRefId(applicantTypes, applicantTypeRaw);
+        if (applicantTypeRaw && !applicantTypeId) {
+          throw new Error(`Applicant Type "${applicantTypeRaw}" not found`);
+        }
+
+        if (code) {
+          const codeConflict = await vendorRepository
+            .createQueryBuilder('vendor')
+            .where('LOWER(vendor.code) = LOWER(:code)', { code })
+            .getOne();
+          if (codeConflict) {
+            throw new Error(`Vendor code "${code}" already exists`);
+          }
+        } else {
+          code = await this.generateVendorCode();
+        }
+
+        const entity = vendorRepository.create({
+          code,
+          name,
+          vendor_category_id: vendorCategoryId,
+          tds_id: tdsId,
+          payment_term_id: paymentTermId,
+          applicant_type_id: applicantTypeId,
+          supplier_number: this.trimOrNull(row['Supplier Number']),
+          supplier_name: this.trimOrNull(row['Supplier Name']),
+          resident_status: this.trimOrNull(row['Resident Status']),
+          pan_number:
+            this.trimOrNull(row['PAN Number'])?.toUpperCase() ?? null,
+          gst_number:
+            this.trimOrNull(row['GST Number'])?.toUpperCase() ?? null,
+          country_code: this.trimOrNull(row['Country Code']),
+          vendor_type: this.trimOrNull(row['Vendor Type']),
+          is_msme: parseBool(row['Is MSME'], false),
+          address_line1: this.trimOrNull(row['Address Line 1']),
+          address_line2: this.trimOrNull(row['Address Line 2']),
+          address_line3: this.trimOrNull(row['Address Line 3']),
+          state_code: this.trimOrNull(row['State Code']),
+          city: this.trimOrNull(row['City']),
+          pincode: this.trimOrNull(row['Pincode']),
+          country_id: null,
+          currency_id: null,
+          contact_first_name: this.trimOrNull(row['Contact First Name']),
+          contact_last_name: this.trimOrNull(row['Contact Last Name']),
+          contact_phone: this.trimOrNull(row['Contact Phone']),
+          contact_email: this.trimOrNull(row['Contact Email']),
+          status: parseBool(row['Status'], true),
+          created_by: userEmailId,
+          created_date: new Date(),
+        });
+
+        const saved = await vendorRepository.save(entity);
+        inserted.push(saved);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : 'Unknown error while saving row';
+        errors.push({ row: rowNum, message, data: row });
+      }
+    }
+
+    return {
+      totalRows: rows.length,
+      successCount: inserted.length,
+      failureCount: errors.length,
+      inserted,
+      errors,
+    };
   }
 }

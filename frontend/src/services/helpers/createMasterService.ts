@@ -54,5 +54,32 @@ export function createMasterService<TRow extends { id: number }>(
         method: 'PATCH',
         data: { status: data.status },
       }).then((res) => res.data),
+
+    bulkUpload: (
+      file: File,
+    ): Promise<
+      IApiResponse<{
+        totalRows: number;
+        successCount: number;
+        failureCount: number;
+        inserted: TRow[];
+        errors: { row: number; message: string; data?: Record<string, string> }[];
+      }>
+    > => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return request({
+        url: `${ENDPOINT}/bulk-upload`,
+        method: 'POST',
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((res) => res.data);
+    },
+
+    bulkUploadSample: (): Promise<IApiResponse<{ headers: string[] }>> =>
+      request({
+        url: `${ENDPOINT}/bulk-upload/sample`,
+        method: 'GET',
+      }).then((res) => res.data),
   };
 }
