@@ -43,4 +43,5 @@ export interface IPurchaseRequestState {
   updateById: IPurchaseRequestStateBlock & {
     nextStatus?: PurchaseRequestStatus | string;
   };
+  approvalDecision: IPurchaseRequestStateBlock;
 }

@@ -2,15 +2,24 @@ import { dataSource } from '@core/data-source';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApprovalWorkflow,
+  ApprovalWorkflowStep,
+  ApprovalWorkflowStepRole,
+  ApprovalWorkflowTier,
+  ApprovalWorkflowTransactionType,
   PurchaseRequest,
+  PurchaseRequestApprovalAssignee,
+  PurchaseRequestApprovalStep,
   PurchaseRequestDocument,
   PurchaseRequestItem,
+  Users,
 } from 'erp-db';
-import { DeleteResult, EntityManager, In } from 'typeorm';
+import { DeleteResult, EntityManager, In, IsNull } from 'typeorm';
 import { PageDto } from 'src/general-dto/page.dto';
 import { PageMetaDto } from 'src/general-dto/pagemeta.dto';
 import { PageOptionsDto } from 'src/general-dto/page-option.dto';
@@ -25,18 +34,76 @@ import {
   UpdatePurchaseRequestItemDto,
 } from './dto/purchase-request-item.dto';
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
+import { PurchaseRequestApprovalDecisionDto } from './dto/purchase-request-approval-decision.dto';
 import { UpdatePurchaseRequestStatusDto } from './dto/update-status.dto';
 import { PurchaseRequestRepository } from './repository/purchase-request.repository';
 import { PurchaseRequestDocumentRepository } from './repository/purchase-request-document.repository';
 import { PurchaseRequestItemRepository } from './repository/purchase-request-item.repository';
 
 interface PurchaseRequestListResponse {
-  rows: PurchaseRequest[];
+  rows: Array<
+    PurchaseRequest & { approval_progress: PurchaseRequestApprovalListProgress | null }
+  >;
   count: number;
+}
+
+/** One row in the list API `approval_progress.steps` trail. */
+export interface PurchaseRequestApprovalListStep {
+  sequence_order: number;
+  step_role: string;
+  status: string;
+}
+
+/** Snapshot for list/grid: current pending step, totals, and ordered steps. */
+export interface PurchaseRequestApprovalListProgress {
+  total_steps: number;
+  /** Lowest `sequence_order` among steps still `PENDING` (active step). */
+  current_step: number | null;
+  current_role: string | null;
+  /** Lowest `sequence_order` among `REJECTED` steps (if any). */
+  rejected_at_step: number | null;
+  steps: PurchaseRequestApprovalListStep[];
+}
+
+export interface PurchaseRequestApprovalActorView {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface PurchaseRequestApprovalAssigneeView {
+  id: number;
+  user_id: number;
+  user: PurchaseRequestApprovalActorView;
+}
+
+export interface PurchaseRequestApprovalStepView {
+  id: number;
+  purchase_request_id: number;
+  sequence_order: number;
+  approval_workflow_step_id: number | null;
+  step_role: string;
+  status: string;
+  acted_by_user_id: number | null;
+  acted_at: Date | null;
+  remarks: string | null;
+  assignees: PurchaseRequestApprovalAssigneeView[];
+  acted_by_user: PurchaseRequestApprovalActorView | null;
+}
+
+/** Slim payload for list workflow popover — avoids loading full PR + items + documents. */
+export interface PurchaseRequestApprovalTrailDto {
+  id: number;
+  status: string;
+  approval_steps: PurchaseRequestApprovalStepView[];
 }
 
 const PURCHASE_REQUEST_NUMBER_PREFIX = 'PR-';
 const PURCHASE_REQUEST_NUMBER_PAD = 4;
+
+const NO_APPROVAL_WORKFLOW_MESSAGE =
+  'No approval workflow configured for the selected criteria.';
 
 @Injectable()
 export class PurchaseRequestService {
@@ -133,6 +200,358 @@ export class PurchaseRequestService {
     }
   }
 
+  private normalizePrStatus(status: string | null | undefined): string {
+    return String(status ?? '').toUpperCase();
+  }
+
+  private submissionStatusRequiresWorkflow(
+    status: string | null | undefined,
+  ): boolean {
+    return this.normalizePrStatus(status) === 'SUBMITTED';
+  }
+
+  private async assertDirectApproveRejectNotUsed(
+    purchaseRequestId: number,
+    nextStatus: string,
+  ): Promise<void> {
+    const upper = nextStatus.toUpperCase();
+    if (upper !== 'APPROVED' && upper !== 'REJECTED') return;
+    const n = await dataSource.getRepository(PurchaseRequestApprovalStep).count(
+      { where: { purchase_request_id: purchaseRequestId } },
+    );
+    if (n > 0) {
+      throw new BadRequestException(
+        'This purchase request uses the approval workflow. Use the approval decision endpoint to approve or reject.',
+      );
+    }
+  }
+
+  private async loadMatchingApprovalWorkflow(
+    manager: EntityManager,
+    params: {
+      entityId: number;
+      subdepartmentId: number;
+      centerId: number | null;
+      transactionType: string;
+    },
+  ): Promise<ApprovalWorkflow | null> {
+    const repo = manager.getRepository(ApprovalWorkflow);
+    const { entityId, subdepartmentId, centerId, transactionType } = params;
+
+    if (centerId !== null && centerId !== undefined && Number(centerId) > 0) {
+      const specific = await repo.findOne({
+        where: {
+          entity_id: entityId,
+          transaction_type: transactionType,
+          subdepartment_id: subdepartmentId,
+          center_id: centerId,
+          status: true,
+        },
+        relations: {
+          tiers: { steps: { step_users: true } },
+        },
+      });
+      if (specific) return specific;
+    }
+
+    return repo.findOne({
+      where: {
+        entity_id: entityId,
+        transaction_type: transactionType,
+        subdepartment_id: subdepartmentId,
+        center_id: IsNull(),
+        status: true,
+      },
+      relations: {
+        tiers: { steps: { step_users: true } },
+      },
+    });
+  }
+
+  private pickApprovalTierForAmount(
+    workflow: ApprovalWorkflow,
+    amount: number,
+  ): ApprovalWorkflowTier | null {
+    const tiers = [...(workflow.tiers ?? [])].sort(
+      (a, b) => a.sort_order - b.sort_order,
+    );
+    for (const tier of tiers) {
+      const min = Number(tier.min_amount);
+      const max =
+        tier.max_amount === null || tier.max_amount === undefined
+          ? null
+          : Number(tier.max_amount);
+      if (amount >= min && (max === null || amount <= max)) {
+        return tier;
+      }
+    }
+    return null;
+  }
+
+  /** All reviewer steps (by sort order), then all approver steps (by sort order). */
+  private buildOrderedWorkflowSteps(
+    tier: ApprovalWorkflowTier,
+  ): ApprovalWorkflowStep[] {
+    const steps = [...(tier.steps ?? [])];
+    const reviewers = steps
+      .filter((s) => s.step_role === ApprovalWorkflowStepRole.REVIEWER)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const approvers = steps
+      .filter((s) => s.step_role === ApprovalWorkflowStepRole.APPROVER)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    return [...reviewers, ...approvers];
+  }
+
+  private async bootstrapPurchaseRequestApprovalChain(
+    manager: EntityManager,
+    purchaseRequest: PurchaseRequest,
+    netAmount: number,
+  ): Promise<void> {
+    const entityId = purchaseRequest.entity_id;
+    const subdepartmentId = purchaseRequest.subdepartment_id;
+    if (
+      entityId === null ||
+      entityId === undefined ||
+      subdepartmentId === null ||
+      subdepartmentId === undefined
+    ) {
+      throw new BadRequestException(
+        'Entity and sub-department are required when submitting a purchase request.',
+      );
+    }
+
+    const workflow = await this.loadMatchingApprovalWorkflow(manager, {
+      entityId,
+      subdepartmentId,
+      centerId: purchaseRequest.center_id ?? null,
+      transactionType: ApprovalWorkflowTransactionType.PURCHASE_REQUEST,
+    });
+
+    if (!workflow) {
+      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+    }
+
+    const tier = this.pickApprovalTierForAmount(workflow, netAmount);
+    if (!tier) {
+      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+    }
+
+    const ordered = this.buildOrderedWorkflowSteps(tier);
+    if (!ordered.length) {
+      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+    }
+
+    const stepRepo = manager.getRepository(PurchaseRequestApprovalStep);
+    const assigneeRepo = manager.getRepository(PurchaseRequestApprovalAssignee);
+
+    let seq = 1;
+    for (const wfStep of ordered) {
+      const stepUsers = [...(wfStep.step_users ?? [])];
+      if (!stepUsers.length) {
+        throw new BadRequestException(
+          'Approval workflow has a step with no assigned users. Update the workflow configuration.',
+        );
+      }
+      const row = await stepRepo.save(
+        stepRepo.create({
+          purchase_request_id: purchaseRequest.id,
+          sequence_order: seq++,
+          approval_workflow_step_id: wfStep.id,
+          step_role: wfStep.step_role,
+          status: 'PENDING',
+          acted_by_user_id: null,
+          acted_at: null,
+          remarks: null,
+        }),
+      );
+      for (const u of stepUsers) {
+        await assigneeRepo.save(
+          assigneeRepo.create({
+            purchase_request_approval_step_id: row.id,
+            user_id: u.user_id,
+          }),
+        );
+      }
+    }
+  }
+
+  private actorView(user: Users): PurchaseRequestApprovalActorView {
+    return {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+    };
+  }
+
+  private async loadApprovalStepsSanitized(
+    purchaseRequestId: number,
+  ): Promise<PurchaseRequestApprovalStepView[]> {
+    const stepRepo = dataSource.getRepository(PurchaseRequestApprovalStep);
+    const steps = await stepRepo.find({
+      where: { purchase_request_id: purchaseRequestId },
+      relations: { assignees: { user: true } },
+      order: { sequence_order: 'ASC' },
+    });
+
+    const actorIds = new Set<number>();
+    for (const st of steps) {
+      if (st.acted_by_user_id) actorIds.add(st.acted_by_user_id);
+    }
+    let actorMap = new Map<number, Users>();
+    if (actorIds.size) {
+      const actors = await dataSource.getRepository(Users).find({
+        where: { id: In([...actorIds]) },
+      });
+      actorMap = new Map(actors.map((u) => [u.id, u]));
+    }
+
+    return steps.map((st) => {
+      let actedBy: PurchaseRequestApprovalActorView | null = null;
+      if (st.acted_by_user_id) {
+        const actor = actorMap.get(st.acted_by_user_id);
+        if (actor) actedBy = this.actorView(actor);
+      }
+      return {
+        id: st.id,
+        purchase_request_id: st.purchase_request_id,
+        sequence_order: st.sequence_order,
+        approval_workflow_step_id: st.approval_workflow_step_id,
+        step_role: st.step_role,
+        status: st.status,
+        acted_by_user_id: st.acted_by_user_id,
+        acted_at: st.acted_at,
+        remarks: st.remarks,
+        assignees: st.assignees.map((a) => ({
+          id: a.id,
+          user_id: a.user_id,
+          user: this.actorView(a.user),
+        })),
+        acted_by_user: actedBy,
+      };
+    });
+  }
+
+  private async loadApprovalProgressMap(
+    ids: number[],
+  ): Promise<Map<number, PurchaseRequestApprovalListProgress>> {
+    const map = new Map<number, PurchaseRequestApprovalListProgress>();
+    if (!ids.length) return map;
+    const unique = [...new Set(ids.filter((id) => Number.isFinite(id)))];
+    if (!unique.length) return map;
+    try {
+      type Raw = {
+        purchase_request_id: number;
+        total: number | string;
+        seq: number | string | null;
+        role: string | null;
+        rej_seq: number | string | null;
+        steps: unknown;
+      };
+      const rows: Raw[] = await dataSource.query(
+        `WITH step_rows AS (
+          SELECT purchase_request_id, sequence_order, step_role, status
+          FROM purchase_request_approval_step
+          WHERE purchase_request_id = ANY($1::int[])
+        ),
+        totals AS (
+          SELECT purchase_request_id, COUNT(*)::int AS total
+          FROM step_rows
+          GROUP BY purchase_request_id
+        ),
+        pending AS (
+          SELECT DISTINCT ON (purchase_request_id)
+            purchase_request_id,
+            sequence_order AS seq,
+            step_role AS role
+          FROM step_rows
+          WHERE status = 'PENDING'
+          ORDER BY purchase_request_id, sequence_order ASC
+        ),
+        rejected AS (
+          SELECT DISTINCT ON (purchase_request_id)
+            purchase_request_id,
+            sequence_order AS rej_seq
+          FROM step_rows
+          WHERE status = 'REJECTED'
+          ORDER BY purchase_request_id, sequence_order ASC
+        ),
+        agg AS (
+          SELECT purchase_request_id,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'sequence_order', sequence_order,
+                  'step_role', step_role,
+                  'status', status
+                ) ORDER BY sequence_order
+              ),
+              '[]'::json
+            ) AS steps
+          FROM step_rows
+          GROUP BY purchase_request_id
+        )
+        SELECT t.purchase_request_id, t.total, p.seq, p.role, r.rej_seq, a.steps
+        FROM totals t
+        LEFT JOIN pending p ON p.purchase_request_id = t.purchase_request_id
+        LEFT JOIN rejected r ON r.purchase_request_id = t.purchase_request_id
+        LEFT JOIN agg a ON a.purchase_request_id = t.purchase_request_id`,
+        [unique],
+      );
+      for (const row of rows) {
+        const steps = this.parseApprovalListStepsJson(row.steps);
+        map.set(Number(row.purchase_request_id), {
+          total_steps: Number(row.total),
+          current_step: row.seq == null ? null : Number(row.seq),
+          current_role: row.role,
+          rejected_at_step: row.rej_seq == null ? null : Number(row.rej_seq),
+          steps,
+        });
+      }
+    } catch {
+      /* missing tables or DB error — list still works without progress */
+    }
+    return map;
+  }
+
+  private parseApprovalListStepsJson(raw: unknown): PurchaseRequestApprovalListStep[] {
+    if (raw == null) return [];
+    let parsed: unknown = raw;
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        return [];
+      }
+    }
+    if (!Array.isArray(parsed)) return [];
+    const out: PurchaseRequestApprovalListStep[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') continue;
+      const o = item as Record<string, unknown>;
+      out.push({
+        sequence_order: Number(o.sequence_order),
+        step_role: String(o.step_role ?? ''),
+        status: String(o.status ?? ''),
+      });
+    }
+    return out;
+  }
+
+  private async attachApprovalProgressToRows<T extends PurchaseRequest>(
+    rows: T[],
+  ): Promise<Array<T & { approval_progress: PurchaseRequestApprovalListProgress | null }>> {
+    const progressMap = await this.loadApprovalProgressMap(
+      rows.map((r) => r.id),
+    );
+    return rows.map((row) => ({
+      ...(row as unknown as PurchaseRequest),
+      approval_progress: progressMap.get(row.id) ?? null,
+    })) as Array<
+      T & { approval_progress: PurchaseRequestApprovalListProgress | null }
+    >;
+  }
+
   // =====================================================================
   // PURCHASE REQUEST (header + items)
   // =====================================================================
@@ -171,6 +590,15 @@ export class PurchaseRequestService {
       const computedNetAmount =
         createDto.net_amount ?? this.sumItemsAmount(itemsWithComputedAmount);
 
+      const statusUpper = this.normalizePrStatus(
+        createDto.status ?? 'SUBMITTED',
+      );
+      if (statusUpper !== 'DRAFT' && statusUpper !== 'SUBMITTED') {
+        throw new BadRequestException(
+          'Purchase request status must be DRAFT or SUBMITTED when creating.',
+        );
+      }
+
       const purchaseRequestHeader = purchaseRequestRepository.create({
         pr_number: purchaseRequestNumber,
         entity_id: createDto.entity_id ?? null,
@@ -195,7 +623,7 @@ export class PurchaseRequestService {
         remarks: createDto.remarks ?? null,
         overall_summary: createDto.overall_summary ?? null,
         net_amount: this.toMoney(computedNetAmount),
-        status: createDto.status ?? 'SUBMITTED',
+        status: statusUpper === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
         created_by: userEmailId ?? createDto.created_by ?? null,
         created_date: new Date(),
         updated_by: userEmailId ?? createDto.created_by ?? null,
@@ -221,6 +649,14 @@ export class PurchaseRequestService {
         }),
       );
       await purchaseRequestItemRepository.save(purchaseRequestItemsToSave);
+
+      if (this.submissionStatusRequiresWorkflow(statusUpper)) {
+        await this.bootstrapPurchaseRequestApprovalChain(
+          manager,
+          savedPurchaseRequest,
+          Number(computedNetAmount),
+        );
+      }
 
       const reloadedPurchaseRequest = await purchaseRequestRepository.findOne({
         where: { id: savedPurchaseRequest.id },
@@ -369,7 +805,8 @@ export class PurchaseRequestService {
     if (String(filter.noLimit) === 'true') {
       const [rows, count] =
         await purchaseRequestQueryBuilder.getManyAndCount();
-      return { rows, count };
+      const enriched = await this.attachApprovalProgressToRows(rows);
+      return { rows: enriched, count };
     }
 
     purchaseRequestQueryBuilder.skip(filter.skip).take(filter.take);
@@ -383,7 +820,11 @@ export class PurchaseRequestService {
       skip: filter.skip,
     } as PageOptionsDto;
     const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto });
-    return new PageDto(entities, pageMetaDto);
+    const enriched = await this.attachApprovalProgressToRows(entities);
+    return new PageDto(
+      enriched as unknown as PurchaseRequest[],
+      pageMetaDto,
+    );
   }
 
   async getStatusCounts(): Promise<{
@@ -420,6 +861,7 @@ export class PurchaseRequestService {
     PurchaseRequest & {
       items: PurchaseRequestItem[];
       documents: PurchaseRequestDocument[];
+      approval_steps: PurchaseRequestApprovalStepView[];
     }
   > {
     const purchaseRequest = await PurchaseRequestRepository.findOne({
@@ -452,7 +894,49 @@ export class PurchaseRequestService {
         order: { id: 'ASC' },
       }),
     ]);
-    return { ...(purchaseRequest as PurchaseRequest), items, documents };
+
+    let approval_steps: PurchaseRequestApprovalStepView[] = [];
+    try {
+      approval_steps = await this.loadApprovalStepsSanitized(
+        purchaseRequestId,
+      );
+    } catch {
+      approval_steps = [];
+    }
+
+    return {
+      ...(purchaseRequest as PurchaseRequest),
+      items,
+      documents,
+      approval_steps,
+    };
+  }
+
+  async findOneApprovalTrail(
+    purchaseRequestId: number,
+  ): Promise<PurchaseRequestApprovalTrailDto> {
+    const purchaseRequest = await PurchaseRequestRepository.findOne({
+      where: { id: purchaseRequestId },
+      select: { id: true, status: true },
+    });
+    if (!purchaseRequest) {
+      throw new NotFoundException(
+        `Purchase request id=${purchaseRequestId} not found`,
+      );
+    }
+    let approval_steps: PurchaseRequestApprovalStepView[] = [];
+    try {
+      approval_steps = await this.loadApprovalStepsSanitized(
+        purchaseRequestId,
+      );
+    } catch {
+      approval_steps = [];
+    }
+    return {
+      id: purchaseRequest.id,
+      status: String(purchaseRequest.status ?? ''),
+      approval_steps,
+    };
   }
 
   async update(
@@ -473,6 +957,10 @@ export class PurchaseRequestService {
           `Purchase request id=${purchaseRequestId} not found`,
         );
       }
+
+      const previousStatusUpper = this.normalizePrStatus(
+        purchaseRequest.status,
+      );
 
       if (
         updateDto.pr_number &&
@@ -645,6 +1133,33 @@ export class PurchaseRequestService {
         userEmailId ?? updateDto.updated_by ?? null;
       purchaseRequest.updated_date = new Date();
 
+      if (updateDto.status !== undefined) {
+        await this.assertDirectApproveRejectNotUsed(
+          purchaseRequestId,
+          String(updateDto.status),
+        );
+      }
+
+      const effectiveStatusUpper = this.normalizePrStatus(
+        purchaseRequest.status,
+      );
+      if (
+        this.submissionStatusRequiresWorkflow(effectiveStatusUpper) &&
+        previousStatusUpper === 'DRAFT'
+      ) {
+        const existingSteps = await manager.count(
+          PurchaseRequestApprovalStep,
+          { where: { purchase_request_id: purchaseRequestId } },
+        );
+        if (existingSteps === 0) {
+          await this.bootstrapPurchaseRequestApprovalChain(
+            manager,
+            purchaseRequest,
+            Number(purchaseRequest.net_amount ?? 0),
+          );
+        }
+      }
+
       await purchaseRequestRepository.save(purchaseRequest);
       const reloadedPurchaseRequest = await purchaseRequestRepository.findOne({
         where: { id: purchaseRequestId },
@@ -658,13 +1173,144 @@ export class PurchaseRequestService {
     statusDto: UpdatePurchaseRequestStatusDto,
     userEmailId: string | null,
   ): Promise<PurchaseRequest> {
-    const purchaseRequest =
-      await this.assertPurchaseRequestExists(purchaseRequestId);
-    purchaseRequest.status = statusDto.status;
-    purchaseRequest.updated_by =
-      userEmailId ?? statusDto.updated_by ?? null;
-    purchaseRequest.updated_date = new Date();
-    return PurchaseRequestRepository.save(purchaseRequest);
+    return dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(PurchaseRequest);
+      const purchaseRequest = await repo.findOne({
+        where: { id: purchaseRequestId },
+      });
+      if (!purchaseRequest) {
+        throw new NotFoundException(
+          `Purchase request id=${purchaseRequestId} not found`,
+        );
+      }
+
+      const previousStatusUpper = this.normalizePrStatus(
+        purchaseRequest.status,
+      );
+      const nextStatusUpper = this.normalizePrStatus(statusDto.status);
+
+      await this.assertDirectApproveRejectNotUsed(
+        purchaseRequestId,
+        statusDto.status,
+      );
+
+      purchaseRequest.status = statusDto.status;
+      purchaseRequest.updated_by =
+        userEmailId ?? statusDto.updated_by ?? null;
+      purchaseRequest.updated_date = new Date();
+      await repo.save(purchaseRequest);
+
+      if (
+        this.submissionStatusRequiresWorkflow(nextStatusUpper) &&
+        previousStatusUpper === 'DRAFT'
+      ) {
+        const existingSteps = await manager.count(
+          PurchaseRequestApprovalStep,
+          { where: { purchase_request_id: purchaseRequestId } },
+        );
+        if (existingSteps === 0) {
+          await this.bootstrapPurchaseRequestApprovalChain(
+            manager,
+            purchaseRequest,
+            Number(purchaseRequest.net_amount ?? 0),
+          );
+        }
+      }
+
+      const reloaded = await repo.findOne({ where: { id: purchaseRequestId } });
+      return reloaded as PurchaseRequest;
+    });
+  }
+
+  async recordApprovalDecision(
+    purchaseRequestId: number,
+    actingUserId: number,
+    userEmailId: string | null,
+    dto: PurchaseRequestApprovalDecisionDto,
+  ): Promise<
+    PurchaseRequest & {
+      items: PurchaseRequestItem[];
+      documents: PurchaseRequestDocument[];
+      approval_steps: PurchaseRequestApprovalStepView[];
+    }
+  > {
+    await dataSource.transaction(async (manager) => {
+      const prRepo = manager.getRepository(PurchaseRequest);
+      const pr = await prRepo.findOne({ where: { id: purchaseRequestId } });
+      if (!pr) {
+        throw new NotFoundException(
+          `Purchase request id=${purchaseRequestId} not found`,
+        );
+      }
+
+      const prStatus = this.normalizePrStatus(pr.status);
+      if (prStatus !== 'SUBMITTED') {
+        throw new BadRequestException(
+          'This purchase request is not awaiting approval.',
+        );
+      }
+
+      const stepRepo = manager.getRepository(PurchaseRequestApprovalStep);
+      const pendingStep = await stepRepo.findOne({
+        where: {
+          purchase_request_id: purchaseRequestId,
+          status: 'PENDING',
+        },
+        order: { sequence_order: 'ASC' },
+        relations: { assignees: true },
+      });
+
+      if (!pendingStep) {
+        throw new BadRequestException('No pending approval step.');
+      }
+
+      const mayAct = pendingStep.assignees.some(
+        (a) => a.user_id === actingUserId,
+      );
+      if (!mayAct) {
+        throw new ForbiddenException(
+          'You are not assigned to the current approval step.',
+        );
+      }
+
+      const now = new Date();
+      const remarks = dto.remarks ?? null;
+
+      if (dto.decision === 'REJECT') {
+        pendingStep.status = 'REJECTED';
+        pendingStep.acted_by_user_id = actingUserId;
+        pendingStep.acted_at = now;
+        pendingStep.remarks = remarks;
+        await stepRepo.save(pendingStep);
+
+        pr.status = 'REJECTED';
+        pr.updated_by = userEmailId;
+        pr.updated_date = now;
+        await prRepo.save(pr);
+        return;
+      }
+
+      pendingStep.status = 'APPROVED';
+      pendingStep.acted_by_user_id = actingUserId;
+      pendingStep.acted_at = now;
+      pendingStep.remarks = remarks;
+      await stepRepo.save(pendingStep);
+
+      const stillPending = await stepRepo.count({
+        where: {
+          purchase_request_id: purchaseRequestId,
+          status: 'PENDING',
+        },
+      });
+      if (stillPending === 0) {
+        pr.status = 'APPROVED';
+        pr.updated_by = userEmailId;
+        pr.updated_date = now;
+        await prRepo.save(pr);
+      }
+    });
+
+    return this.findOne(purchaseRequestId);
   }
 
   async remove(purchaseRequestId: number): Promise<DeleteResult> {

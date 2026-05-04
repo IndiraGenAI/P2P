@@ -43,6 +43,8 @@ export { VendorDocument } from './entities/vendor-document';
 export { PurchaseRequest } from './entities/purchase-request';
 export { PurchaseRequestItem } from './entities/purchase-request-item';
 export { PurchaseRequestDocument } from './entities/purchase-request-document';
+export { PurchaseRequestApprovalStep } from './entities/purchase-request-approval-step';
+export { PurchaseRequestApprovalAssignee } from './entities/purchase-request-approval-assignee';
 export { ApprovalWorkflow } from './entities/approval-workflow';
 export { ApprovalWorkflowTier } from './entities/approval-workflow-tier';
 export { ApprovalWorkflowStep } from './entities/approval-workflow-step';

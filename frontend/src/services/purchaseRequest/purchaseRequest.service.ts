@@ -33,6 +33,49 @@ export interface IPurchaseRequestDocumentRow {
   uploaded_date: string | Date | null;
 }
 
+export interface IPurchaseRequestApprovalActor {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface IPurchaseRequestApprovalAssigneeRow {
+  id: number;
+  user_id: number;
+  user: IPurchaseRequestApprovalActor;
+}
+
+export interface IPurchaseRequestApprovalStepRow {
+  id: number;
+  purchase_request_id: number;
+  sequence_order: number;
+  approval_workflow_step_id: number | null;
+  step_role: string;
+  status: string;
+  acted_by_user_id: number | null;
+  acted_at: string | Date | null;
+  remarks: string | null;
+  assignees: IPurchaseRequestApprovalAssigneeRow[];
+  acted_by_user: IPurchaseRequestApprovalActor | null;
+}
+
+/** One step in the list API `approval_progress.steps` trail. */
+export interface IPurchaseRequestApprovalListStep {
+  sequence_order: number;
+  step_role: string;
+  status: string;
+}
+
+/** List/grid snapshot from main-service `findAll`. */
+export interface IPurchaseRequestApprovalProgress {
+  total_steps: number;
+  current_step: number | null;
+  current_role: string | null;
+  rejected_at_step: number | null;
+  steps?: IPurchaseRequestApprovalListStep[];
+}
+
 export interface IPurchaseRequestRow {
   id: number;
   pr_number: string | null;
@@ -69,6 +112,8 @@ export interface IPurchaseRequestRow {
 
   items?: IPurchaseRequestItemRow[];
   documents?: IPurchaseRequestDocumentRow[];
+  approval_steps?: IPurchaseRequestApprovalStepRow[];
+  approval_progress?: IPurchaseRequestApprovalProgress | null;
 
   created_by?: string | null;
   created_date?: string | Date | null;
@@ -139,6 +184,21 @@ const purchaseRequestService = {
       (res) => res.data,
     ),
 
+  /** Selected fields only: `id`, `status`, `approval_steps` — for workflow popover. */
+  getApprovalTrail: (
+    id: number,
+  ): Promise<
+    IApiResponse<{
+      id: number;
+      status: string;
+      approval_steps: IPurchaseRequestApprovalStepRow[];
+    }>
+  > =>
+    mainRequest({
+      url: `${ENDPOINT}/${id}/approval-trail`,
+      method: 'GET',
+    }).then((res) => res.data),
+
   getStatusCounts: (): Promise<IApiResponse<IPurchaseRequestStatusCounts>> =>
     mainRequest({
       url: `${ENDPOINT}/status-counts`,
@@ -175,6 +235,16 @@ const purchaseRequestService = {
       url: `${ENDPOINT}/${id}/status`,
       method: 'PATCH',
       data: { status },
+    }).then((res) => res.data),
+
+  approvalDecision: (
+    id: number,
+    data: { decision: 'APPROVE' | 'REJECT'; remarks?: string | null },
+  ): Promise<IApiResponse<IPurchaseRequestRow>> =>
+    mainRequest({
+      url: `${ENDPOINT}/${id}/approval-decision`,
+      method: 'POST',
+      data,
     }).then((res) => res.data),
 
   // ---- single-item endpoints ----

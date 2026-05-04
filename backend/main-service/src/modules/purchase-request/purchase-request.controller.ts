@@ -28,6 +28,7 @@ import {
   UpdatePurchaseRequestItemDto,
 } from './dto/purchase-request-item.dto';
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
+import { PurchaseRequestApprovalDecisionDto } from './dto/purchase-request-approval-decision.dto';
 import { UpdatePurchaseRequestStatusDto } from './dto/update-status.dto';
 import { PurchaseRequestService } from './purchase-request.service';
 
@@ -81,6 +82,22 @@ export class PurchaseRequestController {
     );
   }
 
+  /** Selected fields only: `id`, `status`, `approval_steps` (for list workflow popover). */
+  @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
+  @Get(':id/approval-trail')
+  async findOneApprovalTrail(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const result = await this.service.findOneApprovalTrail(id);
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'Approval trail fetched successfully',
+    );
+  }
+
   @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id')
   async findOne(
@@ -127,6 +144,28 @@ export class PurchaseRequestController {
       200,
       result,
       'Purchase request status updated successfully',
+    );
+  }
+
+  @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
+  @Post(':id/approval-decision')
+  async approvalDecision(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: PurchaseRequestApprovalDecisionDto,
+    @Res() res: Response,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Response> {
+    const result = await this.service.recordApprovalDecision(
+      id,
+      req.user.id,
+      req.user.email,
+      dto,
+    );
+    return baseController.getResult(
+      res,
+      200,
+      result,
+      'Approval decision recorded successfully',
     );
   }
 

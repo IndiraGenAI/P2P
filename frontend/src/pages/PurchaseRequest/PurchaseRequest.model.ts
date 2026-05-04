@@ -1,4 +1,5 @@
 import type {
+  IPurchaseRequestApprovalStepRow,
   IPurchaseRequestItemPayload,
   IPurchaseRequestRow,
   PurchaseRequestStatus,
@@ -25,6 +26,7 @@ export interface IPurchaseRequestRecord {
   status?: PurchaseRequestStatus | string;
   net_amount?: number;
   items: IPurchaseRequestItemPayload[];
+  approval_steps?: IPurchaseRequestApprovalStepRow[];
 }
 
 export const buildRecordFromRow = (
@@ -53,6 +55,7 @@ export const buildRecordFromRow = (
   overall_summary: row.overall_summary ?? '',
   status: row.status ?? 'DRAFT',
   net_amount: row.net_amount ? Number(row.net_amount) : 0,
+  approval_steps: row.approval_steps ?? [],
   items: (row.items ?? []).map((item) => ({
     id: item.id,
     item_id: item.item_id ?? null,

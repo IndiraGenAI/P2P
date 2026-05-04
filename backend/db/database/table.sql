@@ -832,3 +832,62 @@ CREATE TABLE IF NOT EXISTS approval_workflow_step_user (
 -- ALTER TABLE approval_workflow_step RENAME COLUMN tier_id TO approval_workflow_tier_id;
 -- ALTER TABLE approval_workflow_step_user RENAME COLUMN step_id TO approval_workflow_step_id;
 -- Then recreate FKs/indexes if needed, or drop constraints before rename.
+
+-- ---------------------------------------------------------------------------
+-- Purchase request approval execution (sequential reviewers then approvers)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS purchase_request_approval_step (
+    id SERIAL PRIMARY KEY,
+    purchase_request_id INTEGER NOT NULL,
+    sequence_order INTEGER NOT NULL,
+    approval_workflow_step_id INTEGER,
+    step_role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    acted_by_user_id INTEGER,
+    acted_at TIMESTAMP WITHOUT TIME ZONE,
+    remarks TEXT,
+
+    CONSTRAINT fk_pr_approval_step_pr
+        FOREIGN KEY (purchase_request_id)
+        REFERENCES purchase_requests(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_pr_approval_step_aw_step
+        FOREIGN KEY (approval_workflow_step_id)
+        REFERENCES approval_workflow_step(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_pr_approval_step_actor
+        FOREIGN KEY (acted_by_user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT chk_pr_approval_step_role
+        CHECK (step_role IN ('REVIEWER', 'APPROVER')),
+    CONSTRAINT chk_pr_approval_step_status
+        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pr_approval_step_pr_seq
+    ON purchase_request_approval_step (purchase_request_id, sequence_order);
+
+CREATE INDEX IF NOT EXISTS idx_pr_approval_step_pr_id
+    ON purchase_request_approval_step (purchase_request_id);
+
+CREATE TABLE IF NOT EXISTS purchase_request_approval_assignee (
+    id SERIAL PRIMARY KEY,
+    purchase_request_approval_step_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_pr_approval_assignee_step
+        FOREIGN KEY (purchase_request_approval_step_id)
+        REFERENCES purchase_request_approval_step(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_pr_approval_assignee_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_pr_approval_assignee_step_user
+        UNIQUE (purchase_request_approval_step_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pr_approval_assignee_step
+    ON purchase_request_approval_assignee (purchase_request_approval_step_id);

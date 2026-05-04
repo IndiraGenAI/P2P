@@ -6,6 +6,7 @@ import {
   fetchPurchaseRequestById,
   removePurchaseRequestById,
   searchPurchaseRequestData,
+  submitPurchaseRequestApprovalDecision,
   updatePurchaseRequestStatus,
 } from './purchaseRequest.action';
 import type { IPurchaseRequestState } from './purchaseRequest.model';
@@ -31,6 +32,7 @@ export const initialState: IPurchaseRequestState = {
   editById: { loading: false, hasErrors: false, message: '' },
   removeById: { loading: false, hasErrors: false, message: '' },
   updateById: { loading: false, hasErrors: false, message: '' },
+  approvalDecision: { loading: false, hasErrors: false, message: '' },
 };
 
 export const purchaseRequestSlice = createSlice({
@@ -44,6 +46,7 @@ export const purchaseRequestSlice = createSlice({
       state.editById.message = '';
       state.removeById.message = '';
       state.updateById.message = '';
+      state.approvalDecision.message = '';
     },
     clearCurrentPurchaseRequest: (state) => {
       state.current.data = null;
@@ -94,7 +97,10 @@ export const purchaseRequestSlice = createSlice({
       .addCase(createNewPurchaseRequest.rejected, (state, action) => {
         state.create.loading = false;
         state.create.hasErrors = true;
-        state.create.message = action.error.message ?? '';
+        const fromPayload =
+          typeof action.payload === 'string' ? action.payload : '';
+        state.create.message =
+          fromPayload || action.error.message || 'Could not create purchase request.';
       })
 
       .addCase(editPurchaseRequestById.pending, (state) => {
@@ -137,6 +143,25 @@ export const purchaseRequestSlice = createSlice({
         state.updateById.loading = false;
         state.updateById.hasErrors = true;
         state.updateById.message = action.error.message ?? '';
+      })
+
+      .addCase(submitPurchaseRequestApprovalDecision.pending, (state) => {
+        state.approvalDecision.loading = true;
+      })
+      .addCase(submitPurchaseRequestApprovalDecision.fulfilled, (state, action) => {
+        state.approvalDecision.loading = false;
+        state.approvalDecision.hasErrors = false;
+        state.approvalDecision.message = action.payload.message;
+      })
+      .addCase(submitPurchaseRequestApprovalDecision.rejected, (state, action) => {
+        state.approvalDecision.loading = false;
+        state.approvalDecision.hasErrors = true;
+        const fromPayload =
+          typeof action.payload === 'string' ? action.payload : '';
+        state.approvalDecision.message =
+          fromPayload ||
+          action.error.message ||
+          'Could not record approval decision.';
       });
   },
 });
@@ -152,6 +177,7 @@ export const purchaseRequestSelector = createSelector(
     edit: slice.editById,
     remove: slice.removeById,
     status: slice.updateById,
+    approvalDecision: slice.approvalDecision,
   }),
 );
 

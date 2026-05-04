@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Form, Input, message } from 'antd';
-import { Eye, Filter, Loader2, Plus, ShoppingCart } from 'lucide-react';
+import { Form, Input, message, Popover } from 'antd';
+import {
+  Eye,
+  Filter,
+  ListChecks,
+  Loader2,
+  Plus,
+  ShoppingCart,
+} from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
@@ -9,9 +16,11 @@ import { TablePagination } from '@/components/ui/TablePagination';
 import { Can } from '@/ability/can';
 import { Common } from '@/utils/constants/constant';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
+import { authSelector } from '@/state/auth/auth.reducer';
 import {
   createNewPurchaseRequest,
   searchPurchaseRequestData,
+  submitPurchaseRequestApprovalDecision,
 } from '@/state/purchaseRequest/purchaseRequest.action';
 import {
   clearCurrentPurchaseRequest,
@@ -36,6 +45,8 @@ import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import type { SelectOption } from '@/common/models';
 import purchaseRequestService, {
+  type IPurchaseRequestApprovalProgress,
+  type IPurchaseRequestApprovalStepRow,
   type IPurchaseRequestStatusCounts,
   type PurchaseRequestStatus,
 } from '@/services/purchaseRequest/purchaseRequest.service';
@@ -85,12 +96,38 @@ const statusBadgeClass = (raw: string | null | undefined): string => {
   return STATUS_BADGE[key] ?? 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
 };
 
+/** Workflow step status — aligned with table status pills. */
+const approvalStepStatusBadgeClass = (raw: string | null | undefined): string => {
+  const u = String(raw ?? '').toUpperCase();
+  if (u === 'PENDING') {
+    return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80';
+  }
+  if (u === 'APPROVED') {
+    return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80';
+  }
+  if (u === 'REJECTED') {
+    return 'bg-red-50 text-red-600 ring-1 ring-red-200/80';
+  }
+  return 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
+};
+
+/** Same section rhythm as `PurchaseRequest/Add`. */
+const PR_SECTION_TITLE =
+  'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
+const PR_SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
+
 /** User-facing label in the table (never show "Submitted"). */
 const formatStatusLabel = (raw: string | null | undefined): string => {
   const u = String(raw ?? '').toUpperCase();
   if (u === 'SUBMITTED' || u === 'PENDING') return 'PENDING';
   return u || '—';
 };
+
+/** List column: where the PR sits in the approval chain. */
+
+
+const workflowRoleLabel = (role: string): string =>
+  String(role).toUpperCase() === 'APPROVER' ? 'Final approver' : 'Reviewer';
 
 const STATUS_OPTIONS: { value: '' | PrListTabStatus; label: string }[] = [
   { value: '', label: 'All' },
@@ -109,6 +146,303 @@ const formatDate = (value: unknown): string => {
     day: '2-digit',
   });
 };
+
+/** Popover body: `approval_steps` from GET /purchase-request/:id */
+function ApprovalWorkflowStepsApiBody({
+  prStatus,
+  steps,
+}: {
+  prStatus: string;
+  steps: IPurchaseRequestApprovalStepRow[];
+}) {
+  const st = String(prStatus ?? '').toUpperCase();
+  const firstPending = steps.find(
+    (s) => String(s.status).toUpperCase() === 'PENDING',
+  );
+  const pendingList = steps.filter(
+    (s) => String(s.status).toUpperCase() === 'PENDING',
+  );
+  const rejectedAt = steps.find(
+    (s) => String(s.status).toUpperCase() === 'REJECTED',
+  )?.sequence_order;
+
+  return (
+    <div className="w-[min(100vw-2rem,320px)] sm:w-[320px] max-h-[min(70vh,440px)] overflow-y-auto">
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-gray-500 uppercase m-0 mb-2">
+        Approval trail
+      </p>
+      <ol className="relative space-y-2 m-0 mb-3 p-0 list-none pl-1">
+        {steps.map((step, idx) => {
+          const su = String(step.status).toUpperCase();
+          const isCurrent =
+            (st === 'SUBMITTED' || st === 'PENDING') &&
+            !!firstPending &&
+            firstPending.sequence_order === step.sequence_order &&
+            su === 'PENDING';
+          const names = (step.assignees ?? [])
+            .map((a) =>
+              a.user
+                ? `${a.user.first_name} ${a.user.last_name}`.trim()
+                : `User #${a.user_id}`,
+            )
+            .join(', ');
+          const isLast = idx === steps.length - 1;
+          return (
+            <li key={step.id} className="relative flex gap-2">
+              <div
+                className="flex flex-col items-center shrink-0 w-4"
+                aria-hidden
+              >
+                <span
+                  className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                    step.step_role === 'APPROVER'
+                      ? 'bg-emerald-500 ring-2 ring-emerald-100'
+                      : 'bg-amber-500 ring-2 ring-amber-100'
+                  }`}
+                />
+                {!isLast && (
+                  <span className="w-px flex-1 min-h-[8px] mt-1 bg-gray-200" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 rounded-lg border border-gray-100/90 bg-slate-50/50 px-2.5 py-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 m-0">
+                      Step {step.sequence_order}:{' '}
+                      {workflowRoleLabel(step.step_role)}
+                    </p>
+                    {names ? (
+                      <p className="text-[11px] text-gray-500 mt-0.5 m-0">
+                        <span className="text-gray-600">Assigned:</span>{' '}
+                        <span className="text-gray-700">{names}</span>
+                      </p>
+                    ) : null}
+                    {isCurrent && (
+                      <span className="mt-1 inline-block text-[10px] font-semibold uppercase text-emerald-800">
+                        Current step
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`shrink-0 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${approvalStepStatusBadgeClass(su)}`}
+                  >
+                    {su}
+                  </span>
+                </div>
+                {step.acted_by_user && (
+                  <p className="mt-1.5 pt-1.5 border-t border-gray-200/80 text-[11px] text-gray-500 m-0">
+                    {step.status === 'APPROVED' ? 'Approved' : 'Decided'} by{' '}
+                    {step.acted_by_user.first_name} {step.acted_by_user.last_name}
+                    {step.acted_at ? ` · ${formatDate(step.acted_at)}` : ''}
+                    {step.remarks ? ` · ${step.remarks}` : ''}
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="border-t border-gray-200 pt-2.5 space-y-1.5 text-xs text-gray-600">
+        {st === 'APPROVED' && (
+          <p className="m-0">
+            <span className="font-semibold text-gray-800">Done.</span> Every step
+            is approved.
+          </p>
+        )}
+        {st === 'REJECTED' && (
+          <p className="m-0">
+            <span className="font-semibold text-gray-800">Stopped.</span>{' '}
+            {rejectedAt != null
+              ? `Rejection recorded at step ${rejectedAt}.`
+              : 'This request was rejected.'}
+          </p>
+        )}
+        {(st === 'SUBMITTED' || st === 'PENDING') && firstPending && (
+          <>
+            <p className="m-0">
+              <span className="font-semibold text-gray-800">You are here:</span>{' '}
+              Step {firstPending.sequence_order} —{' '}
+              {workflowRoleLabel(firstPending.step_role)}.
+            </p>
+            {pendingList.length > 1 ? (
+              <p className="m-0">
+                <span className="font-semibold text-gray-800">
+                  Still to finish:
+                </span>{' '}
+                {pendingList.length - 1} more step
+                {pendingList.length - 1 === 1 ? '' : 's'} (
+                {pendingList
+                  .slice(1)
+                  .map(
+                    (x) =>
+                      `step ${x.sequence_order} (${workflowRoleLabel(x.step_role)})`,
+                  )
+                  .join(', ')}
+                ).
+              </p>
+            ) : (
+              (() => {
+                const afterCurrent = steps.filter(
+                  (x) => x.sequence_order > firstPending.sequence_order,
+                );
+                if (afterCurrent.length === 0) {
+                  return (
+                    <p className="m-0 text-emerald-900/90">
+                      <span className="font-semibold text-gray-800">
+                        Last step in the chain.
+                      </span>{' '}
+                      No further reviewers after this.
+                    </p>
+                  );
+                }
+                return (
+                  <p className="m-0">
+                    <span className="font-semibold text-gray-800">
+                      Steps left after this:
+                    </span>{' '}
+                    {afterCurrent.length} (
+                    {afterCurrent
+                      .map(
+                        (x) =>
+                          `step ${x.sequence_order} (${workflowRoleLabel(x.step_role)})`,
+                      )
+                      .join(', ')}
+                    ).
+                  </p>
+                );
+              })()
+            )}
+          </>
+        )}
+        {(st === 'SUBMITTED' || st === 'PENDING') && !firstPending && (
+          <p className="m-0 text-gray-500">
+            No pending step (workflow may already be complete for this row).
+          </p>
+        )}
+        {st === 'DRAFT' && (
+          <p className="m-0 text-gray-500">
+            Draft — the chain starts after submit.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowStepCell({
+  prId,
+  status,
+  progress,
+}: {
+  prId: number;
+  status: string;
+  progress: IPurchaseRequestApprovalProgress | null | undefined;
+}) {
+  const listSteps = progress?.steps;
+  const hasStepTrail =
+    (Array.isArray(listSteps) && listSteps.length > 0) ||
+    (progress != null && Number(progress.total_steps) >= 1);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fetchedSteps, setFetchedSteps] = useState<
+    IPurchaseRequestApprovalStepRow[] | null
+  >(null);
+  const [fetchedStatus, setFetchedStatus] = useState<string | null>(null);
+  const fetchDismissedRef = useRef(false);
+
+  if (!hasStepTrail) {
+    return (
+      <span className="line-clamp-2" title={label}>
+        {label}
+      </span>
+    );
+  }
+
+  const popoverBody = loading ? (
+    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
+      <Loader2 className="animate-spin text-emerald-600" size={18} />
+      <span>Loading…</span>
+    </div>
+  ) : error ? (
+    <p className="text-xs text-red-600 m-0 max-w-[300px] px-1">{error}</p>
+  ) : fetchedSteps && fetchedSteps.length === 0 ? (
+    <p className="text-xs text-gray-500 m-0 max-w-[300px] px-1">
+      No workflow steps on file.
+    </p>
+  ) : fetchedSteps && fetchedSteps.length > 0 ? (
+    <ApprovalWorkflowStepsApiBody
+      prStatus={fetchedStatus ?? status}
+      steps={fetchedSteps}
+    />
+  ) : (
+    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
+      <Loader2 className="animate-spin text-emerald-600" size={18} />
+      <span>Loading…</span>
+    </div>
+  );
+
+  return (
+    <div
+      className="flex items-center justify-start"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Popover
+        trigger="click"
+        placement="leftTop"
+        zIndex={1070}
+        getPopupContainer={() => document.body}
+        onOpenChange={(visible) => {
+          if (visible) {
+            fetchDismissedRef.current = false;
+            setLoading(true);
+            setError(null);
+            setFetchedSteps(null);
+            setFetchedStatus(null);
+            void purchaseRequestService
+              .getApprovalTrail(prId)
+              .then((res) => {
+                if (fetchDismissedRef.current) return;
+                if (!res?.data) {
+                  setError('Could not load workflow.');
+                  setFetchedSteps([]);
+                  return;
+                }
+                setFetchedSteps(res.data.approval_steps ?? []);
+                setFetchedStatus(String(res.data.status ?? status));
+              })
+              .catch((err: unknown) => {
+                if (fetchDismissedRef.current) return;
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not load workflow.',
+                );
+                setFetchedSteps(null);
+              })
+              .finally(() => {
+                if (!fetchDismissedRef.current) setLoading(false);
+              });
+          } else {
+            fetchDismissedRef.current = true;
+            setLoading(false);
+            setError(null);
+            setFetchedSteps(null);
+            setFetchedStatus(null);
+          }
+        }}
+        content={<div className="min-w-[200px]">{popoverBody}</div>}
+      >
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200/90 bg-white text-gray-500 shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200/80 transition"
+        >
+          <ListChecks size={14} strokeWidth={2} aria-hidden />
+        </button>
+      </Popover>
+    </div>
+  );
+}
 
 const CURRENCY_SYMBOL = '\u20B9';
 
@@ -259,9 +593,61 @@ const useFkOptions = () => {
   };
 };
 
+const { TextArea } = Input;
+
+function decodeJwtPayloadSegment(segment: string): string {
+  let base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) base64 += '=';
+  return atob(base64);
+}
+
+function readJwtSubAndEmail(): { sub?: number; email?: string } {
+  try {
+    if (typeof window === 'undefined') return {};
+    const token = localStorage.getItem('accessToken');
+    if (!token) return {};
+    const parts = token.split('.');
+    if (parts.length < 2) return {};
+    const raw = decodeJwtPayloadSegment(parts[1]);
+    const payload = JSON.parse(raw) as { sub?: number | string; email?: string };
+    const n =
+      typeof payload.sub === 'number'
+        ? payload.sub
+        : Number.parseInt(String(payload.sub), 10);
+    const sub = Number.isFinite(n) ? n : undefined;
+    const email =
+      typeof payload.email === 'string' ? payload.email : undefined;
+    return { sub, email };
+  } catch {
+    return {};
+  }
+}
+
+function userMatchesApprovalAssignee(
+  assignees: { user_id: number; user?: { email?: string } }[],
+  userId: number | undefined,
+  userEmail: string | undefined,
+): boolean {
+  const emailNorm = userEmail?.trim().toLowerCase();
+  return assignees.some((a) => {
+    if (
+      userId != null &&
+      Number.isFinite(userId) &&
+      Number(a.user_id) === Number(userId)
+    ) {
+      return true;
+    }
+    if (emailNorm && a.user?.email?.trim().toLowerCase() === emailNorm) {
+      return true;
+    }
+    return false;
+  });
+}
+
 export const PurchaseRequestPage = () => {
   const dispatch = useAppDispatch();
   const state = useAppSelector(purchaseRequestSelector);
+  const auth = useAppSelector(authSelector);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterForm] = Form.useForm();
 
@@ -280,6 +666,9 @@ export const PurchaseRequestPage = () => {
     null,
   );
   const [viewLoading, setViewLoading] = useState(false);
+  const [viewLoadError, setViewLoadError] = useState<string | null>(null);
+  const [viewModalPrId, setViewModalPrId] = useState<number | null>(null);
+  const [approvalRemarks, setApprovalRemarks] = useState('');
   const submitBtnRef = useRef<HTMLButtonElement>(null);
 
   const activeStatus = parseListTabStatus(searchParams.get('status'));
@@ -305,26 +694,85 @@ export const PurchaseRequestPage = () => {
     setIsViewModalOpen(false);
     setViewRecord(null);
     setViewLoading(false);
+    setViewLoadError(null);
+    setViewModalPrId(null);
+    setApprovalRemarks('');
+  };
+
+  const loadViewRecord = (id: number, options?: { clearRecord?: boolean }) => {
+    const clearRecord = options?.clearRecord !== false;
+    if (clearRecord) setViewRecord(null);
+    setViewLoadError(null);
+    setViewLoading(true);
+    purchaseRequestService
+      .getById(id)
+      .then((res) => {
+        if (!res?.data) {
+          setViewLoadError('Could not load purchase request.');
+          message.error('Could not load purchase request.');
+          return;
+        }
+        try {
+          setViewRecord(buildRecordFromRow(res.data));
+        } catch (e) {
+          const msg =
+            e instanceof Error ? e.message : 'Invalid purchase request data.';
+          setViewLoadError(msg);
+          message.error(msg);
+        }
+      })
+      .catch((err: unknown) => {
+        const text =
+          err instanceof Error ? err.message : 'Could not load purchase request.';
+        setViewLoadError(text);
+        message.error(text);
+      })
+      .finally(() => setViewLoading(false));
   };
 
   const openViewPurchaseRequest = (id: number) => {
     setIsViewModalOpen(true);
-    setViewLoading(true);
-    setViewRecord(null);
-    purchaseRequestService
-      .getById(id)
-      .then((res) => {
-        if (res?.data) setViewRecord(buildRecordFromRow(res.data));
-        else {
-          message.error('Could not load purchase request.');
-          closeViewModal();
-        }
-      })
-      .catch(() => {
-        message.error('Could not load purchase request.');
-        closeViewModal();
-      })
-      .finally(() => setViewLoading(false));
+    setViewModalPrId(id);
+    setViewLoadError(null);
+    loadViewRecord(id, { clearRecord: true });
+  };
+
+  const jwtClaims = readJwtSubAndEmail();
+  const myUserId =
+    typeof auth.profile.data?.id === 'number'
+      ? auth.profile.data.id
+      : jwtClaims.sub;
+  const myEmail = auth.profile.data?.email ?? jwtClaims.email;
+
+  const pendingApprovalStep = viewRecord?.approval_steps?.find(
+    (s) => s.status === 'PENDING',
+  );
+  const prAwaitingApproval =
+    String(viewRecord?.status ?? '').toUpperCase() === 'SUBMITTED';
+  const canRecordApprovalDecision =
+    !!viewRecord?.id &&
+    !!pendingApprovalStep &&
+    prAwaitingApproval &&
+    (typeof myUserId === 'number' || Boolean(myEmail)) &&
+    userMatchesApprovalAssignee(
+      pendingApprovalStep.assignees ?? [],
+      myUserId,
+      myEmail,
+    );
+
+  const submitApprovalDecision = async (decision: 'APPROVE' | 'REJECT') => {
+    if (!viewRecord?.id) return;
+    const result = await dispatch(
+      submitPurchaseRequestApprovalDecision({
+        id: viewRecord.id,
+        decision,
+        remarks: approvalRemarks.trim() || null,
+      }),
+    );
+    if (result.meta.requestStatus === 'fulfilled') {
+      setApprovalRemarks('');
+      loadViewRecord(viewRecord.id, { clearRecord: false });
+    }
   };
 
   const dataFromSearch = (): Record<string, unknown> => {
@@ -393,10 +841,25 @@ export const PurchaseRequestPage = () => {
   useEffect(() => {
     if (state.create.message) {
       if (state.create.hasErrors) message.error(state.create.message);
-      else message.success(state.create.message);
+      else {
+        message.success(state.create.message);
+        refreshStatusCounts();
+      }
       dispatch(clearPurchaseRequestMessage());
     }
   }, [state.create.message]);
+
+  useEffect(() => {
+    if (state.approvalDecision.message) {
+      if (state.approvalDecision.hasErrors) {
+        message.error(state.approvalDecision.message);
+      } else {
+        message.success(state.approvalDecision.message);
+        refreshStatusCounts();
+      }
+      dispatch(clearPurchaseRequestMessage());
+    }
+  }, [state.approvalDecision.message]);
 
   const rows = state.list.data?.rows ?? [];
   const meta = state.list.data?.meta;
@@ -444,7 +907,6 @@ export const PurchaseRequestPage = () => {
       sp.set('skip', '0');
       if (!sp.has('take')) sp.set('take', String(take));
       setSearchParams(sp);
-      refreshStatusCounts();
     }
   };
 
@@ -542,6 +1004,10 @@ export const PurchaseRequestPage = () => {
       { label: 'Required' },
       { label: 'Net Amount', align: 'right' },
       { label: 'Status' },
+      {
+        label: 'Workflow step',
+        skeletonWidth: 'w-40',
+      },
       { label: 'Created' },
       { label: 'Actions', align: 'center', skeletonWidth: 'w-10' },
     ],
@@ -700,6 +1166,13 @@ export const PurchaseRequestPage = () => {
                       >
                         {formatStatusLabel(String(status))}
                       </span>
+                    </td>
+                    <td className="max-w-[220px] px-4 py-4 border-b border-slate-100/80 text-xs text-gray-600 leading-snug">
+                      <WorkflowStepCell
+                        prId={row.id}
+                        status={String(status)}
+                        progress={row.approval_progress}
+                      />
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80 text-sm text-gray-600">
                       {formatDate(row.updated_date ?? row.created_date)}
@@ -902,20 +1375,176 @@ export const PurchaseRequestPage = () => {
             <p className="text-sm">Loading…</p>
           </div>
         )}
+        {!viewLoading && viewLoadError && !viewRecord && (
+          <div className="flex flex-col items-center gap-4 py-16 px-4 text-center">
+            <p className="text-sm text-red-600 max-w-md">{viewLoadError}</p>
+            {viewModalPrId != null && (
+              <button
+                type="button"
+                onClick={() => loadViewRecord(viewModalPrId, { clearRecord: true })}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
         {!viewLoading && viewRecord && (
-          <PurchaseRequestAdd
-            readOnly
-            data={viewRecord}
-            onSubmit={() => {}}
-            vendors={fkOptions.vendors}
-            entities={fkOptions.entities}
-            itemTypes={fkOptions.itemTypes}
-            departments={fkOptions.departments}
-            subdepartments={fkOptions.subdepartments}
-            paymentTerms={fkOptions.paymentTerms}
-            centers={fkOptions.centers}
-            items={fkOptions.items}
-          />
+          <div className="space-y-8">
+            <PurchaseRequestAdd
+              readOnly
+              data={viewRecord}
+              onSubmit={() => {}}
+              vendors={fkOptions.vendors}
+              entities={fkOptions.entities}
+              itemTypes={fkOptions.itemTypes}
+              departments={fkOptions.departments}
+              subdepartments={fkOptions.subdepartments}
+              paymentTerms={fkOptions.paymentTerms}
+              centers={fkOptions.centers}
+              items={fkOptions.items}
+            />
+
+            {prAwaitingApproval &&
+              (!viewRecord.approval_steps ||
+                viewRecord.approval_steps.length === 0) && (
+                <div className={PR_SECTION_DIVIDER}>
+                  <p className={PR_SECTION_TITLE}>Approval</p>
+                  <div className="rounded-2xl border border-gray-200/90 bg-white px-4 py-3.5 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100/80">
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      No approval queue is stored for this request. It may have
+                      been created before workflow enforcement, or the database
+                      migration for approval steps may not be applied. New
+                      submissions after setup should show steps here.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            {viewRecord.approval_steps &&
+              viewRecord.approval_steps.length > 0 && (
+                <div className={PR_SECTION_DIVIDER}>
+                  <p className={PR_SECTION_TITLE}>Approval trail</p>
+                  <ol className="relative space-y-3 pl-1">
+                    {viewRecord.approval_steps.map((step, idx) => {
+                      const roleLabel =
+                        step.step_role === 'APPROVER'
+                          ? 'Approver'
+                          : 'Reviewer';
+                      const statusLabel =
+                        step.status === 'PENDING'
+                          ? 'Pending'
+                          : step.status === 'APPROVED'
+                            ? 'Approved'
+                            : 'Rejected';
+                      const names = step.assignees
+                        .map((a) =>
+                          a.user
+                            ? `${a.user.first_name} ${a.user.last_name}`.trim()
+                            : `User #${a.user_id}`,
+                        )
+                        .join(', ');
+                      const isLast =
+                        idx === viewRecord.approval_steps!.length - 1;
+                      return (
+                        <li key={step.id} className="relative flex gap-3">
+                          <div
+                            className="flex flex-col items-center flex-shrink-0 w-5"
+                            aria-hidden
+                          >
+                            <span
+                              className={`mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                                step.step_role === 'APPROVER'
+                                  ? 'bg-emerald-500 ring-2 ring-emerald-100'
+                                  : 'bg-amber-500 ring-2 ring-amber-100'
+                              }`}
+                            />
+                            {!isLast && (
+                              <span className="w-px flex-1 min-h-[12px] mt-1 bg-gray-200" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 rounded-2xl border border-gray-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-gray-100/80">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  Step {step.sequence_order}: {roleLabel}
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  Assigned:{' '}
+                                  <span className="text-gray-700">
+                                    {names || '—'}
+                                  </span>
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide ${approvalStepStatusBadgeClass(step.status)}`}
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
+                            {step.acted_by_user && (
+                              <p className="mt-2.5 pt-2.5 border-t border-gray-100 text-xs text-gray-500">
+                                {step.status === 'APPROVED'
+                                  ? 'Approved'
+                                  : 'Decided'}{' '}
+                                by {step.acted_by_user.first_name}{' '}
+                                {step.acted_by_user.last_name}
+                                {step.acted_at
+                                  ? ` · ${formatDate(step.acted_at)}`
+                                  : ''}
+                                {step.remarks ? ` · ${step.remarks}` : ''}
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+
+                  {canRecordApprovalDecision && (
+                    <div className="mt-6 rounded-2xl border border-gray-200/90 border-l-4 border-l-emerald-500 bg-white p-5 shadow-sm ring-1 ring-gray-100/80">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                        Your action
+                      </p>
+                      <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                        {pendingApprovalStep?.step_role === 'REVIEWER'
+                          ? 'You are assigned as the reviewer for this step. Approve to move the request to the next step, or reject to stop the workflow.'
+                          : 'You are assigned as the final approver. Approve to complete the request, or reject to stop it.'}
+                      </p>
+                      <TextArea
+                        value={approvalRemarks}
+                        onChange={(e) => setApprovalRemarks(e.target.value)}
+                        placeholder="Optional remarks"
+                        rows={3}
+                        className="rounded-xl soft-input !py-2.5"
+                      />
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={state.approvalDecision.loading}
+                          onClick={() => submitApprovalDecision('APPROVE')}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {pendingApprovalStep?.step_role === 'REVIEWER'
+                            ? 'Approve review'
+                            : 'Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={state.approvalDecision.loading}
+                          onClick={() => submitApprovalDecision('REJECT')}
+                          className="px-4 py-2.5 rounded-xl text-sm font-medium text-red-700 bg-white border border-red-200 hover:bg-red-50 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {pendingApprovalStep?.step_role === 'REVIEWER'
+                            ? 'Reject review'
+                            : 'Reject'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+          </div>
         )}
       </FormModal>
     </div>

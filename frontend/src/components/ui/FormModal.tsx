@@ -45,16 +45,16 @@ export function FormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm animate-fadeIn">
       <button
         type="button"
         aria-label="Close modal"
         onClick={onClose}
-        className="absolute inset-0 cursor-default"
+        className="absolute inset-0 z-0 cursor-default"
       />
 
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl w-full ${SIZE_CLASS[size]} max-h-[92vh] flex flex-col overflow-hidden`}
+        className={`relative z-10 bg-white rounded-2xl shadow-2xl w-full ${SIZE_CLASS[size]} max-h-[92vh] flex flex-col overflow-hidden`}
       >
         <div className="flex items-start justify-between p-6 border-b border-gray-100 flex-shrink-0">
           <div>
