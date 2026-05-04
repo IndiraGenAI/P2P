@@ -727,3 +727,108 @@ ON purchase_request_documents(purchase_request_id);
 
 CREATE INDEX IF NOT EXISTS idx_pr_documents_uploaded_date
 ON purchase_request_documents(uploaded_date);
+
+-- ---------------------------------------------------------------------------
+-- Approval workflows (scoped by entity, transaction type, subdepartment, center)
+-- center_id NULL = applies to all centers (default).
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS approval_workflow (
+    id SERIAL PRIMARY KEY,
+    entity_id INTEGER NOT NULL,
+    transaction_type VARCHAR(50) NOT NULL,
+    subdepartment_id INTEGER NOT NULL,
+    center_id INTEGER,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE,
+
+    CONSTRAINT fk_approval_workflow_entity
+        FOREIGN KEY (entity_id)
+        REFERENCES entities(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_approval_workflow_subdepartment
+        FOREIGN KEY (subdepartment_id)
+        REFERENCES subdepartments(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_approval_workflow_center
+        FOREIGN KEY (center_id)
+        REFERENCES centers(id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_approval_workflow_scope
+    ON approval_workflow (
+        entity_id,
+        transaction_type,
+        subdepartment_id,
+        COALESCE(center_id, -1)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_approval_workflow_lookup
+    ON approval_workflow (entity_id, transaction_type, subdepartment_id);
+
+CREATE TABLE IF NOT EXISTS approval_workflow_tier (
+    id SERIAL PRIMARY KEY,
+    approval_workflow_id INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL,
+    min_amount NUMERIC(18, 2) NOT NULL DEFAULT 0,
+    max_amount NUMERIC(18, 2),
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE,
+
+    CONSTRAINT fk_aw_tier_approval_workflow
+        FOREIGN KEY (approval_workflow_id)
+        REFERENCES approval_workflow(id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_approval_workflow_tier_order
+    ON approval_workflow_tier (approval_workflow_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS approval_workflow_step (
+    id SERIAL PRIMARY KEY,
+    approval_workflow_tier_id INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL,
+    step_role VARCHAR(20) NOT NULL,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE,
+
+    CONSTRAINT fk_aw_step_approval_workflow_tier
+        FOREIGN KEY (approval_workflow_tier_id)
+        REFERENCES approval_workflow_tier(id)
+        ON DELETE CASCADE,
+    CONSTRAINT chk_approval_workflow_step_role
+        CHECK (step_role IN ('REVIEWER', 'APPROVER'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_approval_workflow_step_order
+    ON approval_workflow_step (approval_workflow_tier_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS approval_workflow_step_user (
+    id SERIAL PRIMARY KEY,
+    approval_workflow_step_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_aw_step_user_approval_workflow_step
+        FOREIGN KEY (approval_workflow_step_id)
+        REFERENCES approval_workflow_step(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_aw_step_user_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_approval_workflow_step_user UNIQUE (approval_workflow_step_id, user_id)
+);
+
+-- If you already created these tables with old column names, run once:
+-- ALTER TABLE approval_workflow_tier RENAME COLUMN workflow_id TO approval_workflow_id;
+-- ALTER TABLE approval_workflow_step RENAME COLUMN tier_id TO approval_workflow_tier_id;
+-- ALTER TABLE approval_workflow_step_user RENAME COLUMN step_id TO approval_workflow_step_id;
+-- Then recreate FKs/indexes if needed, or drop constraints before rename.

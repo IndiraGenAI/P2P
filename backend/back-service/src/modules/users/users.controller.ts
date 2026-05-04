@@ -1,4 +1,5 @@
-﻿import { Role } from '@core/guards/role.guard';
+import { APPROVAL_WORKFLOW_USER_LIST_ROLE_TAGS } from '@core/approval-workflow-user-read-roles';
+import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -45,7 +46,7 @@ export class UsersController {
     );
   }
 
-  @Role('USERS_USERS_VIEW')
+  @Role('USERS_USERS_VIEW', ...APPROVAL_WORKFLOW_USER_LIST_ROLE_TAGS)
   @Get()
   async findAll(
     @Query() filterDto: GetUserFilterDto,
@@ -60,7 +61,7 @@ export class UsersController {
     );
   }
 
-  @Role('USERS_USERS_VIEW')
+  @Role('USERS_USERS_VIEW', ...APPROVAL_WORKFLOW_USER_LIST_ROLE_TAGS)
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,

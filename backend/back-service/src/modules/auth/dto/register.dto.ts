@@ -16,7 +16,7 @@ export class RegisterDto {
   @MaxLength(60)
   first_name: string;
 
-  @ApiProperty({ example: 'Khan' })
+  @ApiProperty({ example: 'Doe' })
   @IsNotEmpty({ message: 'Last name is required' })
   @IsString()
   @MaxLength(60)

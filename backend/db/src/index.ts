@@ -43,3 +43,11 @@ export { VendorDocument } from './entities/vendor-document';
 export { PurchaseRequest } from './entities/purchase-request';
 export { PurchaseRequestItem } from './entities/purchase-request-item';
 export { PurchaseRequestDocument } from './entities/purchase-request-document';
+export { ApprovalWorkflow } from './entities/approval-workflow';
+export { ApprovalWorkflowTier } from './entities/approval-workflow-tier';
+export { ApprovalWorkflowStep } from './entities/approval-workflow-step';
+export { ApprovalWorkflowStepUser } from './entities/approval-workflow-step-user';
+export {
+  ApprovalWorkflowStepRole,
+  ApprovalWorkflowTransactionType,
+} from './enums/approval-workflow.enums';

@@ -202,7 +202,12 @@ export class VendorController {
     );
   }
 
-  @Role('MASTER_VENDOR_SITE_VIEW')
+  @Role(
+    'MASTER_VENDOR_SITE_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get('site')
   async findAllSites(
     @Query() filterDto: GetVendorSiteFilterDto,
@@ -217,7 +222,12 @@ export class VendorController {
     );
   }
 
-  @Role('MASTER_VENDOR_SITE_VIEW')
+  @Role(
+    'MASTER_VENDOR_SITE_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get('site/:id')
   async findOneSite(
     @Param('id', ParseIntPipe) id: number,
@@ -372,7 +382,12 @@ export class VendorController {
     );
   }
 
-  @Role('MASTER_VENDOR_VIEW')
+  @Role(
+    'MASTER_VENDOR_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get()
   async findAll(
     @Query() filterDto: GetVendorFilterDto,
@@ -387,7 +402,12 @@ export class VendorController {
     );
   }
 
-  @Role('MASTER_VENDOR_VIEW')
+  @Role(
+    'MASTER_VENDOR_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,

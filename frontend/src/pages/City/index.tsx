@@ -509,7 +509,7 @@ export const CityPage = () => {
               </tr>
             </thead>
             <tbody>
-              {isLoading && rows.length === 0 && (
+              {isLoading ? (
                 <TableRowSkeleton
                   rows={Math.min(take, 10)}
                   columns={[
@@ -520,8 +520,8 @@ export const CityPage = () => {
                     { key: 'status', width: 'w-20' },
                   ]}
                 />
-              )}
-              {rows.map((row, index) => (
+              ) : (
+                rows.map((row, index) => (
                 <tr key={row.id} className="transition hover:bg-slate-50/60">
                   <td className="w-16 pl-6 pr-4 py-4 text-sm font-medium text-gray-500 border-b border-slate-100/80">
                     {(page - 1) * take + index + 1}
@@ -597,7 +597,8 @@ export const CityPage = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
               {!isLoading && rows.length === 0 && (
                 <tr>
                   <td

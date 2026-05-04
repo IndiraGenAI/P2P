@@ -1,5 +1,6 @@
 import { dataSource } from '@core/data-source';
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -109,6 +110,29 @@ export class PurchaseRequestService {
     );
   }
 
+  /** Item, quantity & rate required on every line (matches PR Add form rules). */
+  private assertValidPrLineItem(
+    label: string,
+    item_id: number | string | null | undefined,
+    quantity: unknown,
+    estimated_rate: unknown,
+  ): void {
+    const id = item_id != null ? Number(item_id) : NaN;
+    if (!Number.isInteger(id) || id < 1) {
+      throw new BadRequestException(`${label}: Item is required.`);
+    }
+    const qty = Number(quantity);
+    const rate = Number(estimated_rate);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      throw new BadRequestException(
+        `${label}: Quantity must be greater than 0.`,
+      );
+    }
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new BadRequestException(`${label}: Rate must be greater than 0.`);
+    }
+  }
+
   // =====================================================================
   // PURCHASE REQUEST (header + items)
   // =====================================================================
@@ -171,7 +195,7 @@ export class PurchaseRequestService {
         remarks: createDto.remarks ?? null,
         overall_summary: createDto.overall_summary ?? null,
         net_amount: this.toMoney(computedNetAmount),
-        status: createDto.status ?? 'DRAFT',
+        status: createDto.status ?? 'SUBMITTED',
         created_by: userEmailId ?? createDto.created_by ?? null,
         created_date: new Date(),
         updated_by: userEmailId ?? createDto.created_by ?? null,
@@ -286,10 +310,18 @@ export class PurchaseRequestService {
       );
     }
     if (status) {
-      purchaseRequestQueryBuilder.andWhere(
-        'purchaseRequest.status = :status',
-        { status },
-      );
+      const u = String(status).toUpperCase();
+      if (u === 'SUBMITTED' || u === 'PENDING') {
+        purchaseRequestQueryBuilder.andWhere(
+          'purchaseRequest.status IN (:...pendingStatuses)',
+          { pendingStatuses: ['SUBMITTED', 'PENDING'] },
+        );
+      } else {
+        purchaseRequestQueryBuilder.andWhere(
+          'purchaseRequest.status = :status',
+          { status },
+        );
+      }
     }
     if (vendor_id) {
       purchaseRequestQueryBuilder.andWhere(
@@ -354,7 +386,12 @@ export class PurchaseRequestService {
     return new PageDto(entities, pageMetaDto);
   }
 
-  async getStatusCounts(): Promise<Record<string, number> & { ALL: number }> {
+  async getStatusCounts(): Promise<{
+    ALL: number;
+    PENDING: number;
+    APPROVED: number;
+    REJECTED: number;
+  }> {
     const rows: { status: string | null; count: string }[] =
       await PurchaseRequestRepository.createQueryBuilder('purchaseRequest')
         .select('purchaseRequest.status', 'status')
@@ -362,22 +399,21 @@ export class PurchaseRequestService {
         .groupBy('purchaseRequest.status')
         .getRawMany();
 
-    const counts: Record<string, number> & { ALL: number } = {
-      ALL: 0,
-      DRAFT: 0,
-      SUBMITTED: 0,
-      APPROVED: 0,
-      REJECTED: 0,
-      CANCELLED: 0,
-      CLOSED: 0,
-    };
+    let all = 0;
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+
     for (const row of rows) {
-      const key = row.status ?? 'DRAFT';
+      const raw = (row.status ?? '').toUpperCase();
       const value = Number(row.count) || 0;
-      counts[key] = (counts[key] ?? 0) + value;
-      counts.ALL += value;
+      all += value;
+      if (raw === 'SUBMITTED' || raw === 'PENDING') pending += value;
+      else if (raw === 'APPROVED') approved += value;
+      else if (raw === 'REJECTED') rejected += value;
     }
-    return counts;
+
+    return { ALL: all, PENDING: pending, APPROVED: approved, REJECTED: rejected };
   }
 
   async findOne(purchaseRequestId: number): Promise<
@@ -555,8 +591,20 @@ export class PurchaseRequestService {
             }
             existingItem.updated_by = userEmailId ?? null;
             existingItem.updated_date = new Date();
+            this.assertValidPrLineItem(
+              `Line item ${incomingItem.id}`,
+              existingItem.item_id,
+              existingItem.quantity,
+              existingItem.estimated_rate,
+            );
             itemsToUpsert.push(existingItem);
           } else {
+            this.assertValidPrLineItem(
+              'New line item',
+              incomingItem.item_id,
+              incomingItem.quantity,
+              incomingItem.estimated_rate,
+            );
             itemsToUpsert.push(
               purchaseRequestItemRepository.create({
                 purchase_request_id: purchaseRequestId,
@@ -704,6 +752,13 @@ export class PurchaseRequestService {
     }
     existingItem.updated_by = userEmailId ?? null;
     existingItem.updated_date = new Date();
+
+    this.assertValidPrLineItem(
+      `Line item ${itemId}`,
+      existingItem.item_id,
+      existingItem.quantity,
+      existingItem.estimated_rate,
+    );
 
     const savedItem = await PurchaseRequestItemRepository.save(existingItem);
     await this.recomputeNetAmount(purchaseRequestId);

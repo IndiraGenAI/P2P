@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -50,7 +50,6 @@ export class UomService {
       name,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return uomRepository.save(entity);
@@ -149,7 +148,6 @@ export class UomService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return uomRepository.save(entity);
   }
@@ -166,7 +164,6 @@ export class UomService {
   ): Promise<UpdateResult> {
     const result = await uomRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('UOM not found');

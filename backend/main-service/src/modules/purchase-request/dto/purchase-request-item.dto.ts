@@ -5,17 +5,17 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   Min,
 } from 'class-validator';
 
 export class CreatePurchaseRequestItemDto {
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
+  @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  item_id?: number | null;
+  item_id: number;
 
   @ApiPropertyOptional({ example: 'A4 paper, 80 GSM' })
   @IsOptional()
@@ -26,14 +26,14 @@ export class CreatePurchaseRequestItemDto {
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @IsPositive()
   quantity: number;
 
   @ApiProperty({ example: 250.5 })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @IsPositive()
   estimated_rate: number;
 
   @ApiPropertyOptional({

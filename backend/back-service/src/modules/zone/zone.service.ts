@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -51,7 +51,6 @@ export class ZoneService {
       code: createZoneDto.code?.trim() ?? null,
       status: createZoneDto.status ?? true,
       created_by: userEmailId ?? createZoneDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return zoneRepository.save(zone);
@@ -170,7 +169,6 @@ export class ZoneService {
     if (updateZoneDto.status !== undefined) zone.status = updateZoneDto.status;
 
     zone.updated_by = userEmailId ?? updateZoneDto.updated_by ?? null;
-    zone.updated_date = new Date();
 
     return zoneRepository.save(zone);
   }
@@ -189,7 +187,6 @@ export class ZoneService {
   ): Promise<UpdateResult> {
     const result = await zoneRepository.update(id, {
       ...updateZoneStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

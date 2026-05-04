@@ -3,6 +3,8 @@ import { message } from 'antd';
 import {
   Check,
   ChevronsUpDown,
+  Eye,
+  EyeOff,
   Filter,
   Loader2,
   Pencil,
@@ -194,6 +196,7 @@ export const UsersPage = () => {
   // (it's the persisted value the user might still cancel out of).
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<IUserDetails | null>(null);
 
@@ -325,6 +328,7 @@ export const UsersPage = () => {
     setOriginalImage(null);
     setPendingDeleteKey(null);
     setFormError(null);
+    setShowPassword(false);
     setIsFormDrawerOpen(true);
   };
 
@@ -344,6 +348,7 @@ export const UsersPage = () => {
     setOriginalImage(seededImage);
     setPendingDeleteKey(null);
     setFormError(null);
+    setShowPassword(false);
     setIsFormDrawerOpen(true);
   };
 
@@ -353,6 +358,7 @@ export const UsersPage = () => {
       void commonService.deleteS3File(form.image);
     }
     setPendingDeleteKey(null);
+    setShowPassword(false);
     setIsFormDrawerOpen(false);
   };
 
@@ -1058,7 +1064,7 @@ export const UsersPage = () => {
                 type="text"
                 value={form.last_name}
                 onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                placeholder="e.g. Khan"
+                placeholder="e.g. Doe"
                 className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
               />
             </div>
@@ -1095,14 +1101,24 @@ export const UsersPage = () => {
               {isEdit ? 'Reset Password' : 'Password'}{' '}
               {!isEdit && <span className="text-red-500">*</span>}
             </label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder={isEdit ? 'Leave blank to keep current password' : 'At least 6 characters'}
-              autoComplete="new-password"
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm soft-input"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={isEdit ? 'Leave blank to keep current password' : 'At least 6 characters'}
+                autoComplete="new-password"
+                className="w-full px-3.5 py-2.5 pr-11 rounded-xl text-sm soft-input"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div>

@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -50,7 +50,6 @@ export class StateService {
       name,
       status: createStateDto.status ?? true,
       created_by: userEmailId ?? createStateDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return stateRepository.save(state);
@@ -166,7 +165,6 @@ export class StateService {
     if (updateStateDto.status !== undefined) state.status = updateStateDto.status;
 
     state.updated_by = userEmailId ?? updateStateDto.updated_by ?? null;
-    state.updated_date = new Date();
 
     return stateRepository.save(state);
   }
@@ -185,7 +183,6 @@ export class StateService {
   ): Promise<UpdateResult> {
     const result = await stateRepository.update(id, {
       ...updateStateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

@@ -81,14 +81,13 @@ export interface IPurchaseRequestListResult {
   meta: IMetaProps;
 }
 
+/** Tab badges only: All + pending queue + approved + rejected. */
 export interface IPurchaseRequestStatusCounts {
   ALL: number;
-  DRAFT: number;
-  SUBMITTED: number;
+  /** Rows in DB as `SUBMITTED` or `PENDING` (awaiting decision). */
+  PENDING: number;
   APPROVED: number;
   REJECTED: number;
-  CANCELLED: number;
-  CLOSED: number;
 }
 
 export interface IPurchaseRequestPayload {

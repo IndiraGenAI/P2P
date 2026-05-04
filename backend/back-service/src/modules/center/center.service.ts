@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -47,7 +47,6 @@ export class CenterService {
       name,
       status: createCenterDto.status ?? true,
       created_by: userEmailId ?? createCenterDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return centerRepository.save(center);
@@ -104,7 +103,14 @@ export class CenterService {
   async findOne(id: number): Promise<Center> {
     const center = await centerRepository.findOne({
       where: { id },
-      select: ['id', 'name', 'code', 'status'],
+      select: [
+        'id',
+        'name',
+        'code',
+        'status',
+        'created_date',
+        'updated_date',
+      ],
     });
     if (!center) {
       throw new NotFoundException('Center not found');
@@ -144,7 +150,6 @@ export class CenterService {
     }
 
     center.updated_by = userEmailId ?? updateCenterDto.updated_by ?? null;
-    center.updated_date = new Date();
 
     return centerRepository.save(center);
   }
@@ -163,7 +168,6 @@ export class CenterService {
   ): Promise<UpdateResult> {
     const result = await centerRepository.update(id, {
       ...updateCenterStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

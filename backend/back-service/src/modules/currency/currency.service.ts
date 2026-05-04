@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -52,7 +52,6 @@ export class CurrencyService {
       symbol,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return currencyRepository.save(entity);
@@ -163,7 +162,6 @@ export class CurrencyService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return currencyRepository.save(entity);
   }
@@ -180,7 +178,6 @@ export class CurrencyService {
   ): Promise<UpdateResult> {
     const result = await currencyRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Currency not found');

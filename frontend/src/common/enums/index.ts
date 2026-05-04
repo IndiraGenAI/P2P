@@ -1,3 +1,4 @@
+export * from './approval-workflow.enum';
 export * from './route-key.enum';
 export * from './user-status.enum';
 export * from './trend.enum';

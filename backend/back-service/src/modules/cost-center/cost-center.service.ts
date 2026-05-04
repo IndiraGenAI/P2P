@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -49,7 +49,6 @@ export class CostCenterService {
       name,
       status: createCostCenterDto.status ?? true,
       created_by: userEmailId ?? createCostCenterDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return costCenterRepository.save(costCenter);
@@ -147,7 +146,6 @@ export class CostCenterService {
 
     costCenter.updated_by =
       userEmailId ?? updateCostCenterDto.updated_by ?? null;
-    costCenter.updated_date = new Date();
 
     return costCenterRepository.save(costCenter);
   }
@@ -166,7 +164,6 @@ export class CostCenterService {
   ): Promise<UpdateResult> {
     const result = await costCenterRepository.update(id, {
       ...updateCostCenterStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

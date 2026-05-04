@@ -1,4 +1,4 @@
-﻿import { Role } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -48,7 +48,12 @@ export class SubdepartmentController {
     );
   }
 
-  @Role('MASTER_SUBDEPARTMENT_VIEW')
+  @Role(
+    'MASTER_SUBDEPARTMENT_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get()
   async findAll(
     @Query() filterDto: GetSubdepartmentFilterDto,
@@ -63,7 +68,12 @@ export class SubdepartmentController {
     );
   }
 
-  @Role('MASTER_SUBDEPARTMENT_VIEW')
+  @Role(
+    'MASTER_SUBDEPARTMENT_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,

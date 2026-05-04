@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -64,7 +64,6 @@ export class SubdepartmentService {
       code,
       status: createSubdepartmentDto.status ?? true,
       created_by: userEmailId ?? createSubdepartmentDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return subdepartmentRepository.save(subdepartment);
@@ -202,7 +201,6 @@ export class SubdepartmentService {
     }
 
     subdepartment.updated_by = userEmailId ?? updateSubdepartmentDto.updated_by ?? null;
-    subdepartment.updated_date = new Date();
 
     return subdepartmentRepository.save(subdepartment);
   }
@@ -221,7 +219,6 @@ export class SubdepartmentService {
   ): Promise<UpdateResult> {
     const result = await subdepartmentRepository.update(id, {
       ...updateSubdepartmentStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

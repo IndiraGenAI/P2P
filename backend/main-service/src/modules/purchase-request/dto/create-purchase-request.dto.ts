@@ -128,8 +128,8 @@ export class CreatePurchaseRequestDto {
   net_amount?: number;
 
   @ApiPropertyOptional({
-    example: 'DRAFT',
-    description: 'Default DRAFT',
+    example: 'SUBMITTED',
+    description: 'Defaults to SUBMITTED (pending) when omitted',
   })
   @IsOptional()
   @IsString()

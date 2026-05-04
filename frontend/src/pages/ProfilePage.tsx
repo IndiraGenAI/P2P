@@ -3,6 +3,7 @@ import {
   Camera,
   Check,
   ChevronRight,
+  Eye,
   Loader2,
   Pencil,
   Upload,
@@ -67,6 +68,7 @@ export function ProfilePage() {
   // be deferred to "save" (still persisted in the DB).
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -88,6 +90,15 @@ export function ProfilePage() {
     authUser?.phone,
     authUser?.image,
   ]);
+
+  useEffect(() => {
+    if (!avatarPreviewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAvatarPreviewOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [avatarPreviewOpen]);
 
   const openProfileModal = () => {
     setDraft(profile);
@@ -250,16 +261,33 @@ export function ProfilePage() {
           style={{ background: '#F8FAFC' }}
         >
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+            <div className="relative w-20 h-20 shrink-0 group">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-2xl font-bold overflow-hidden ring-1 ring-black/5">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={fullName || 'Profile avatar'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initial
+                )}
+              </div>
               {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={fullName || 'Profile avatar'}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                initial
-              )}
+                <button
+                  type="button"
+                  onClick={() => setAvatarPreviewOpen(true)}
+                  aria-label="View profile photo"
+                  className="absolute inset-0 rounded-full flex items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                >
+                  <Eye
+                    size={22}
+                    className="text-white drop-shadow-md"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                </button>
+              ) : null}
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 text-lg">{fullName}</h4>
@@ -440,6 +468,31 @@ export function ProfilePage() {
           />
         </div>
       </Modal>
+
+      {avatarPreviewOpen && avatarUrl ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 sm:p-8 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile photo preview"
+          onClick={() => setAvatarPreviewOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setAvatarPreviewOpen(false)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition z-10"
+            aria-label="Close preview"
+          >
+            <X size={22} />
+          </button>
+          <img
+            src={avatarUrl}
+            alt={fullName ? `${fullName} — full size` : 'Profile photo'}
+            className="max-h-[min(85vh,900px)] max-w-full w-auto rounded-2xl object-contain shadow-2xl ring-1 ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
 
       {toast && (
         <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-slideUp z-50">

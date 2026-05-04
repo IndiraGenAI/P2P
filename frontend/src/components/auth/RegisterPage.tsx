@@ -123,7 +123,7 @@ export function RegisterPage({ onRegister }: Readonly<RegisterPageProps>) {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Khan"
+                  placeholder="Doe"
                   autoComplete="family-name"
                   className="w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-400 soft-input text-sm"
                 />

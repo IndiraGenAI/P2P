@@ -1,3 +1,4 @@
+import { ApprovalWorkflowModule } from './approval-workflow/approval-workflow.module';
 import { ApplicantTypeModule } from './other/applicant-type/applicant-type.module';
 import { AuthModule } from './auth/auth.module';
 import { CenterModule } from './center/center.module';
@@ -58,4 +59,5 @@ export const ApplicationModules = [
   ItemTypeModule,
   ItemModule,
   VendorModule,
+  ApprovalWorkflowModule,
 ];

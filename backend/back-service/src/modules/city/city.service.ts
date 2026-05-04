@@ -53,7 +53,6 @@ export class CityService {
       name,
       status: createCityDto.status ?? true,
       created_by: userEmailId ?? createCityDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return cityRepository.save(city);
@@ -175,7 +174,6 @@ export class CityService {
     if (updateCityDto.status !== undefined) city.status = updateCityDto.status;
 
     city.updated_by = userEmailId ?? updateCityDto.updated_by ?? null;
-    city.updated_date = new Date();
 
     return cityRepository.save(city);
   }
@@ -194,7 +192,6 @@ export class CityService {
   ): Promise<UpdateResult> {
     const result = await cityRepository.update(id, {
       ...updateCityStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

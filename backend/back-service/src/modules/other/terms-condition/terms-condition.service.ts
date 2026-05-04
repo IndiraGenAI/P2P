@@ -55,7 +55,6 @@ export class TermsConditionService {
       description: createDto.description?.trim() || null,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return termsConditionRepository.save(entity);
@@ -165,7 +164,6 @@ export class TermsConditionService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return termsConditionRepository.save(entity);
   }
@@ -182,7 +180,6 @@ export class TermsConditionService {
   ): Promise<UpdateResult> {
     const result = await termsConditionRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Terms & condition not found');

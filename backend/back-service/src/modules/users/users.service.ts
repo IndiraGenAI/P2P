@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -203,6 +203,8 @@ export class UsersService {
         'phone',
         'image',
         'status',
+        'created_date',
+        'modified_date',
       ],
     });
     if (!user) {
@@ -257,7 +259,6 @@ export class UsersService {
     }
 
     user.updated_by = userEmailId ?? updateUserDto.updated_by ?? null;
-    user.modified_date = new Date();
 
     const saved = await usersRepository.save(user);
 
@@ -305,7 +306,6 @@ export class UsersService {
     const result = await usersRepository.update(id, {
       status: updateUserStatusDto.status,
       updated_by: updateUserStatusDto.updated_by ?? null,
-      modified_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

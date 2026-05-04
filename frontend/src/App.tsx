@@ -40,6 +40,7 @@ import VendorCategoryPage from '@/pages/Vendor/VendorCategory';
 import VendorPage from '@/pages/Vendor/Vendor';
 import VendorSitePage from '@/pages/Vendor/VendorSite';
 import PurchaseRequestPage from '@/pages/PurchaseRequest';
+import WorkflowsPage from '@/pages/Workflows';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ability } from '@/ability';
@@ -150,7 +151,7 @@ function AppRoutes({
         </Route>
 
         <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V1} />}>
-          <Route path="/workflows" element={<PlaceholderPage title="Workflows" />} />
+          <Route path="/workflows" element={<WorkflowsPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V2} />}>
           <Route path="/workflows-v2" element={<PlaceholderPage title="Workflow (V2)" />} />

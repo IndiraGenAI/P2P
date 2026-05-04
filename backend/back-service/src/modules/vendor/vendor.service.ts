@@ -227,7 +227,6 @@ export class VendorService {
       contact_email: this.trimOrNull(createDto.contact_email),
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return vendorRepository.save(entity);
@@ -467,7 +466,6 @@ export class VendorService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return vendorRepository.save(entity);
   }
@@ -484,7 +482,6 @@ export class VendorService {
   ): Promise<UpdateResult> {
     const result = await vendorRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor not found');
@@ -526,7 +523,6 @@ export class VendorService {
       ifsc_code: this.trimOrNull(dto.ifsc_code)?.toUpperCase() ?? null,
       status: dto.status ?? true,
       created_by: userEmailId,
-      created_date: new Date(),
     });
     return vendorBankDetailRepository.save(entity);
   }
@@ -553,7 +549,6 @@ export class VendorService {
     if (dto.status !== undefined) row.status = dto.status;
 
     row.updated_by = userEmailId;
-    row.updated_date = new Date();
     return vendorBankDetailRepository.save(row);
   }
 
@@ -567,7 +562,6 @@ export class VendorService {
     const result = await vendorBankDetailRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor bank detail not found');
@@ -628,7 +622,6 @@ export class VendorService {
       entity_id: dto.entity_id,
       status: dto.status ?? true,
       created_by: userEmailId,
-      created_date: new Date(),
     });
     return vendorEntityRepository.save(entity);
   }
@@ -663,7 +656,6 @@ export class VendorService {
     if (dto.status !== undefined) row.status = dto.status;
 
     row.updated_by = userEmailId;
-    row.updated_date = new Date();
     return vendorEntityRepository.save(row);
   }
 
@@ -677,7 +669,6 @@ export class VendorService {
     const result = await vendorEntityRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor entity mapping not found');
@@ -738,7 +729,6 @@ export class VendorService {
       center_id: dto.center_id,
       status: dto.status ?? true,
       created_by: userEmailId,
-      created_date: new Date(),
     });
     return vendorCenterRepository.save(entity);
   }
@@ -773,7 +763,6 @@ export class VendorService {
     if (dto.status !== undefined) row.status = dto.status;
 
     row.updated_by = userEmailId;
-    row.updated_date = new Date();
     return vendorCenterRepository.save(row);
   }
 
@@ -787,7 +776,6 @@ export class VendorService {
     const result = await vendorCenterRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor center mapping not found');
@@ -837,7 +825,6 @@ export class VendorService {
       description: this.trimOrNull(dto.description),
       status: dto.status ?? true,
       created_by: userEmailId,
-      created_date: new Date(),
     });
     return vendorDocumentRepository.save(entity);
   }
@@ -862,7 +849,6 @@ export class VendorService {
     if (dto.status !== undefined) row.status = dto.status;
 
     row.updated_by = userEmailId;
-    row.updated_date = new Date();
     return vendorDocumentRepository.save(row);
   }
 
@@ -876,7 +862,6 @@ export class VendorService {
     const result = await vendorDocumentRepository.update(id, {
       status: dto.status,
       updated_by: userEmailId,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor document not found');
@@ -925,7 +910,6 @@ export class VendorService {
       name,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return vendorCategoryRepository.save(entity);
@@ -1032,7 +1016,6 @@ export class VendorService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return vendorCategoryRepository.save(entity);
   }
@@ -1049,7 +1032,6 @@ export class VendorService {
   ): Promise<UpdateResult> {
     const result = await vendorCategoryRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor category not found');
@@ -1101,7 +1083,6 @@ export class VendorService {
       oracle_address_name: createDto.oracle_address_name?.trim() || null,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return vendorSiteRepository.save(entity);
@@ -1231,7 +1212,6 @@ export class VendorService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return vendorSiteRepository.save(entity);
   }
@@ -1248,7 +1228,6 @@ export class VendorService {
   ): Promise<UpdateResult> {
     const result = await vendorSiteRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Vendor site not found');
@@ -1383,7 +1362,6 @@ export class VendorService {
           contact_email: this.trimOrNull(row['Contact Email']),
           status: parseBool(row['Status'], true),
           created_by: userEmailId,
-          created_date: new Date(),
         });
 
         const saved = await vendorRepository.save(entity);

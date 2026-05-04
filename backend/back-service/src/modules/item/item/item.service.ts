@@ -96,7 +96,6 @@ export class ItemService {
       coa_id: createDto.coa_id ?? null,
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return itemRepository.save(entity);
@@ -191,6 +190,8 @@ export class ItemService {
         uom_id: true,
         coa_id: true,
         status: true,
+        created_date: true,
+        updated_date: true,
         item_type: { id: true, name: true },
         item_category: { id: true, name: true },
         uom: { id: true, name: true },
@@ -271,7 +272,6 @@ export class ItemService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return itemRepository.save(entity);
   }
@@ -288,7 +288,6 @@ export class ItemService {
   ): Promise<UpdateResult> {
     const result = await itemRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Item not found');
@@ -430,7 +429,6 @@ export class ItemService {
             coa_id: findRefId(coas, csvFileData[i]['COA Code']),
             status,
             created_by: userEmailId,
-            created_date: new Date(),
           };
           const saved = await itemRepository.save(itemRepository.create(item));
           inserted.push(saved);

@@ -84,6 +84,7 @@ interface FormValues {
 const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
   const {
     data,
+    readOnly = false,
     onSubmit,
     myRef,
     vendors,
@@ -97,6 +98,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
   } = props;
   const [form] = Form.useForm<FormValues>();
   const isEdit = !!data?.id;
+  const ro = readOnly;
 
   const initialValues = useMemo<FormValues>(
     () => ({
@@ -261,18 +263,28 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
   );
 
   const onFinish = (values: FormValues) => {
+    if (ro) return;
     if (!rows.length) {
       setItemsError('Please add at least one item.');
       return;
     }
-    const invalidIndex = rows.findIndex(
-      (r) => Number(r.quantity) <= 0 || Number(r.estimated_rate) < 0,
-    );
-    if (invalidIndex >= 0) {
-      setItemsError(
-        `Row ${invalidIndex + 1}: quantity must be > 0 and rate must be >= 0.`,
-      );
-      return;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const rowNum = i + 1;
+      if (r.item_id == null || r.item_id < 1) {
+        setItemsError(`Row ${rowNum}: select an item.`);
+        return;
+      }
+      const qty = Number(r.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        setItemsError(`Row ${rowNum}: quantity must be greater than 0.`);
+        return;
+      }
+      const rate = Number(r.estimated_rate);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        setItemsError(`Row ${rowNum}: rate must be greater than 0.`);
+        return;
+      }
     }
     setItemsError('');
 
@@ -300,7 +312,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
       remarks: values.remarks?.trim() || null,
       terms_conditions: values.terms_conditions?.trim() || null,
       overall_summary: values.overall_summary?.trim() || null,
-      status: data?.status ?? 'DRAFT',
+      status: data?.id ? (data?.status ?? 'DRAFT') : 'SUBMITTED',
       net_amount: totalNet,
       items: rows.map((r) => ({
         id: r.id,
@@ -334,7 +346,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               placeholder="Auto-generated"
               className={FIELD_INPUT_CLASS}
               size="large"
-              disabled={!isEdit}
+              disabled={ro || !isEdit}
             />
           </Form.Item>
           <Form.Item
@@ -347,6 +359,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               onChange={(v) => setField('vendor_id', v)}
               options={[{ value: '', label: 'Select Vendor…' }, ...vendors]}
               placeholder="Select Vendor…"
+              disabled={ro}
             />
           </Form.Item>
           <Form.Item
@@ -372,7 +385,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               placeholder={
                 local.vendor_id ? 'Select Site…' : 'Select Vendor first…'
               }
-              disabled={!local.vendor_id || vendorSitesLoading}
+              disabled={ro || !local.vendor_id || vendorSitesLoading}
             />
           </Form.Item>
           <Form.Item name="entity_id" label={wrapLabel('Entity')}>
@@ -381,6 +394,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               onChange={(v) => setField('entity_id', v)}
               options={[{ value: '', label: 'Select Entity…' }, ...entities]}
               placeholder="Select Entity…"
+              disabled={ro}
             />
           </Form.Item>
           <Form.Item name="item_type_id" label={wrapLabel('Item Type')}>
@@ -392,6 +406,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 ...itemTypes,
               ]}
               placeholder="Select Item Type…"
+              disabled={ro}
             />
           </Form.Item>
           <Form.Item name="payment_term_id" label={wrapLabel('Payment Term')}>
@@ -403,6 +418,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 ...paymentTerms,
               ]}
               placeholder="Select Payment Term…"
+              disabled={ro}
             />
           </Form.Item>
         </div>
@@ -419,6 +435,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               format={DATE_FORMAT}
               placeholder="Select date"
               allowClear
+              disabled={ro}
               className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
             />
           </Form.Item>
@@ -429,6 +446,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               format={DATE_FORMAT}
               placeholder="Select date"
               allowClear
+              disabled={ro}
               disabledDate={(current) => {
                 const from = toDayjs(local.validity_from);
                 return !!(current && from && current.isBefore(from, 'day'));
@@ -443,6 +461,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               format={DATE_FORMAT}
               placeholder="Select date"
               allowClear
+              disabled={ro}
               className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
             />
           </Form.Item>
@@ -452,6 +471,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               onChange={(v) => setField('frequency', v)}
               options={FREQUENCY_OPTIONS}
               placeholder="Frequency…"
+              disabled={ro}
             />
           </Form.Item>
         </div>
@@ -470,6 +490,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 ...departments,
               ]}
               placeholder="Select Department…"
+              disabled={ro}
             />
           </Form.Item>
           <Form.Item
@@ -493,7 +514,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                   ? 'Select Sub-department…'
                   : 'Select Department first…'
               }
-              disabled={!local.department_id}
+              disabled={ro || !local.department_id}
             />
           </Form.Item>
           <Form.Item name="center_id" label={wrapLabel('Center')}>
@@ -502,6 +523,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
               onChange={(v) => setField('center_id', v)}
               options={[{ value: '', label: 'Select Center…' }, ...centers]}
               placeholder="Select Center…"
+              disabled={ro}
             />
           </Form.Item>
         </div>
@@ -511,13 +533,15 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
       <div className={SECTION_DIVIDER}>
         <div className="flex items-center justify-between mb-4">
           <p className={SECTION_TITLE + ' !mb-0'}>Items</p>
-          <button
-            type="button"
-            onClick={addRow}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
-          >
-            <Plus size={14} /> Add Item
-          </button>
+          {!ro && (
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+            >
+              <Plus size={14} /> Add Item
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -542,7 +566,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
                   Amount (₹)
                 </th>
-                <th className="px-3 py-2 text-center w-12"> </th>
+                {!ro && <th className="px-3 py-2 text-center w-12"> </th>}
               </tr>
             </thead>
             <tbody>
@@ -564,6 +588,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       ]}
                       placeholder="Select Item…"
                       size="sm"
+                      disabled={ro}
                     />
                   </td>
                   <td className="px-2 py-1.5">
@@ -574,6 +599,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       }
                       placeholder="Description"
                       className="rounded-lg soft-input"
+                      readOnly={ro}
+                      disabled={ro}
                     />
                   </td>
                   <td className="px-2 py-1.5">
@@ -586,6 +613,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       precision={2}
                       controls={false}
                       className="w-full rounded-lg pr-num-input"
+                      readOnly={ro}
+                      disabled={ro}
                     />
                   </td>
                   <td className="px-2 py-1.5">
@@ -600,22 +629,26 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                       precision={2}
                       controls={false}
                       className="w-full rounded-lg pr-num-input"
+                      readOnly={ro}
+                      disabled={ro}
                     />
                   </td>
                   <td className="px-2 py-1.5 text-center text-sm font-medium text-gray-700 tabular-nums">
                     ₹ {Number(row.amount).toFixed(2)}
                   </td>
-                  <td className="px-2 py-1.5 text-center">
-                    <button
-                      type="button"
-                      onClick={() => removeRow(index)}
-                      disabled={rows.length === 1}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition disabled:opacity-30 disabled:cursor-not-allowed"
-                      aria-label={`Remove row ${index + 1}`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
+                  {!ro && (
+                    <td className="px-2 py-1.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(index)}
+                        disabled={rows.length === 1}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition disabled:opacity-30 disabled:cursor-not-allowed"
+                        aria-label={`Remove row ${index + 1}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               <tr className="border-t-2 border-gray-200 bg-slate-50">
@@ -625,7 +658,7 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
                 <td className="px-2 py-2 text-center font-semibold text-emerald-700 tabular-nums">
                   ₹ {totalNet.toFixed(2)}
                 </td>
-                <td />
+                {!ro && <td />}
               </tr>
             </tbody>
           </table>
@@ -643,6 +676,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
             rows={2}
             placeholder="Internal remarks"
             className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
           />
         </Form.Item>
         <Form.Item name="terms_conditions" label={wrapLabel('Terms & Conditions')}>
@@ -650,6 +685,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
             rows={3}
             placeholder="Payment terms, delivery terms, etc."
             className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
           />
         </Form.Item>
         <Form.Item name="overall_summary" label={wrapLabel('Overall Summary')}>
@@ -657,6 +694,8 @@ const PurchaseRequestAdd = (props: IPurchaseRequestAddProps) => {
             rows={2}
             placeholder="Summary visible to approver"
             className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
           />
         </Form.Item>
       </div>

@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -52,7 +52,6 @@ export class DepartmentService {
       code,
       status: createDepartmentDto.status ?? true,
       created_by: userEmailId ?? createDepartmentDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return departmentRepository.save(department);
@@ -156,7 +155,6 @@ export class DepartmentService {
     }
 
     department.updated_by = userEmailId ?? updateDepartmentDto.updated_by ?? null;
-    department.updated_date = new Date();
 
     return departmentRepository.save(department);
   }
@@ -175,7 +173,6 @@ export class DepartmentService {
   ): Promise<UpdateResult> {
     const result = await departmentRepository.update(id, {
       ...updateDepartmentStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

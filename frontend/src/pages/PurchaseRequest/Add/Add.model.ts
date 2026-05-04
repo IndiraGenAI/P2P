@@ -7,6 +7,8 @@ export interface ISubdepartmentOption extends SelectOption {
 
 export interface IPurchaseRequestAddProps {
   data?: IPurchaseRequestRecord;
+  /** When true, all fields are disabled and item add/remove is hidden. */
+  readOnly?: boolean;
   onSubmit: (val: IPurchaseRequestRecord) => void;
   myRef?: React.Ref<HTMLButtonElement>;
   vendors: SelectOption[];

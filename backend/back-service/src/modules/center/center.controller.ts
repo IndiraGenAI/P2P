@@ -1,4 +1,4 @@
-﻿import { Role } from '@core/guards/role.guard';
+import { Role } from '@core/guards/role.guard';
 import type { AuthenticatedRequest } from '@core/guards/role.guard';
 import {
   Body,
@@ -45,7 +45,12 @@ export class CenterController {
     );
   }
 
-  @Role('MASTER_CENTER_VIEW')
+  @Role(
+    'MASTER_CENTER_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get()
   async findAll(
     @Query() filterDto: GetCenterFilterDto,
@@ -60,7 +65,12 @@ export class CenterController {
     );
   }
 
-  @Role('MASTER_CENTER_VIEW')
+  @Role(
+    'MASTER_CENTER_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_CREATE',
+    'PROCUREMENT_PURCHASE_REQUEST_VIEW',
+    'PROCUREMENT_PURCHASE_REQUEST_UPDATE',
+  )
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,

@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -42,7 +42,6 @@ export class CountryService {
       name,
       status: createCountryDto.status ?? true,
       created_by: userEmailId ?? createCountryDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return countryRepository.save(country);
@@ -135,7 +134,6 @@ export class CountryService {
     }
 
     country.updated_by = userEmailId ?? updateCountryDto.updated_by ?? null;
-    country.updated_date = new Date();
 
     return countryRepository.save(country);
   }
@@ -154,7 +152,6 @@ export class CountryService {
   ): Promise<UpdateResult> {
     const result = await countryRepository.update(id, {
       ...updateCountryStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) {
       return result;

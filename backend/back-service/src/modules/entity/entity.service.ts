@@ -1,4 +1,4 @@
-﻿import {
+import {
   ConflictException,
   Injectable,
   NotFoundException,
@@ -69,7 +69,6 @@ export class EntityService {
       billing_addresses: sanitizeAddresses(createDto.billing_addresses) ?? [],
       status: createDto.status ?? true,
       created_by: userEmailId ?? createDto.created_by ?? null,
-      created_date: new Date(),
     });
 
     return entityRepository.save(entity);
@@ -137,6 +136,8 @@ export class EntityService {
         'shipping_addresses',
         'billing_addresses',
         'status',
+        'created_date',
+        'updated_date',
       ],
     });
     if (!entity) throw new NotFoundException('Entity not found');
@@ -205,7 +206,6 @@ export class EntityService {
     if (updateDto.status !== undefined) entity.status = updateDto.status;
 
     entity.updated_by = userEmailId ?? updateDto.updated_by ?? null;
-    entity.updated_date = new Date();
 
     return entityRepository.save(entity);
   }
@@ -222,7 +222,6 @@ export class EntityService {
   ): Promise<UpdateResult> {
     const result = await entityRepository.update(id, {
       ...updateStatusDto,
-      updated_date: new Date(),
     });
     if (result?.affected && result.affected > 0) return result;
     throw new NotFoundException('Entity not found');

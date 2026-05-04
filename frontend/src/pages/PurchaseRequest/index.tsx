@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Input, message } from 'antd';
-import {
-  CheckCircle2,
-  Filter,
-  Loader2,
-  Pencil,
-  Plus,
-  ShoppingCart,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
+import { Eye, Filter, Loader2, Plus, ShoppingCart } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
@@ -20,11 +11,7 @@ import { Common } from '@/utils/constants/constant';
 import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
 import {
   createNewPurchaseRequest,
-  editPurchaseRequestById,
-  fetchPurchaseRequestById,
-  removePurchaseRequestById,
   searchPurchaseRequestData,
-  updatePurchaseRequestStatus,
 } from '@/state/purchaseRequest/purchaseRequest.action';
 import {
   clearCurrentPurchaseRequest,
@@ -49,7 +36,6 @@ import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import type { SelectOption } from '@/common/models';
 import purchaseRequestService, {
-  type IPurchaseRequestRow,
   type IPurchaseRequestStatusCounts,
   type PurchaseRequestStatus,
 } from '@/services/purchaseRequest/purchaseRequest.service';
@@ -61,25 +47,56 @@ import PurchaseRequestAdd from './Add';
 import type { ISubdepartmentOption } from './Add/Add.model';
 
 const DEFAULT_TAKE = 10;
-const NON_FILTER_KEYS = new Set(['take', 'skip', 'orderBy', 'order']);
+/** Paging, sort, and list tab `status` are not counted toward the Filter drawer badge. */
+const NON_FILTER_KEYS = new Set(['take', 'skip', 'orderBy', 'order', 'status']);
 
+/** URL / UI uses `PENDING`; the API still filters on `SUBMITTED` for that queue. */
+type PrListTabStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+const PR_LIST_TAB_STATUSES: readonly PrListTabStatus[] = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+] as const;
+
+const parseListTabStatus = (raw: string | null): '' | PrListTabStatus => {
+  const s = raw ?? '';
+  if (s === '') return '';
+  const u = s.toUpperCase();
+  if (u === 'PENDING' || u === 'SUBMITTED') return 'PENDING';
+  if (u === 'APPROVED') return 'APPROVED';
+  if (u === 'REJECTED') return 'REJECTED';
+  return '';
+};
+
+/** Matches Pending tab (amber); SUBMITTED is the same workflow stage as “Pending”. */
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-700',
-  SUBMITTED: 'bg-blue-50 text-blue-700',
+  SUBMITTED: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
+  PENDING: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
   APPROVED: 'bg-emerald-50 text-emerald-700',
   REJECTED: 'bg-red-50 text-red-600',
-  CANCELLED: 'bg-amber-50 text-amber-700',
+  CANCELLED: 'bg-amber-50 text-amber-800',
   CLOSED: 'bg-slate-100 text-slate-600',
 };
 
-const STATUS_OPTIONS: { value: '' | PurchaseRequestStatus; label: string }[] = [
+const statusBadgeClass = (raw: string | null | undefined): string => {
+  const key = String(raw ?? 'DRAFT').toUpperCase();
+  return STATUS_BADGE[key] ?? 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
+};
+
+/** User-facing label in the table (never show "Submitted"). */
+const formatStatusLabel = (raw: string | null | undefined): string => {
+  const u = String(raw ?? '').toUpperCase();
+  if (u === 'SUBMITTED' || u === 'PENDING') return 'PENDING';
+  return u || '—';
+};
+
+const STATUS_OPTIONS: { value: '' | PrListTabStatus; label: string }[] = [
   { value: '', label: 'All' },
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'PENDING', label: 'Pending' },
   { value: 'APPROVED', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'CLOSED', label: 'Closed' },
 ];
 
 const formatDate = (value: unknown): string => {
@@ -258,26 +275,21 @@ export const PurchaseRequestPage = () => {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<
-    IPurchaseRequestRecord | undefined
-  >(undefined);
-  const [confirmDeleteRow, setConfirmDeleteRow] =
-    useState<IPurchaseRequestRow | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewRecord, setViewRecord] = useState<IPurchaseRequestRecord | null>(
+    null,
+  );
+  const [viewLoading, setViewLoading] = useState(false);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
 
-  const activeStatus = (searchParams.get('status') ?? '') as
-    | ''
-    | PurchaseRequestStatus;
+  const activeStatus = parseListTabStatus(searchParams.get('status'));
 
   const [statusCounts, setStatusCounts] =
     useState<IPurchaseRequestStatusCounts>({
       ALL: 0,
-      DRAFT: 0,
-      SUBMITTED: 0,
+      PENDING: 0,
       APPROVED: 0,
       REJECTED: 0,
-      CANCELLED: 0,
-      CLOSED: 0,
     });
 
   const refreshStatusCounts = () => {
@@ -289,6 +301,32 @@ export const PurchaseRequestPage = () => {
       .catch(() => {});
   };
 
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewRecord(null);
+    setViewLoading(false);
+  };
+
+  const openViewPurchaseRequest = (id: number) => {
+    setIsViewModalOpen(true);
+    setViewLoading(true);
+    setViewRecord(null);
+    purchaseRequestService
+      .getById(id)
+      .then((res) => {
+        if (res?.data) setViewRecord(buildRecordFromRow(res.data));
+        else {
+          message.error('Could not load purchase request.');
+          closeViewModal();
+        }
+      })
+      .catch(() => {
+        message.error('Could not load purchase request.');
+        closeViewModal();
+      })
+      .finally(() => setViewLoading(false));
+  };
+
   const dataFromSearch = (): Record<string, unknown> => {
     const data: Record<string, unknown> = {};
     searchParams.forEach((value, key) => {
@@ -296,14 +334,35 @@ export const PurchaseRequestPage = () => {
     });
     if (!data.take) data.take = DEFAULT_TAKE;
     if (!data.skip) data.skip = 0;
+    if (String(data.status ?? '').toUpperCase() === 'PENDING') {
+      data.status = 'SUBMITTED';
+    }
     return data;
   };
 
   useEffect(() => {
     const sp = new URLSearchParams(searchParams.toString());
-    if (!sp.has('take') || !sp.has('skip')) {
-      if (!sp.has('take')) sp.set('take', String(DEFAULT_TAKE));
-      if (!sp.has('skip')) sp.set('skip', '0');
+    let fix = false;
+    if (!sp.has('take')) {
+      sp.set('take', String(DEFAULT_TAKE));
+      fix = true;
+    }
+    if (!sp.has('skip')) {
+      sp.set('skip', '0');
+      fix = true;
+    }
+    const st = sp.get('status');
+    if (st != null && st !== '') {
+      const u = st.toUpperCase();
+      if (u === 'SUBMITTED') {
+        sp.set('status', 'PENDING');
+        fix = true;
+      } else if (!PR_LIST_TAB_STATUSES.includes(u as PrListTabStatus)) {
+        sp.delete('status');
+        fix = true;
+      }
+    }
+    if (fix) {
       setSearchParams(sp, { replace: true });
       return;
     }
@@ -338,66 +397,15 @@ export const PurchaseRequestPage = () => {
       dispatch(clearPurchaseRequestMessage());
     }
   }, [state.create.message]);
-  useEffect(() => {
-    if (state.edit.message) {
-      if (state.edit.hasErrors) message.error(state.edit.message);
-      else message.success(state.edit.message);
-      dispatch(clearPurchaseRequestMessage());
-    }
-  }, [state.edit.message]);
-  useEffect(() => {
-    if (state.remove.message) {
-      if (state.remove.hasErrors) message.error(state.remove.message);
-      else message.success(state.remove.message);
-      dispatch(clearPurchaseRequestMessage());
-    }
-  }, [state.remove.message]);
-  useEffect(() => {
-    if (state.status.message) {
-      if (state.status.hasErrors) message.error(state.status.message);
-      else message.success(state.status.message);
-      dispatch(clearPurchaseRequestMessage());
-    }
-  }, [state.status.message]);
-
-  // When edit drawer opens, fetch full record (with items)
-  useEffect(() => {
-    if (
-      isFormDrawerOpen &&
-      editingRecord?.id &&
-      state.current.data?.id !== editingRecord.id
-    ) {
-      dispatch(fetchPurchaseRequestById(editingRecord.id));
-    }
-  }, [isFormDrawerOpen, editingRecord?.id]);
-
-  useEffect(() => {
-    if (
-      isFormDrawerOpen &&
-      editingRecord?.id &&
-      state.current.data?.id === editingRecord.id
-    ) {
-      setEditingRecord(buildRecordFromRow(state.current.data));
-    }
-  }, [state.current.data?.id]);
 
   const rows = state.list.data?.rows ?? [];
   const meta = state.list.data?.meta;
   const totalCount = meta?.itemCount ?? 0;
   const isLoading = state.list.loading;
-  const isEdit = editingRecord !== undefined;
-  const isSubmitting = state.create.loading || state.edit.loading;
-
-  const refresh = () => dispatch(searchPurchaseRequestData(dataFromSearch()));
+  const isSubmitting = state.create.loading;
 
   const openCreateDrawer = () => {
-    setEditingRecord(undefined);
     dispatch(clearCurrentPurchaseRequest());
-    setIsFormDrawerOpen(true);
-  };
-
-  const openEditDrawer = (row: IPurchaseRequestRow) => {
-    setEditingRecord(buildRecordFromRow(row));
     setIsFormDrawerOpen(true);
   };
 
@@ -425,72 +433,31 @@ export const PurchaseRequestPage = () => {
       terms_conditions: values.terms_conditions || null,
       overall_summary: values.overall_summary || null,
       net_amount: values.net_amount,
-      status: values.status,
+      status: 'SUBMITTED',
       items: values.items,
     };
-    if (isEdit && editingRecord) {
-      const result = await dispatch(
-        editPurchaseRequestById({ id: editingRecord.id, ...payload }),
-      );
-      if (result.meta.requestStatus === 'fulfilled') {
-        closeFormDrawer();
-        refresh();
-        refreshStatusCounts();
-      }
-    } else {
-      const result = await dispatch(createNewPurchaseRequest(payload));
-      if (result.meta.requestStatus === 'fulfilled') {
-        closeFormDrawer();
-        if (skip === 0) refresh();
-        else {
-          const sp = new URLSearchParams(searchParams.toString());
-          sp.set('skip', '0');
-          setSearchParams(sp);
-        }
-        refreshStatusCounts();
-      }
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!confirmDeleteRow) return;
-    const result = await dispatch(removePurchaseRequestById(confirmDeleteRow.id));
-    setConfirmDeleteRow(null);
+    const result = await dispatch(createNewPurchaseRequest(payload));
     if (result.meta.requestStatus === 'fulfilled') {
-      if (rows.length === 1 && page > 1) {
-        const sp = new URLSearchParams(searchParams.toString());
-        sp.set('skip', String(Math.max(0, (page - 2) * take)));
-        setSearchParams(sp);
-      } else {
-        refresh();
-      }
+      closeFormDrawer();
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.set('status', 'PENDING');
+      sp.set('skip', '0');
+      if (!sp.has('take')) sp.set('take', String(take));
+      setSearchParams(sp);
       refreshStatusCounts();
     }
   };
 
-  const handleStatusChange = async (
-    row: IPurchaseRequestRow,
-    nextStatus: PurchaseRequestStatus,
-  ) => {
-    const result = await dispatch(
-      updatePurchaseRequestStatus({ id: row.id, status: nextStatus }),
-    );
-    if (result.meta.requestStatus === 'fulfilled') {
-      refresh();
-      refreshStatusCounts();
-    }
-  };
-
-  const setStatusTab = (status: '' | PurchaseRequestStatus) => {
+  const setStatusTab = (status: '' | PrListTabStatus) => {
     const sp = new URLSearchParams(searchParams.toString());
-    if (status) sp.set('status', status);
-    else sp.delete('status');
+    if (status === '') sp.delete('status');
+    else sp.set('status', status);
     sp.set('skip', '0');
     setSearchParams(sp);
   };
 
   const STATUS_TABS: {
-    key: '' | PurchaseRequestStatus;
+    key: '' | PrListTabStatus;
     label: string;
     countKey: keyof IPurchaseRequestStatusCounts;
     text: string;
@@ -506,9 +473,9 @@ export const PurchaseRequestPage = () => {
       activeRing: 'ring-1 ring-gray-300',
     },
     {
-      key: 'SUBMITTED',
+      key: 'PENDING',
       label: 'Pending',
-      countKey: 'SUBMITTED',
+      countKey: 'PENDING',
       text: 'text-amber-600',
       badge: 'bg-amber-50 text-amber-600',
       activeRing: 'ring-1 ring-amber-300',
@@ -560,7 +527,14 @@ export const PurchaseRequestPage = () => {
     setIsFilterDrawerOpen(false);
   };
 
-  const tableHead = useMemo<{ label: string; align?: 'left' | 'right' }[]>(
+  const tableHead = useMemo<
+    {
+      label: string;
+      align?: 'left' | 'right' | 'center';
+      /** Shimmer cell width (Actions stays narrow). */
+      skeletonWidth?: string;
+    }[]
+  >(
     () => [
       { label: 'PR Number' },
       { label: 'Vendor' },
@@ -569,7 +543,7 @@ export const PurchaseRequestPage = () => {
       { label: 'Net Amount', align: 'right' },
       { label: 'Status' },
       { label: 'Created' },
-      { label: 'Actions' },
+      { label: 'Actions', align: 'center', skeletonWidth: 'w-10' },
     ],
     [],
   );
@@ -644,39 +618,46 @@ export const PurchaseRequestPage = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto relative">
+        <div className="flex-1 overflow-auto relative pr-6">
           <table className="w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-50">
                 <th className="w-16 pl-6 pr-4 py-3 bg-slate-50 border-b border-slate-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   No
                 </th>
-                {tableHead.map((col) => (
-                  <th
-                    key={col.label}
-                    className={`px-4 py-3 ${
-                      col.align === 'right' ? 'text-right' : 'text-left'
-                    } text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200`}
-                  >
-                    {col.label}
-                  </th>
-                ))}
+                {tableHead.map((col) => {
+                  const isActions = col.label === 'Actions';
+                  const pad = isActions ? 'px-2' : 'px-4';
+                  let alignClass = 'text-left';
+                  if (col.align === 'right') alignClass = 'text-right';
+                  else if (col.align === 'center') alignClass = 'text-center';
+                  return (
+                    <th
+                      key={col.label}
+                      className={`${pad} py-3 ${alignClass} ${
+                        isActions ? 'w-[1%] whitespace-nowrap' : ''
+                      } text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200`}
+                    >
+                      {col.label}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
               {isLoading && rows.length === 0 && (
                 <TableRowSkeleton
                   rows={Math.min(take, 10)}
+                  withActions={false}
                   columns={tableHead.map((h) => ({
                     key: h.label,
-                    width: 'w-24',
+                    width: h.skeletonWidth ?? 'w-24',
                   }))}
                 />
               )}
               {rows.map((row, index) => {
                 const status = (row.status ?? 'DRAFT') as PurchaseRequestStatus;
-                const badgeClass =
-                  STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-700';
+                const badgeClass = statusBadgeClass(String(status));
                 return (
                   <tr
                     key={row.id}
@@ -717,79 +698,26 @@ export const PurchaseRequestPage = () => {
                       <span
                         className={`inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full ${badgeClass}`}
                       >
-                        {status}
+                        {formatStatusLabel(String(status))}
                       </span>
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80 text-sm text-gray-600">
                       {formatDate(row.updated_date ?? row.created_date)}
                     </td>
-                    <td className="px-4 py-4 border-b border-slate-100/80">
-                      <div className="flex items-center gap-1.5">
-                        {status === 'DRAFT' && (
-                          <Can
-                            I={Common.Actions.CAN_UPDATE}
-                            a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(row, 'SUBMITTED')}
-                              title="Submit for approval"
-                              className="p-1.5 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                            >
-                              <CheckCircle2 size={14} />
-                            </button>
-                          </Can>
-                        )}
-                        {status === 'SUBMITTED' && (
-                          <Can
-                            I={Common.Actions.CAN_UPDATE}
-                            a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(row, 'APPROVED')}
-                              title="Approve"
-                              className="p-1.5 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
-                            >
-                              <CheckCircle2 size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(row, 'REJECTED')}
-                              title="Reject"
-                              className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition"
-                            >
-                              <XCircle size={14} />
-                            </button>
-                          </Can>
-                        )}
-                        <Can
-                          I={Common.Actions.CAN_UPDATE}
-                          a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
+                    <td className="w-[1%] whitespace-nowrap px-2 py-4 text-center border-b border-slate-100/80 align-middle">
+                      <Can
+                        I={Common.Actions.CAN_VIEW}
+                        a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => openViewPurchaseRequest(row.id)}
+                          className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white text-gray-600 shadow-sm ring-1 ring-gray-200/90 hover:bg-emerald-50 hover:text-emerald-700 hover:ring-emerald-200 transition"
+                          aria-label={`View purchase request ${row.pr_number ?? row.id}`}
                         >
-                          <button
-                            type="button"
-                            onClick={() => openEditDrawer(row)}
-                            aria-label={`Edit PR ${row.pr_number}`}
-                            className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        </Can>
-                        <Can
-                          I={Common.Actions.CAN_DELETE}
-                          a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteRow(row)}
-                            aria-label={`Delete PR ${row.pr_number}`}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </Can>
-                      </div>
+                          <Eye size={16} strokeWidth={2} />
+                        </button>
+                      </Can>
                     </td>
                   </tr>
                 );
@@ -907,12 +835,8 @@ export const PurchaseRequestPage = () => {
         isOpen={isFormDrawerOpen}
         onClose={closeFormDrawer}
         size="xl"
-        title={isEdit ? 'Edit Purchase Request' : 'New Purchase Request'}
-        subtitle={
-          isEdit
-            ? 'Update header & line items.'
-            : 'Create a new purchase request with items.'
-        }
+        title="New Purchase Request"
+        subtitle="Create a new purchase request with items."
         footer={
           <div className="flex items-center justify-end gap-3">
             <button
@@ -925,26 +849,64 @@ export const PurchaseRequestPage = () => {
             <button
               type="button"
               onClick={() => submitBtnRef.current?.click()}
-              disabled={isSubmitting || (isEdit && state.current.loading)}
+              disabled={isSubmitting}
               className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {(isSubmitting || (isEdit && state.current.loading)) && (
+              {isSubmitting && (
                 <Loader2 size={14} className="animate-spin" />
               )}
-              {isEdit ? 'Update PR' : 'Create PR'}
+              Create PR
             </button>
           </div>
         }
       >
-        {isEdit && state.current.loading ? (
-          <div className="py-16 text-center text-gray-400 text-sm">
-            Loading purchase request…
+        <PurchaseRequestAdd
+          onSubmit={handleFormSubmit}
+          myRef={submitBtnRef}
+          vendors={fkOptions.vendors}
+          entities={fkOptions.entities}
+          itemTypes={fkOptions.itemTypes}
+          departments={fkOptions.departments}
+          subdepartments={fkOptions.subdepartments}
+          paymentTerms={fkOptions.paymentTerms}
+          centers={fkOptions.centers}
+          items={fkOptions.items}
+        />
+      </FormModal>
+
+      <FormModal
+        isOpen={isViewModalOpen}
+        onClose={closeViewModal}
+        size="xl"
+        title="Purchase Request"
+        subtitle={
+          viewRecord?.pr_number
+            ? `PR ${viewRecord.pr_number}`
+            : 'View submitted details'
+        }
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeViewModal}
+              className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition"
+            >
+              Close
+            </button>
           </div>
-        ) : (
+        }
+      >
+        {viewLoading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-24 text-gray-500">
+            <Loader2 size={28} className="animate-spin text-emerald-600" />
+            <p className="text-sm">Loading…</p>
+          </div>
+        )}
+        {!viewLoading && viewRecord && (
           <PurchaseRequestAdd
-            data={editingRecord}
-            onSubmit={handleFormSubmit}
-            myRef={submitBtnRef}
+            readOnly
+            data={viewRecord}
+            onSubmit={() => {}}
             vendors={fkOptions.vendors}
             entities={fkOptions.entities}
             itemTypes={fkOptions.itemTypes}
@@ -956,53 +918,6 @@ export const PurchaseRequestPage = () => {
           />
         )}
       </FormModal>
-
-      {/* Delete confirm */}
-      {confirmDeleteRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-full bg-red-50">
-                  <Trash2 size={18} className="text-red-500" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Delete Purchase Request
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Are you sure you want to delete{' '}
-                    <span className="font-medium text-gray-900">
-                      {confirmDeleteRow.pr_number}
-                    </span>
-                    ? Items and documents will be cascaded.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-gray-50 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteRow(null)}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={state.remove.loading}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-60"
-              >
-                {state.remove.loading && (
-                  <Loader2 size={14} className="animate-spin" />
-                )}
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
