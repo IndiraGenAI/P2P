@@ -30,7 +30,7 @@ export const showTooltip = (text: string | null | undefined, maxLength = 50) => 
       color="#ffffff"
       rootClassName="soft-tooltip"
       styles={{
-        body: {
+        container: {
           color: '#374151',
           fontSize: 12,
           fontWeight: 500,

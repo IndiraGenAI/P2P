@@ -32,7 +32,7 @@ export const UomPage = () => (
     buildRecordFromRow={(row) => ({
       id: row.id,
       code: (row.code as string) ?? '',
-      name: row.name,
+      name: row.name ?? '',
       status: row.status,
     })}
     buildCreatePayload={(v) => ({ code: v.code, name: v.name })}

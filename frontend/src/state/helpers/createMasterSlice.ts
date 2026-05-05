@@ -132,7 +132,9 @@ export function createMasterSlice<TRow, TCreate, TEdit>(
           state.list.loading = true;
         })
         .addCase(search.fulfilled, (state, action) => {
-          state.list.data = action.payload.data as IMasterListData<TRow>;
+          const next = action.payload.data;
+          state.list.data.rows = next.rows as typeof state.list.data.rows;
+          state.list.data.meta = next.meta;
           state.list.message = action.payload.message;
           state.list.loading = false;
           state.list.hasErrors = false;

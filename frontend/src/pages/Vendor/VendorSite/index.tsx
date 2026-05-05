@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import {
-  MasterListPage,
-  type IMasterRow,
-} from '@/components/master/MasterListPage';
+import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
   createNewVendorSite,
@@ -19,6 +16,7 @@ import {
 import vendorService, {
   type IVendorRow,
 } from '@/services/vendor/vendor.service';
+import { type IVendorSiteRow } from '@/services/vendorSite/vendorSite.service';
 import type { SelectOption } from '@/common/models';
 import VendorSiteAdd from './Add';
 import type { IVendorSiteRecord } from './VendorSite.model';
@@ -55,7 +53,7 @@ export const VendorSitePage = () => {
   );
 
   return (
-    <MasterListPage<IVendorSiteRecord>
+    <MasterListPage<IVendorSiteRecord, IVendorSiteRow>
       pageCode={Common.Modules.MASTER.VENDOR_SITE}
       singularLabel="Vendor Site"
       pluralLabel="Vendor Sites"
@@ -74,25 +72,25 @@ export const VendorSitePage = () => {
         {
           key: 'site_code',
           label: 'Site Code',
-          render: (row: IMasterRow) => (
+          render: (row) => (
             <span className="inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-              {row.site_code as string}
+              {row.site_code}
             </span>
           ),
         },
         {
           key: 'vendor',
           label: 'Vendor',
-          render: (row: IMasterRow) => {
-            const v = row.vendor as { name?: string } | null;
+          render: (row) => {
+            const v = row.vendor;
             return v?.name ?? <span className="text-xs text-gray-400">—</span>;
           },
         },
         {
           key: 'contact_person',
           label: 'Contact',
-          render: (row: IMasterRow) =>
-            (row.contact_person as string) || (
+          render: (row) =>
+            row.contact_person || (
               <span className="text-xs text-gray-400">—</span>
             ),
         },

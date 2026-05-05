@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { message } from 'antd';
 import { Package } from 'lucide-react';
-import {
-  MasterListPage,
-  type IMasterRow,
-} from '@/components/master/MasterListPage';
+import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
   bulkUploadItems,
@@ -27,6 +24,7 @@ import itemCategoryService, {
   type IItemCategoryRow,
 } from '@/services/itemCategory/itemCategory.service';
 import uomService, { type IUomRow } from '@/services/uom/uom.service';
+import { type IItemRow } from '@/services/item/item.service';
 import coaService from '@/services/coa/coa.service';
 import type { ICoaDetails } from '@/services/coa/coa.model';
 import type { SelectOption } from '@/common/models';
@@ -113,7 +111,7 @@ export const ItemPage = () => {
   );
 
   return (
-    <MasterListPage<IItemRecord>
+    <MasterListPage<IItemRecord, IItemRow>
       pageCode={Common.Modules.MASTER.ITEM}
       singularLabel="Item"
       pluralLabel="Items"
@@ -139,24 +137,24 @@ export const ItemPage = () => {
         {
           key: 'item_type',
           label: 'Type',
-          render: (row: IMasterRow) => {
-            const t = row.item_type as { name?: string } | null;
+          render: (row) => {
+            const t = row.item_type;
             return t?.name ?? <span className="text-xs text-gray-400">—</span>;
           },
         },
         {
           key: 'item_category',
           label: 'Category',
-          render: (row: IMasterRow) => {
-            const c = row.item_category as { name?: string } | null;
+          render: (row) => {
+            const c = row.item_category;
             return c?.name ?? <span className="text-xs text-gray-400">—</span>;
           },
         },
         {
           key: 'uom',
           label: 'UOM',
-          render: (row: IMasterRow) => {
-            const u = row.uom as { name?: string } | null;
+          render: (row) => {
+            const u = row.uom;
             return u?.name ?? <span className="text-xs text-gray-400">—</span>;
           },
         },

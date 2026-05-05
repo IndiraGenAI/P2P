@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -48,11 +49,10 @@ const formatDate = (value: unknown): string => {
 export interface IMasterRow {
   id: number;
   code?: string | null;
-  name: string;
+  name?: string | null;
   status?: boolean;
   created_date?: string | Date | null;
   updated_date?: string | Date | null;
-  [key: string]: unknown;
 }
 
 export interface IMasterStateBlock {
@@ -61,12 +61,12 @@ export interface IMasterStateBlock {
   message: string;
 }
 
-export interface IMasterStateShape {
+export interface IMasterStateShape<TRow extends IMasterRow = IMasterRow> {
   list: {
     loading: boolean;
     hasErrors: boolean;
     message: string;
-    data: { rows: IMasterRow[]; meta: IMetaProps };
+    data: { rows: TRow[]; meta: IMetaProps };
   };
   create: IMasterStateBlock;
   edit: IMasterStateBlock;
@@ -74,38 +74,41 @@ export interface IMasterStateShape {
   status: IMasterStateBlock;
 }
 
-export interface IExtraColumn {
+export interface IExtraColumn<TRow extends IMasterRow = IMasterRow> {
   key: string;
   label: string;
-  render: (row: IMasterRow) => ReactNode;
+  render: (row: TRow) => ReactNode;
   sortable?: boolean;
   sortKey?: string;
 }
 
-export interface IMasterListPageProps<TRecord extends { id: number }> {
+export interface IMasterListPageProps<
+  TRecord extends { id: number },
+  TRow extends IMasterRow = IMasterRow,
+> {
   pageCode: string;
   singularLabel: string;
   pluralLabel: string;
   icon: LucideIcon;
-  selector: (state: RootState) => IMasterStateShape;
+  selector: (state: RootState) => IMasterStateShape<TRow>;
   clearMessage: () => { type: string };
   searchAction: (params: Record<string, unknown>) => any;
   createAction: (data: any) => any;
   editAction: (data: any) => any;
   removeAction: (id: number) => any;
   updateStatusAction: (data: { id: number; status: boolean }) => any;
-  buildRecordFromRow: (row: IMasterRow) => TRecord;
+  buildRecordFromRow: (row: TRow) => TRecord;
   buildCreatePayload: (values: TRecord) => unknown;
   buildEditPayload: (values: TRecord, id: number) => unknown;
   AddForm: (props: {
     data?: TRecord;
     onSubmit: (val: TRecord) => void;
     myRef?: React.Ref<HTMLButtonElement>;
-  }) => JSX.Element;
-  extraColumns?: IExtraColumn[];
+  }) => ReactElement;
+  extraColumns?: IExtraColumn<TRow>[];
   showCodeColumn?: boolean;
   nameField?: string;
-  nameRender?: (row: IMasterRow) => ReactNode;
+  nameRender?: (row: TRow) => ReactNode;
   filterFields?: ReactNode;
   formInitialValues?: Record<string, unknown>;
   formSize?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -119,9 +122,10 @@ const STATUS_OPTIONS = [
   { value: 'false', label: 'Inactive' },
 ];
 
-export function MasterListPage<TRecord extends { id: number }>(
-  props: IMasterListPageProps<TRecord>,
-) {
+export function MasterListPage<
+  TRecord extends { id: number },
+  TRow extends IMasterRow = IMasterRow,
+>(props: IMasterListPageProps<TRecord, TRow>) {
   const {
     pageCode,
     singularLabel,
@@ -187,11 +191,18 @@ export function MasterListPage<TRecord extends { id: number }>(
   const [editingRecord, setEditingRecord] = useState<TRecord | undefined>(
     undefined,
   );
-  const [confirmDeleteRow, setConfirmDeleteRow] = useState<IMasterRow | null>(
-    null,
-  );
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState<TRow | null>(null);
 
   const submitBtnRef = useRef<HTMLButtonElement>(null);
+
+  const rowLabel = (row: TRow) => {
+    const primary = (row as Record<string, unknown>)[nameField];
+    if (primary != null && String(primary) !== '') return String(primary);
+    const fallback = (row as IMasterRow).name;
+    return fallback != null && String(fallback) !== ''
+      ? String(fallback)
+      : 'record';
+  };
 
   const dataConvertFromSearchParm = (): Record<string, unknown> => {
     const data: Record<string, unknown> = {};
@@ -338,7 +349,7 @@ export function MasterListPage<TRecord extends { id: number }>(
     setIsFormDrawerOpen(true);
   };
 
-  const openEditDrawer = (row: IMasterRow) => {
+  const openEditDrawer = (row: TRow) => {
     setEditingRecord(buildRecordFromRow(row));
     setIsFormDrawerOpen(true);
   };
@@ -366,7 +377,7 @@ export function MasterListPage<TRecord extends { id: number }>(
     }
   };
 
-  const handleToggleStatus = async (row: IMasterRow, checked: boolean) => {
+  const handleToggleStatus = async (row: TRow, checked: boolean) => {
     const result = await dispatch(
       updateStatusAction({ id: row.id, status: checked }),
     );
@@ -512,8 +523,10 @@ export function MasterListPage<TRecord extends { id: number }>(
                       {nameRender
                         ? nameRender(row)
                         : showTooltip(
-                            (row[nameField] as string | null | undefined) ??
-                              row.name,
+                            ((row as Record<string, unknown>)[nameField] as
+                              | string
+                              | null
+                              | undefined) ?? row.name,
                             40,
                           )}
                     </p>
@@ -559,7 +572,7 @@ export function MasterListPage<TRecord extends { id: number }>(
                         <button
                           type="button"
                           onClick={() => openEditDrawer(row)}
-                          aria-label={`Edit ${row.name}`}
+                          aria-label={`Edit ${rowLabel(row)}`}
                           className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition"
                         >
                           <Pencil size={14} />
@@ -569,7 +582,7 @@ export function MasterListPage<TRecord extends { id: number }>(
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteRow(row)}
-                          aria-label={`Delete ${row.name}`}
+                          aria-label={`Delete ${rowLabel(row)}`}
                           className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
                         >
                           <Trash2 size={14} />
@@ -746,7 +759,7 @@ export function MasterListPage<TRecord extends { id: number }>(
                   <p className="text-sm text-gray-500 mt-1">
                     Are you sure you want to delete{' '}
                     <span className="font-medium text-gray-900">
-                      {confirmDeleteRow.name}
+                      {rowLabel(confirmDeleteRow)}
                     </span>
                     ? This action cannot be undone.
                   </p>

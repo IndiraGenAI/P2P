@@ -1,8 +1,5 @@
 import { CreditCard } from 'lucide-react';
-import {
-  MasterListPage,
-  type IMasterRow,
-} from '@/components/master/MasterListPage';
+import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
   createNewPaymentTerm,
@@ -15,11 +12,12 @@ import {
   clearPaymentTermMessage,
   paymentTermMasterSelector,
 } from '@/state/paymentTerm/paymentTerm.reducer';
+import { type IPaymentTermRow } from '@/services/paymentTerm/paymentTerm.service';
 import PaymentTermAdd from './Add';
 import type { IPaymentTermRecord } from './PaymentTerm.model';
 
 export const PaymentTermPage = () => (
-  <MasterListPage<IPaymentTermRecord>
+  <MasterListPage<IPaymentTermRecord, IPaymentTermRow>
     pageCode={Common.Modules.MASTER.PAYMENT_TERMS}
     singularLabel="Payment Term"
     pluralLabel="Payment Terms"
@@ -36,8 +34,8 @@ export const PaymentTermPage = () => (
       {
         key: 'oracle_code',
         label: 'Oracle Code',
-        render: (row: IMasterRow) =>
-          (row.oracle_code as string) || (
+        render: (row) =>
+          row.oracle_code || (
             <span className="text-xs text-gray-400">—</span>
           ),
       },

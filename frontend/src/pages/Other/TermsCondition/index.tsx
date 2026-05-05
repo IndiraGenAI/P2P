@@ -1,8 +1,5 @@
 import { FileSignature } from 'lucide-react';
-import {
-  MasterListPage,
-  type IMasterRow,
-} from '@/components/master/MasterListPage';
+import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import { showTooltip } from '@/utils/helperFunction';
 import {
@@ -16,11 +13,12 @@ import {
   clearTermsConditionMessage,
   termsConditionMasterSelector,
 } from '@/state/termsCondition/termsCondition.reducer';
+import { type ITermsConditionRow } from '@/services/termsCondition/termsCondition.service';
 import TermsConditionAdd from './Add';
 import type { ITermsConditionRecord } from './TermsCondition.model';
 
 export const TermsConditionPage = () => (
-  <MasterListPage<ITermsConditionRecord>
+  <MasterListPage<ITermsConditionRecord, ITermsConditionRow>
     pageCode={Common.Modules.MASTER.TERMS_CONDITIONS}
     singularLabel="Terms & Condition"
     pluralLabel="Terms & Conditions"
@@ -37,8 +35,8 @@ export const TermsConditionPage = () => (
       {
         key: 'description',
         label: 'Description',
-        render: (row: IMasterRow) => {
-          const desc = (row.description as string | null | undefined) ?? '';
+        render: (row) => {
+          const desc = row.description ?? '';
           if (!desc) {
             return <span className="text-xs text-gray-400">—</span>;
           }

@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Building2 } from 'lucide-react';
-import {
-  MasterListPage,
-  type IMasterRow,
-} from '@/components/master/MasterListPage';
+import { MasterListPage } from '@/components/master/MasterListPage';
 import { Common } from '@/utils/constants/constant';
 import {
   bulkUploadVendors,
@@ -33,6 +30,7 @@ import type { ITdsDetails } from '@/services/tds/tds.model';
 import countryService from '@/services/country/country.service';
 import currencyService from '@/services/currency/currency.service';
 import type { SelectOption } from '@/common/models';
+import { type IVendorRow } from '@/services/vendor/vendor.service';
 import VendorAdd from './Add';
 import type { IVendorRecord } from './Vendor.model';
 
@@ -175,7 +173,7 @@ export const VendorPage = () => {
   );
 
   return (
-    <MasterListPage<IVendorRecord>
+    <MasterListPage<IVendorRecord, IVendorRow>
       pageCode={Common.Modules.MASTER.VENDOR}
       singularLabel="Vendor"
       pluralLabel="Vendors"
@@ -202,24 +200,24 @@ export const VendorPage = () => {
         {
           key: 'vendor_category',
           label: 'Category',
-          render: (row: IMasterRow) => {
-            const c = row.vendor_category as { name?: string } | null;
+          render: (row) => {
+            const c = row.vendor_category;
             return c?.name ?? <span className="text-xs text-gray-400">—</span>;
           },
         },
         {
           key: 'vendor_type',
           label: 'Type',
-          render: (row: IMasterRow) =>
-            (row.vendor_type as string) || (
+          render: (row) =>
+            row.vendor_type || (
               <span className="text-xs text-gray-400">—</span>
             ),
         },
         {
           key: 'pan_number',
           label: 'PAN',
-          render: (row: IMasterRow) =>
-            (row.pan_number as string) || (
+          render: (row) =>
+            row.pan_number || (
               <span className="text-xs text-gray-400">—</span>
             ),
         },
