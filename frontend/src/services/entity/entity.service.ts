@@ -64,6 +64,13 @@ class EntityService {
       data: { status: data.status },
     }).then((res) => res.data);
   };
+
+  public getEntityById = async (
+    id: number,
+  ): Promise<IApiResponse<IEntityDetails>> => {
+    const url = `${this.ENDPOINT}/${id}`;
+    return request({ url, method: "GET" }).then((res) => res.data);
+  };
 }
 
 export default new EntityService();

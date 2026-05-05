@@ -1,453 +1,103 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Form, Input, message, Popover } from 'antd';
-import {
-  Eye,
-  Filter,
-  ListChecks,
-  Loader2,
-  Plus,
-  ShoppingCart,
-} from 'lucide-react';
+import { Eye, Filter, ListChecks, Loader2, Plus, ShoppingCart } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { TablePagination } from '@/components/ui/TablePagination';
 import { Can } from '@/ability/can';
 import { Common } from '@/utils/constants/constant';
-import { useAppDispatch, useAppSelector } from '@/state/app.hooks';
-import { authSelector } from '@/state/auth/auth.reducer';
-import {
-  createNewPurchaseRequest,
-  searchPurchaseRequestData,
-  submitPurchaseRequestApprovalDecision,
-} from '@/state/purchaseRequest/purchaseRequest.action';
-import {
-  clearCurrentPurchaseRequest,
-  clearPurchaseRequestMessage,
-  purchaseRequestSelector,
-} from '@/state/purchaseRequest/purchaseRequest.reducer';
-import vendorService, {
-  type IVendorRow,
-} from '@/services/vendor/vendor.service';
-import paymentTermService, {
-  type IPaymentTermRow,
-} from '@/services/paymentTerm/paymentTerm.service';
-import itemTypeService, {
-  type IItemTypeRow,
-} from '@/services/itemType/itemType.service';
-import itemService, {
-  type IItemRow,
-} from '@/services/item/item.service';
+import vendorService from '@/services/vendor/vendor.service';
+import paymentTermService from '@/services/paymentTerm/paymentTerm.service';
+import itemTypeService from '@/services/itemType/itemType.service';
+import itemService from '@/services/item/item.service';
 import departmentService from '@/services/department/department.service';
 import subdepartmentService from '@/services/subdepartment/subdepartment.service';
 import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
+import termsConditionService from '@/services/termsCondition/termsCondition.service';
+import currencyService from '@/services/currency/currency.service';
 import type { SelectOption } from '@/common/models';
-import purchaseRequestService from '@/services/purchaseRequest/purchaseRequest.service';
+import type { IMetaProps } from '@/components/Pagination/Pagination.model';
+import { useAppSelector } from '@/state/app.hooks';
+import { authSelector } from '@/state/auth/auth.reducer';
+import rateContractService from '@/services/rateContract/rateContract.service';
 import type {
-  IPurchaseRequestApprovalProgress,
-  IPurchaseRequestApprovalStepRow,
-  IPurchaseRequestStatusCounts,
-  PurchaseRequestStatus,
-} from '@/services/purchaseRequest/purchaseRequest.model';
+  IRateContractApprovalProgress,
+  IRateContractApprovalStepRow,
+  IRateContractPayload,
+  IRateContractRow,
+  IRateContractStatusCounts,
+} from '@/services/rateContract/rateContract.model';
 import {
-  buildRecordFromRow,
-  type IPurchaseRequestRecord,
-} from './PurchaseRequest.model';
-import PurchaseRequestAdd from './Add';
-import type { ISubdepartmentOption } from './Add/Add.model';
-import {
-  PrStatus,
   PurchaseRequestApprovalDecision,
   PurchaseRequestApprovalStepStatus,
+  RcStatus,
 } from '@/commons/enum';
+import {
+  buildRecordFromRow,
+  type IRateContractRecord,
+} from './RateContract.model';
+import RateContractAdd from './Add';
+import type { ISubdepartmentOption } from './Add/Add.model';
 
 const DEFAULT_TAKE = 10;
-/** Paging, sort, and list tab `status` are not counted toward the Filter drawer badge. */
 const NON_FILTER_KEYS = new Set(['take', 'skip', 'orderBy', 'order', 'status']);
 
-/** URL / UI uses `PENDING`; the API still filters on `SUBMITTED` for that queue. */
-const PR_LIST_TAB_STATUSES = [
-  PrStatus.PENDING,
-  PrStatus.APPROVED,
-  PrStatus.REJECTED,
+const RC_LIST_TAB_STATUSES = [
+  RcStatus.PENDING,
+  RcStatus.APPROVED,
+  RcStatus.REJECTED,
 ] as const;
 
-type PrListTabStatus = (typeof PR_LIST_TAB_STATUSES)[number];
+type RcListTabStatus = (typeof RC_LIST_TAB_STATUSES)[number];
 
-const parseListTabStatus = (raw: string | null): '' | PrListTabStatus => {
+const parseListTabStatus = (raw: string | null): '' | RcListTabStatus => {
   const s = raw ?? '';
   if (s === '') return '';
   const u = s.toUpperCase();
-  if (u === PrStatus.PENDING || u === PrStatus.SUBMITTED) return PrStatus.PENDING;
-  if (u === PrStatus.APPROVED) return PrStatus.APPROVED;
-  if (u === PrStatus.REJECTED) return PrStatus.REJECTED;
+  if (u === RcStatus.PENDING || u === RcStatus.SUBMITTED) return RcStatus.PENDING;
+  if (u === RcStatus.APPROVED) return RcStatus.APPROVED;
+  if (u === RcStatus.REJECTED) return RcStatus.REJECTED;
   return '';
 };
 
-/** Matches Pending tab (amber); SUBMITTED is the same workflow stage as “Pending”. */
-const STATUS_BADGE: Record<PrStatus, string> = {
-  [PrStatus.DRAFT]: 'bg-gray-100 text-gray-700',
-  [PrStatus.SUBMITTED]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
-  [PrStatus.PENDING]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
-  [PrStatus.APPROVED]: 'bg-emerald-50 text-emerald-700',
-  [PrStatus.REJECTED]: 'bg-red-50 text-red-600',
-  [PrStatus.CANCELLED]: 'bg-amber-50 text-amber-800',
-  [PrStatus.CLOSED]: 'bg-slate-100 text-slate-600',
+const STATUS_BADGE: Record<string, string> = {
+  [RcStatus.DRAFT]: 'bg-gray-100 text-gray-700',
+  [RcStatus.SUBMITTED]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
+  [RcStatus.PENDING]: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80',
+  [RcStatus.APPROVED]: 'bg-emerald-50 text-emerald-700',
+  [RcStatus.REJECTED]: 'bg-red-50 text-red-600',
+  [RcStatus.CANCELLED]: 'bg-amber-50 text-amber-800',
+  [RcStatus.CLOSED]: 'bg-slate-100 text-slate-600',
 };
 
 const statusBadgeClass = (raw: string | null | undefined): string => {
-  const key = String(raw ?? PrStatus.DRAFT).toUpperCase() as PrStatus;
+  const key = String(raw ?? RcStatus.DRAFT).toUpperCase();
   return STATUS_BADGE[key] ?? 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
 };
 
-/** Workflow step status — aligned with table status pills. */
-const approvalStepStatusBadgeClass = (raw: string | null | undefined): string => {
-  const u = String(raw ?? '').toUpperCase();
-  if (u === PurchaseRequestApprovalStepStatus.PENDING) {
-    return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80';
-  }
-  if (u === PurchaseRequestApprovalStepStatus.APPROVED) {
-    return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80';
-  }
-  if (u === PurchaseRequestApprovalStepStatus.REJECTED) {
-    return 'bg-red-50 text-red-600 ring-1 ring-red-200/80';
-  }
-  return 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
-};
-
-/** Same section rhythm as `PurchaseRequest/Add`. */
-const PR_SECTION_TITLE =
-  'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
-const PR_SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
-
-/** User-facing label in the table (never show "Submitted"). */
 const formatStatusLabel = (raw: string | null | undefined): string => {
   const u = String(raw ?? '').toUpperCase();
-  if (u === PrStatus.SUBMITTED || u === PrStatus.PENDING) return PrStatus.PENDING;
+  if (u === RcStatus.SUBMITTED || u === RcStatus.PENDING) return RcStatus.PENDING;
   return u || '—';
 };
 
-/** List column: where the PR sits in the approval chain. */
-
-
-const workflowRoleLabel = (role: string): string =>
-  String(role).toUpperCase() === 'APPROVER' ? 'Final approver' : 'Reviewer';
-
-const STATUS_OPTIONS: { value: '' | PrListTabStatus; label: string }[] = [
+const STATUS_OPTIONS: { value: '' | RcListTabStatus; label: string }[] = [
   { value: '', label: 'All' },
-  { value: PrStatus.PENDING, label: 'Pending' },
-  { value: PrStatus.APPROVED, label: 'Approved' },
-  { value: PrStatus.REJECTED, label: 'Rejected' },
+  { value: RcStatus.PENDING, label: 'Pending' },
+  { value: RcStatus.APPROVED, label: 'Approved' },
+  { value: RcStatus.REJECTED, label: 'Rejected' },
 ];
 
-const formatDate = (value: unknown): string => {
-  if (!value) return '—';
-  const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
+const searchParamsToRecord = (p: URLSearchParams): Record<string, string> => {
+  const o: Record<string, string> = {};
+  p.forEach((value, key) => {
+    o[key] = value;
   });
+  return o;
 };
-
-/** Popover body: `approval_steps` from GET /purchase-request/:id */
-function ApprovalWorkflowStepsApiBody({
-  prStatus,
-  steps,
-}: {
-  prStatus: string;
-  steps: IPurchaseRequestApprovalStepRow[];
-}) {
-  const st = String(prStatus ?? '').toUpperCase();
-  const firstPending = steps.find(
-    (s) => String(s.status).toUpperCase() === PurchaseRequestApprovalStepStatus.PENDING,
-  );
-  const pendingList = steps.filter(
-    (s) => String(s.status).toUpperCase() === PurchaseRequestApprovalStepStatus.PENDING,
-  );
-  const rejectedAt = steps.find(
-    (s) => String(s.status).toUpperCase() === PurchaseRequestApprovalStepStatus.REJECTED,
-  )?.sequence_order;
-
-  return (
-    <div className="w-[min(100vw-2rem,320px)] sm:w-[320px] max-h-[min(70vh,440px)] overflow-y-auto">
-      <p className="text-[11px] font-semibold tracking-[0.12em] text-gray-500 uppercase m-0 mb-2">
-        Approval trail
-      </p>
-      <ol className="relative space-y-2 m-0 mb-3 p-0 list-none pl-1">
-        {steps.map((step, idx) => {
-          const su = String(step.status).toUpperCase();
-          const isCurrent =
-            (st === PrStatus.SUBMITTED || st === PrStatus.PENDING) &&
-            !!firstPending &&
-            firstPending.sequence_order === step.sequence_order &&
-            su === PurchaseRequestApprovalStepStatus.PENDING;
-          const names = (step.assignees ?? [])
-            .map((a) =>
-              a.user
-                ? `${a.user.first_name} ${a.user.last_name}`.trim()
-                : `User #${a.user_id}`,
-            )
-            .join(', ');
-          const isLast = idx === steps.length - 1;
-          return (
-            <li key={step.id} className="relative flex gap-2">
-              <div
-                className="flex flex-col items-center shrink-0 w-4"
-                aria-hidden
-              >
-                <span
-                  className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
-                    step.step_role === 'APPROVER'
-                      ? 'bg-emerald-500 ring-2 ring-emerald-100'
-                      : 'bg-amber-500 ring-2 ring-amber-100'
-                  }`}
-                />
-                {!isLast && (
-                  <span className="w-px flex-1 min-h-[8px] mt-1 bg-gray-200" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1 rounded-lg border border-gray-100/90 bg-slate-50/50 px-2.5 py-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 m-0">
-                      Step {step.sequence_order}:{' '}
-                      {workflowRoleLabel(step.step_role)}
-                    </p>
-                    {names ? (
-                      <p className="text-[11px] text-gray-500 mt-0.5 m-0">
-                        <span className="text-gray-600">Assigned:</span>{' '}
-                        <span className="text-gray-700">{names}</span>
-                      </p>
-                    ) : null}
-                    {isCurrent && (
-                      <span className="mt-1 inline-block text-[10px] font-semibold uppercase text-emerald-800">
-                        Current step
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className={`shrink-0 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${approvalStepStatusBadgeClass(su)}`}
-                  >
-                    {su}
-                  </span>
-                </div>
-                {step.acted_by_user && (
-                  <p className="mt-1.5 pt-1.5 border-t border-gray-200/80 text-[11px] text-gray-500 m-0">
-                    {step.status === PurchaseRequestApprovalStepStatus.APPROVED
-                      ? 'Approved'
-                      : 'Decided'}{' '}
-                    by {step.acted_by_user.first_name}{' '}
-                    {step.acted_by_user.last_name}
-                    {step.acted_at ? ` · ${formatDate(step.acted_at)}` : ''}
-                    {step.remarks ? ` · ${step.remarks}` : ''}
-                  </p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-      <div className="border-t border-gray-200 pt-2.5 space-y-1.5 text-xs text-gray-600">
-        {st === PrStatus.APPROVED && (
-          <p className="m-0">
-            <span className="font-semibold text-gray-800">Done.</span> Every step
-            is approved.
-          </p>
-        )}
-        {st === PrStatus.REJECTED && (
-          <p className="m-0">
-            <span className="font-semibold text-gray-800">Stopped.</span>{' '}
-            {rejectedAt != null
-              ? `Rejection recorded at step ${rejectedAt}.`
-              : 'This request was rejected.'}
-          </p>
-        )}
-        {(st === PrStatus.SUBMITTED || st === PrStatus.PENDING) && firstPending && (
-          <>
-            <p className="m-0">
-              <span className="font-semibold text-gray-800">You are here:</span>{' '}
-              Step {firstPending.sequence_order} —{' '}
-              {workflowRoleLabel(firstPending.step_role)}.
-            </p>
-            {pendingList.length > 1 ? (
-              <p className="m-0">
-                <span className="font-semibold text-gray-800">
-                  Still to finish:
-                </span>{' '}
-                {pendingList.length - 1} more step
-                {pendingList.length - 1 === 1 ? '' : 's'} (
-                {pendingList
-                  .slice(1)
-                  .map(
-                    (x) =>
-                      `step ${x.sequence_order} (${workflowRoleLabel(x.step_role)})`,
-                  )
-                  .join(', ')}
-                ).
-              </p>
-            ) : (
-              (() => {
-                const afterCurrent = steps.filter(
-                  (x) => x.sequence_order > firstPending.sequence_order,
-                );
-                if (afterCurrent.length === 0) {
-                  return (
-                    <p className="m-0 text-emerald-900/90">
-                      <span className="font-semibold text-gray-800">
-                        Last step in the chain.
-                      </span>{' '}
-                      No further reviewers after this.
-                    </p>
-                  );
-                }
-                return (
-                  <p className="m-0">
-                    <span className="font-semibold text-gray-800">
-                      Steps left after this:
-                    </span>{' '}
-                    {afterCurrent.length} (
-                    {afterCurrent
-                      .map(
-                        (x) =>
-                          `step ${x.sequence_order} (${workflowRoleLabel(x.step_role)})`,
-                      )
-                      .join(', ')}
-                    ).
-                  </p>
-                );
-              })()
-            )}
-          </>
-        )}
-        {(st === PrStatus.SUBMITTED || st === PrStatus.PENDING) && !firstPending && (
-          <p className="m-0 text-gray-500">
-            No pending step (workflow may already be complete for this row).
-          </p>
-        )}
-        {st === PrStatus.DRAFT && (
-          <p className="m-0 text-gray-500">
-            Draft — the chain starts after submit.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function WorkflowStepCell({
-  prId,
-  status,
-  progress,
-}: {
-  prId: number;
-  status: string;
-  progress: IPurchaseRequestApprovalProgress | null | undefined;
-}) {
-  const listSteps = progress?.steps;
-  const hasStepTrail =
-    (Array.isArray(listSteps) && listSteps.length > 0) ||
-    (progress != null && Number(progress.total_steps) >= 1);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fetchedSteps, setFetchedSteps] = useState<
-    IPurchaseRequestApprovalStepRow[] | null
-  >(null);
-  const [fetchedStatus, setFetchedStatus] = useState<string | null>(null);
-  const fetchDismissedRef = useRef(false);
-
-  if (!hasStepTrail) {
-    return <span className="line-clamp-2 text-gray-400">—</span>;
-  }
-
-  const popoverBody = loading ? (
-    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
-      <Loader2 className="animate-spin text-emerald-600" size={18} />
-      <span>Loading…</span>
-    </div>
-  ) : error ? (
-    <p className="text-xs text-red-600 m-0 max-w-[300px] px-1">{error}</p>
-  ) : fetchedSteps && fetchedSteps.length === 0 ? (
-    <p className="text-xs text-gray-500 m-0 max-w-[300px] px-1">
-      No workflow steps on file.
-    </p>
-  ) : fetchedSteps && fetchedSteps.length > 0 ? (
-    <ApprovalWorkflowStepsApiBody
-      prStatus={fetchedStatus ?? status}
-      steps={fetchedSteps}
-    />
-  ) : (
-    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
-      <Loader2 className="animate-spin text-emerald-600" size={18} />
-      <span>Loading…</span>
-    </div>
-  );
-
-  return (
-    <div
-      className="flex items-center justify-start"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Popover
-        trigger="click"
-        placement="leftTop"
-        zIndex={1070}
-        getPopupContainer={() => document.body}
-        onOpenChange={(visible) => {
-          if (visible) {
-            fetchDismissedRef.current = false;
-            setLoading(true);
-            setError(null);
-            setFetchedSteps(null);
-            setFetchedStatus(null);
-            void purchaseRequestService
-              .getApprovalTrail(prId)
-              .then((res) => {
-                if (fetchDismissedRef.current) return;
-                if (!res?.data) {
-                  setError('Could not load workflow.');
-                  setFetchedSteps([]);
-                  return;
-                }
-                setFetchedSteps(res.data.approval_steps ?? []);
-                setFetchedStatus(String(res.data.status ?? status));
-              })
-              .catch((err: unknown) => {
-                if (fetchDismissedRef.current) return;
-                setError(
-                  err instanceof Error
-                    ? err.message
-                    : 'Could not load workflow.',
-                );
-                setFetchedSteps(null);
-              })
-              .finally(() => {
-                if (!fetchDismissedRef.current) setLoading(false);
-              });
-          } else {
-            fetchDismissedRef.current = true;
-            setLoading(false);
-            setError(null);
-            setFetchedSteps(null);
-            setFetchedStatus(null);
-          }
-        }}
-        content={<div className="min-w-[200px]">{popoverBody}</div>}
-      >
-        <button
-          type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200/90 bg-white text-gray-500 shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200/80 transition"
-        >
-          <ListChecks size={14} strokeWidth={2} aria-hidden />
-        </button>
-      </Popover>
-    </div>
-  );
-}
 
 const CURRENCY_SYMBOL = '\u20B9';
 
@@ -462,143 +112,22 @@ const formatMoney = (value: unknown): string => {
   return `${CURRENCY_SYMBOL} ${formatted}`;
 };
 
-const useFkOptions = () => {
-  const [vendors, setVendors] = useState<SelectOption[]>([]);
-  const [entities, setEntities] = useState<SelectOption[]>([]);
-  const [itemTypes, setItemTypes] = useState<SelectOption[]>([]);
-  const [departments, setDepartments] = useState<SelectOption[]>([]);
-  const [subdepartments, setSubdepartments] = useState<ISubdepartmentOption[]>(
-    [],
-  );
-  const [paymentTerms, setPaymentTerms] = useState<SelectOption[]>([]);
-  const [centers, setCenters] = useState<SelectOption[]>([]);
-  const [items, setItems] = useState<SelectOption[]>([]);
-  const fetched = useRef(false);
-
-  useEffect(() => {
-    if (fetched.current) return;
-    fetched.current = true;
-
-    const params = new URLSearchParams();
-    params.set('noLimit', 'true');
-    params.set('status', 'true');
-
-    vendorService
-      .search(params)
-      .then((res) => {
-        const rows = (res.data as { rows: IVendorRow[] }).rows ?? [];
-        setVendors(
-          rows.map((r) => ({
-            value: String(r.id),
-            label: r.code ? `${r.code} — ${r.name}` : r.name,
-          })),
-        );
-      })
-      .catch(() => setVendors([]));
-
-    paymentTermService
-      .search(params)
-      .then((res) => {
-        const rows = (res.data as { rows: IPaymentTermRow[] }).rows ?? [];
-        setPaymentTerms(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
-        );
-      })
-      .catch(() => setPaymentTerms([]));
-
-    itemTypeService
-      .search(params)
-      .then((res) => {
-        const rows = (res.data as { rows: IItemTypeRow[] }).rows ?? [];
-        setItemTypes(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
-        );
-      })
-      .catch(() => setItemTypes([]));
-
-    itemService
-      .search(params)
-      .then((res) => {
-        const rows = (res.data as { rows: IItemRow[] }).rows ?? [];
-        setItems(
-          rows.map((r) => ({
-            value: String(r.id),
-            label: r.code ? `${r.code} — ${r.name}` : r.name,
-          })),
-        );
-      })
-      .catch(() => setItems([]));
-
-    departmentService
-      .searchDepartmentData(Object.fromEntries(params))
-      .then((res) => {
-        const rows =
-          ((res.data as unknown) as {
-            rows?: { id: number; name: string }[];
-          })?.rows ?? [];
-        setDepartments(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
-        );
-      })
-      .catch(() => setDepartments([]));
-
-    subdepartmentService
-      .searchSubdepartmentData(Object.fromEntries(params))
-      .then((res) => {
-        const rows =
-          ((res.data as unknown) as {
-            rows?: { id: number; name: string; department_id: number }[];
-          })?.rows ?? [];
-        setSubdepartments(
-          rows.map((r) => ({
-            value: String(r.id),
-            label: r.name,
-            department_id: String(r.department_id ?? ''),
-          })),
-        );
-      })
-      .catch(() => setSubdepartments([]));
-
-    centerService
-      .searchCenterData(Object.fromEntries(params))
-      .then((res) => {
-        const rows =
-          ((res.data as unknown) as {
-            rows?: { id: number; name: string }[];
-          })?.rows ?? [];
-        setCenters(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
-        );
-      })
-      .catch(() => setCenters([]));
-
-    entityService
-      .searchEntityData(Object.fromEntries(params))
-      .then((res) => {
-        const rows =
-          ((res.data as unknown) as {
-            rows?: { id: number; name: string }[];
-          })?.rows ?? [];
-        setEntities(
-          rows.map((r) => ({ value: String(r.id), label: r.name })),
-        );
-      })
-      .catch(() => setEntities([]));
-  }, []);
-
-  return {
-    vendors,
-    entities,
-    itemTypes,
-    departments,
-    subdepartments,
-    paymentTerms,
-    centers,
-    items,
-  };
+const formatDate = (value: unknown): string => {
+  if (!value) return '—';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
 };
 
 const { TextArea } = Input;
+
+const RC_SECTION_TITLE =
+  'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
+const RC_SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
 
 function decodeJwtPayloadSegment(segment: string): string {
   let base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
@@ -614,7 +143,10 @@ function readJwtSubAndEmail(): { sub?: number; email?: string } {
     const parts = token.split('.');
     if (parts.length < 2) return {};
     const raw = decodeJwtPayloadSegment(parts[1]);
-    const payload = JSON.parse(raw) as { sub?: number | string; email?: string };
+    const payload = JSON.parse(raw) as {
+      sub?: number | string;
+      email?: string;
+    };
     const n =
       typeof payload.sub === 'number'
         ? payload.sub
@@ -649,45 +181,390 @@ function userMatchesApprovalAssignee(
   });
 }
 
-export const PurchaseRequestPage = () => {
-  const dispatch = useAppDispatch();
-  const state = useAppSelector(purchaseRequestSelector);
+const approvalStepStatusBadgeClass = (
+  raw: string | null | undefined,
+): string => {
+  const u = String(raw ?? '').toUpperCase();
+  if (u === PurchaseRequestApprovalStepStatus.PENDING) {
+    return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/80';
+  }
+  if (u === PurchaseRequestApprovalStepStatus.APPROVED) {
+    return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80';
+  }
+  if (u === PurchaseRequestApprovalStepStatus.REJECTED) {
+    return 'bg-red-50 text-red-600 ring-1 ring-red-200/80';
+  }
+  return 'bg-slate-50 text-slate-600 ring-1 ring-slate-200';
+};
+
+function RcWorkflowStepCell({
+  rcId,
+  progress,
+}: {
+  rcId: number;
+  progress: IRateContractApprovalProgress | null | undefined;
+}) {
+  const listSteps = progress?.steps;
+  const hasStepTrail =
+    (Array.isArray(listSteps) && listSteps.length > 0) ||
+    (progress != null && Number(progress.total_steps) >= 1);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fetchedSteps, setFetchedSteps] = useState<
+    IRateContractApprovalStepRow[] | null
+  >(null);
+  const fetchDismissedRef = useRef(false);
+
+  if (!hasStepTrail) {
+    return <span className="line-clamp-2 text-gray-400">—</span>;
+  }
+
+  const popoverBody = loading ? (
+    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
+      <Loader2 className="animate-spin text-emerald-600" size={18} />
+      <span>Loading…</span>
+    </div>
+  ) : error ? (
+    <p className="text-xs text-red-600 m-0 max-w-[300px] px-1">{error}</p>
+  ) : fetchedSteps && fetchedSteps.length === 0 ? (
+    <p className="text-xs text-gray-500 m-0 max-w-[300px] px-1">
+      No workflow steps on file.
+    </p>
+  ) : fetchedSteps && fetchedSteps.length > 0 ? (
+    <div className="w-[min(100vw-2rem,320px)] sm:w-[320px] max-h-[min(70vh,440px)] overflow-y-auto text-sm">
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-gray-500 uppercase m-0 mb-2">
+        Approval trail
+      </p>
+      <ol className="relative space-y-2 m-0 p-0 list-none pl-1">
+        {fetchedSteps.map((step, idx) => {
+          const su = String(step.status).toUpperCase();
+          const names = (step.assignees ?? [])
+            .map((a) =>
+              a.user
+                ? `${a.user.first_name} ${a.user.last_name}`.trim()
+                : `User #${a.user_id}`,
+            )
+            .join(', ');
+          const isLast = idx === fetchedSteps.length - 1;
+          return (
+            <li key={step.id} className="relative flex gap-2">
+              <div
+                className="flex flex-col items-center shrink-0 w-4"
+                aria-hidden
+              >
+                <span
+                  className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                    step.step_role === 'APPROVER'
+                      ? 'bg-emerald-500 ring-2 ring-emerald-100'
+                      : 'bg-amber-500 ring-2 ring-amber-100'
+                  }`}
+                />
+                {!isLast && (
+                  <span className="w-px flex-1 min-h-[8px] mt-1 bg-gray-200" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 rounded-lg border border-gray-100/90 bg-slate-50/50 px-2.5 py-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 m-0">
+                      Step {step.sequence_order}:{' '}
+                      {String(step.step_role).toUpperCase() === 'APPROVER'
+                        ? 'Final approver'
+                        : 'Reviewer'}
+                    </p>
+                    {names ? (
+                      <p className="text-[11px] text-gray-500 mt-0.5 m-0">
+                        <span className="text-gray-600">Assigned:</span>{' '}
+                        <span className="text-gray-700">{names}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                  <span
+                    className={`shrink-0 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${approvalStepStatusBadgeClass(su)}`}
+                  >
+                    {su}
+                  </span>
+                </div>
+                {step.acted_by_user ? (
+                  <p className="mt-1.5 pt-1.5 border-t border-gray-200/80 text-[11px] text-gray-500 m-0">
+                    {step.status === PurchaseRequestApprovalStepStatus.APPROVED
+                      ? 'Approved'
+                      : 'Decided'}{' '}
+                    by {step.acted_by_user.first_name}{' '}
+                    {step.acted_by_user.last_name}
+                    {step.acted_at ? ` · ${formatDate(step.acted_at)}` : ''}
+                    {step.remarks ? ` · ${step.remarks}` : ''}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  ) : (
+    <div className="flex items-center justify-center gap-2 py-8 px-4 text-gray-500 text-sm">
+      <Loader2 className="animate-spin text-emerald-600" size={18} />
+      <span>Loading…</span>
+    </div>
+  );
+
+  return (
+    <div
+      className="flex items-center justify-start"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Popover
+        trigger="click"
+        placement="leftTop"
+        zIndex={1070}
+        getPopupContainer={() => document.body}
+        onOpenChange={(visible) => {
+          if (visible) {
+            fetchDismissedRef.current = false;
+            setLoading(true);
+            setError(null);
+            setFetchedSteps(null);
+            void rateContractService
+              .getApprovalTrail(rcId)
+              .then((res) => {
+                if (fetchDismissedRef.current) return;
+                if (!res?.data) {
+                  setError('Could not load workflow.');
+                  setFetchedSteps([]);
+                  return;
+                }
+                setFetchedSteps(res.data.approval_steps ?? []);
+              })
+              .catch((err: unknown) => {
+                if (fetchDismissedRef.current) return;
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not load workflow.',
+                );
+                setFetchedSteps(null);
+              })
+              .finally(() => {
+                if (!fetchDismissedRef.current) setLoading(false);
+              });
+          } else {
+            fetchDismissedRef.current = true;
+            setLoading(false);
+            setError(null);
+            setFetchedSteps(null);
+          }
+        }}
+        content={<div className="min-w-[200px]">{popoverBody}</div>}
+      >
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200/90 bg-white text-gray-500 shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200/80 transition"
+        >
+          <ListChecks size={14} strokeWidth={2} aria-hidden />
+        </button>
+      </Popover>
+    </div>
+  );
+}
+
+function useRateContractFkOptions() {
+  const [vendors, setVendors] = useState<SelectOption[]>([]);
+  const [entities, setEntities] = useState<SelectOption[]>([]);
+  const [itemTypes, setItemTypes] = useState<SelectOption[]>([]);
+  const [departments, setDepartments] = useState<SelectOption[]>([]);
+  const [subdepartments, setSubdepartments] = useState<ISubdepartmentOption[]>(
+    [],
+  );
+  const [paymentTerms, setPaymentTerms] = useState<SelectOption[]>([]);
+  const [centers, setCenters] = useState<SelectOption[]>([]);
+  const [items, setItems] = useState<SelectOption[]>([]);
+  const [termsConditions, setTermsConditions] = useState<SelectOption[]>([]);
+  const [currencies, setCurrencies] = useState<SelectOption[]>([]);
+  const fetched = useRef(false);
+
+  useEffect(() => {
+    if (fetched.current) return;
+    fetched.current = true;
+
+    const params = new URLSearchParams();
+    params.set('noLimit', 'true');
+    params.set('status', 'true');
+
+    vendorService
+      .search(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setVendors(
+          rows.map((r) => ({
+            value: String(r.id),
+            label: r.code ? `${r.code} — ${r.name}` : r.name,
+          })),
+        );
+      })
+      .catch(() => setVendors([]));
+
+    paymentTermService
+      .search(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setPaymentTerms(rows.map((r) => ({ value: String(r.id), label: r.name })));
+      })
+      .catch(() => setPaymentTerms([]));
+
+    itemTypeService
+      .search(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setItemTypes(rows.map((r) => ({ value: String(r.id), label: r.name })));
+      })
+      .catch(() => setItemTypes([]));
+
+    itemService
+      .search(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setItems(
+          rows.map((r) => ({
+            value: String(r.id),
+            label: r.code ? `${r.code} — ${r.name}` : r.name,
+          })),
+        );
+      })
+      .catch(() => setItems([]));
+
+    departmentService
+      .searchDepartmentData(searchParamsToRecord(params))
+      .then((res) => {
+        const rows =
+          ((res.data as unknown) as { rows?: { id: number; name: string }[] })
+            ?.rows ?? [];
+        setDepartments(rows.map((r) => ({ value: String(r.id), label: r.name })));
+      })
+      .catch(() => setDepartments([]));
+
+    subdepartmentService
+      .searchSubdepartmentData(searchParamsToRecord(params))
+      .then((res) => {
+        const rows =
+          ((res.data as unknown) as {
+            rows?: { id: number; name: string; department_id: number }[];
+          })?.rows ?? [];
+        setSubdepartments(
+          rows.map((r) => ({
+            value: String(r.id),
+            label: r.name,
+            department_id: String(r.department_id ?? ''),
+          })),
+        );
+      })
+      .catch(() => setSubdepartments([]));
+
+    centerService
+      .searchCenterData(searchParamsToRecord(params))
+      .then((res) => {
+        const rows =
+          ((res.data as unknown) as { rows?: { id: number; name: string }[] })
+            ?.rows ?? [];
+        setCenters(rows.map((r) => ({ value: String(r.id), label: r.name })));
+      })
+      .catch(() => setCenters([]));
+
+    entityService
+      .searchEntityData(searchParamsToRecord(params))
+      .then((res) => {
+        const rows =
+          ((res.data as unknown) as { rows?: { id: number; name: string }[] })
+            ?.rows ?? [];
+        setEntities(rows.map((r) => ({ value: String(r.id), label: r.name })));
+      })
+      .catch(() => setEntities([]));
+
+    termsConditionService
+      .search(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setTermsConditions(
+          rows.map((r) => ({
+            value: String(r.id),
+            label: `${r.code} — ${r.name}`,
+          })),
+        );
+      })
+      .catch(() => setTermsConditions([]));
+
+    currencyService
+      .searchCurrencyData(searchParamsToRecord(params))
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setCurrencies(
+          rows.map((r) => ({
+            value: String(r.id),
+            label: `${r.code} — ${r.name}`,
+          })),
+        );
+      })
+      .catch(() => setCurrencies([]));
+  }, []);
+
+  return {
+    vendors,
+    entities,
+    itemTypes,
+    departments,
+    subdepartments,
+    paymentTerms,
+    centers,
+    items,
+    termsConditions,
+    currencies,
+  };
+}
+
+const RateContractPage = () => {
+  const fk = useRateContractFkOptions();
   const auth = useAppSelector(authSelector);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterForm] = Form.useForm();
-
-  const fkOptions = useFkOptions();
 
   const take = Number(searchParams.get('take')) || DEFAULT_TAKE;
   const skip = Number(searchParams.get('skip')) || 0;
   const page = Math.floor(skip / take) + 1;
 
+  const [rows, setRows] = useState<IRateContractRow[]>([]);
+  const [meta, setMeta] = useState<IMetaProps | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const [filterCount, setFilterCount] = useState(0);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [createFormKey, setCreateFormKey] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [viewRecord, setViewRecord] = useState<IPurchaseRequestRecord | null>(
+  const [viewRecord, setViewRecord] = useState<IRateContractRecord | null>(
     null,
   );
   const [viewLoading, setViewLoading] = useState(false);
   const [viewLoadError, setViewLoadError] = useState<string | null>(null);
-  const [viewModalPrId, setViewModalPrId] = useState<number | null>(null);
+  const [viewModalId, setViewModalId] = useState<number | null>(null);
   const [approvalRemarks, setApprovalRemarks] = useState('');
-  const submitBtnRef = useRef<HTMLButtonElement>(null);
+  const [approvalDecisionLoading, setApprovalDecisionLoading] = useState(false);
+
+  const [statusCounts, setStatusCounts] = useState<IRateContractStatusCounts>({
+    ALL: 0,
+    PENDING: 0,
+    APPROVED: 0,
+    REJECTED: 0,
+  });
 
   const activeStatus = parseListTabStatus(searchParams.get('status'));
 
-  const [statusCounts, setStatusCounts] =
-    useState<IPurchaseRequestStatusCounts>({
-      ALL: 0,
-      PENDING: 0,
-      APPROVED: 0,
-      REJECTED: 0,
-    });
-
   const refreshStatusCounts = () => {
-    purchaseRequestService
+    rateContractService
       .getStatusCounts()
       .then((res) => {
         if (res?.data) setStatusCounts(res.data);
@@ -695,105 +572,31 @@ export const PurchaseRequestPage = () => {
       .catch(() => {});
   };
 
-  const closeViewModal = () => {
-    setIsViewModalOpen(false);
-    setViewRecord(null);
-    setViewLoading(false);
-    setViewLoadError(null);
-    setViewModalPrId(null);
-    setApprovalRemarks('');
-  };
-
-  const loadViewRecord = (id: number, options?: { clearRecord?: boolean }) => {
-    const clearRecord = options?.clearRecord !== false;
-    if (clearRecord) setViewRecord(null);
-    setViewLoadError(null);
-    setViewLoading(true);
-    purchaseRequestService
-      .getById(id)
-      .then((res) => {
-        if (!res?.data) {
-          setViewLoadError('Could not load purchase request.');
-          message.error('Could not load purchase request.');
-          return;
-        }
-        try {
-          setViewRecord(buildRecordFromRow(res.data));
-        } catch (e) {
-          const msg =
-            e instanceof Error ? e.message : 'Invalid purchase request data.';
-          setViewLoadError(msg);
-          message.error(msg);
-        }
-      })
-      .catch((err: unknown) => {
-        const text =
-          err instanceof Error ? err.message : 'Could not load purchase request.';
-        setViewLoadError(text);
-        message.error(text);
-      })
-      .finally(() => setViewLoading(false));
-  };
-
-  const openViewPurchaseRequest = (id: number) => {
-    setIsViewModalOpen(true);
-    setViewModalPrId(id);
-    setViewLoadError(null);
-    loadViewRecord(id, { clearRecord: true });
-  };
-
-  const jwtClaims = readJwtSubAndEmail();
-  const myUserId =
-    typeof auth.profile.data?.id === 'number'
-      ? auth.profile.data.id
-      : jwtClaims.sub;
-  const myEmail = auth.profile.data?.email ?? jwtClaims.email;
-
-  const pendingApprovalStep = viewRecord?.approval_steps?.find(
-    (s) => s.status === PurchaseRequestApprovalStepStatus.PENDING,
-  );
-  const prAwaitingApproval =
-    String(viewRecord?.status ?? '').toUpperCase() === PrStatus.SUBMITTED;
-  const canRecordApprovalDecision =
-    !!viewRecord?.id &&
-    !!pendingApprovalStep &&
-    prAwaitingApproval &&
-    (typeof myUserId === 'number' || Boolean(myEmail)) &&
-    userMatchesApprovalAssignee(
-      pendingApprovalStep.assignees ?? [],
-      myUserId,
-      myEmail,
-    );
-
-  const submitApprovalDecision = async (
-    decision: PurchaseRequestApprovalDecision,
-  ) => {
-    if (!viewRecord?.id) return;
-    const result = await dispatch(
-      submitPurchaseRequestApprovalDecision({
-        id: viewRecord.id,
-        decision,
-        remarks: approvalRemarks.trim() || null,
-      }),
-    );
-    if (result.meta.requestStatus === 'fulfilled') {
-      setApprovalRemarks('');
-      loadViewRecord(viewRecord.id, { clearRecord: false });
-    }
-  };
-
-  const dataFromSearch = (): Record<string, unknown> => {
+  const loadList = useCallback(() => {
     const data: Record<string, unknown> = {};
     searchParams.forEach((value, key) => {
       data[key] = value;
     });
     if (!data.take) data.take = DEFAULT_TAKE;
     if (!data.skip) data.skip = 0;
-    if (String(data.status ?? '').toUpperCase() === PrStatus.PENDING) {
-      data.status = PrStatus.SUBMITTED;
+    if (String(data.status ?? '').toUpperCase() === RcStatus.PENDING) {
+      data.status = RcStatus.SUBMITTED;
     }
-    return data;
-  };
+
+    setLoading(true);
+    rateContractService
+      .search(data)
+      .then((res) => {
+        setRows(res.data.rows ?? []);
+        setMeta(res.data.meta ?? null);
+      })
+      .catch(() => {
+        message.error('Could not load rate contracts.');
+        setRows([]);
+        setMeta(null);
+      })
+      .finally(() => setLoading(false));
+  }, [searchParams]);
 
   useEffect(() => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -809,10 +612,10 @@ export const PurchaseRequestPage = () => {
     const st = sp.get('status');
     if (st != null && st !== '') {
       const u = st.toUpperCase();
-      if (u === PrStatus.SUBMITTED) {
-        sp.set('status', PrStatus.PENDING);
+      if (u === RcStatus.SUBMITTED) {
+        sp.set('status', RcStatus.PENDING);
         fix = true;
-      } else if (!PR_LIST_TAB_STATUSES.includes(u as PrListTabStatus)) {
+      } else if (!RC_LIST_TAB_STATUSES.includes(u as RcListTabStatus)) {
         sp.delete('status');
         fix = true;
       }
@@ -821,7 +624,7 @@ export const PurchaseRequestPage = () => {
       setSearchParams(sp, { replace: true });
       return;
     }
-    dispatch(searchPurchaseRequestData(dataFromSearch()));
+    loadList();
   }, [searchParams]);
 
   useEffect(() => {
@@ -844,52 +647,120 @@ export const PurchaseRequestPage = () => {
     filterForm.resetFields();
   }, [formValues]);
 
-  // Toast effects
-  useEffect(() => {
-    if (state.create.message) {
-      if (state.create.hasErrors) message.error(state.create.message);
-      else {
-        message.success(state.create.message);
-        refreshStatusCounts();
-      }
-      dispatch(clearPurchaseRequestMessage());
-    }
-  }, [state.create.message]);
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
+    setViewRecord(null);
+    setViewLoading(false);
+    setViewLoadError(null);
+    setViewModalId(null);
+    setApprovalRemarks('');
+  };
 
-  useEffect(() => {
-    if (state.approvalDecision.message) {
-      if (state.approvalDecision.hasErrors) {
-        message.error(state.approvalDecision.message);
-      } else {
-        message.success(state.approvalDecision.message);
-        refreshStatusCounts();
-      }
-      dispatch(clearPurchaseRequestMessage());
-    }
-  }, [state.approvalDecision.message]);
+  const loadViewRecord = (id: number, options?: { clearRecord?: boolean }) => {
+    const clearRecord = options?.clearRecord !== false;
+    if (clearRecord) setViewRecord(null);
+    setViewLoadError(null);
+    setViewLoading(true);
+    rateContractService
+      .getById(id)
+      .then((res) => {
+        if (!res?.data) {
+          setViewLoadError('Could not load rate contract.');
+          message.error('Could not load rate contract.');
+          return;
+        }
+        try {
+          setViewRecord(buildRecordFromRow(res.data));
+        } catch (e) {
+          const msg =
+            e instanceof Error ? e.message : 'Invalid rate contract data.';
+          setViewLoadError(msg);
+          message.error(msg);
+        }
+      })
+      .catch((err: unknown) => {
+        const text =
+          err instanceof Error ? err.message : 'Could not load rate contract.';
+        setViewLoadError(text);
+        message.error(text);
+      })
+      .finally(() => setViewLoading(false));
+  };
 
-  const rows = state.list.data?.rows ?? [];
-  const meta = state.list.data?.meta;
+  const openViewRateContract = (id: number) => {
+    setIsViewModalOpen(true);
+    setViewModalId(id);
+    setViewLoadError(null);
+    loadViewRecord(id, { clearRecord: true });
+  };
+
+  const jwtClaims = readJwtSubAndEmail();
+  const myUserId =
+    typeof auth.profile.data?.id === 'number'
+      ? auth.profile.data.id
+      : jwtClaims.sub;
+  const myEmail = auth.profile.data?.email ?? jwtClaims.email;
+
+  const pendingApprovalStep = viewRecord?.approval_steps?.find(
+    (s) => s.status === PurchaseRequestApprovalStepStatus.PENDING,
+  );
+  const rcAwaitingApproval =
+    String(viewRecord?.status ?? '').toUpperCase() === RcStatus.SUBMITTED;
+  const canRecordApprovalDecision =
+    !!viewRecord?.id &&
+    !!pendingApprovalStep &&
+    rcAwaitingApproval &&
+    (typeof myUserId === 'number' || Boolean(myEmail)) &&
+    userMatchesApprovalAssignee(
+      pendingApprovalStep.assignees ?? [],
+      myUserId,
+      myEmail,
+    );
+
+  const submitRcApprovalDecision = async (
+    decision: PurchaseRequestApprovalDecision,
+  ) => {
+    if (!viewRecord?.id) return;
+    setApprovalDecisionLoading(true);
+    try {
+      const res = await rateContractService.approvalDecision(viewRecord.id, {
+        decision,
+        remarks: approvalRemarks.trim() || null,
+      });
+      message.success(res.message ?? 'Decision recorded.');
+      setApprovalRemarks('');
+      loadViewRecord(viewRecord.id, { clearRecord: false });
+      refreshStatusCounts();
+      loadList();
+    } catch {
+      message.error('Could not record decision.');
+    } finally {
+      setApprovalDecisionLoading(false);
+    }
+  };
+
   const totalCount = meta?.itemCount ?? 0;
-  const isLoading = state.list.loading;
-  const isSubmitting = state.create.loading;
 
-  const openCreateDrawer = () => {
-    dispatch(clearCurrentPurchaseRequest());
-    setIsFormDrawerOpen(true);
+  const openCreateModal = () => {
+    setCreateFormKey((k) => k + 1);
+    setIsFormModalOpen(true);
   };
 
-  const closeFormDrawer = () => {
-    setIsFormDrawerOpen(false);
-    dispatch(clearCurrentPurchaseRequest());
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
   };
 
-  const handleFormSubmit = async (values: IPurchaseRequestRecord) => {
-    const payload = {
-      pr_number: values.pr_number || undefined,
+  const handleFormSubmit = async (values: IRateContractRecord) => {
+    const payload: IRateContractPayload = {
+      rc_number: values.rc_number || undefined,
       entity_id: values.entity_id ?? null,
       vendor_id: values.vendor_id ?? null,
       vendor_site_id: values.vendor_site_id ?? null,
+      shipping_vendor_site_id: values.shipping_vendor_site_id ?? null,
+      billing_vendor_site_id: values.billing_vendor_site_id ?? null,
+      shipping_address: values.shipping_address ?? null,
+      billing_address: values.billing_address ?? null,
+      currency_id: values.currency_id ?? null,
       item_type_id: values.item_type_id ?? null,
       validity_from: values.validity_from || null,
       validity_to: values.validity_to || null,
@@ -898,26 +769,39 @@ export const PurchaseRequestPage = () => {
       department_id: values.department_id ?? null,
       subdepartment_id: values.subdepartment_id ?? null,
       payment_term_id: values.payment_term_id ?? null,
-      center_id: values.center_id ?? null,
-      remarks: values.remarks || null,
-      terms_conditions: values.terms_conditions || null,
+      terms_condition_id: values.terms_condition_id ?? null,
       overall_summary: values.overall_summary || null,
       net_amount: values.net_amount,
-      status: PrStatus.SUBMITTED,
-      items: values.items,
+      status: RcStatus.SUBMITTED,
+      items: values.items.map((i) => ({
+        item_id: i.item_id!,
+        description: i.description.trim() || null,
+        center_id: i.center_id!,
+        quantity: i.quantity,
+        rate: i.rate,
+        remarks: i.remarks.trim(),
+      })),
     };
-    const result = await dispatch(createNewPurchaseRequest(payload));
-    if (result.meta.requestStatus === 'fulfilled') {
-      closeFormDrawer();
+
+    setSubmitting(true);
+    try {
+      const res = await rateContractService.create(payload);
+      message.success(res.message ?? 'Rate contract submitted.');
+      closeFormModal();
+      refreshStatusCounts();
       const sp = new URLSearchParams(searchParams.toString());
-      sp.set('status', PrStatus.PENDING);
+      sp.set('status', RcStatus.PENDING);
       sp.set('skip', '0');
       if (!sp.has('take')) sp.set('take', String(take));
       setSearchParams(sp);
+    } catch {
+      message.error('Could not create rate contract.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const setStatusTab = (status: '' | PrListTabStatus) => {
+  const setStatusTab = (status: '' | RcListTabStatus) => {
     const sp = new URLSearchParams(searchParams.toString());
     if (status === '') sp.delete('status');
     else sp.set('status', status);
@@ -926,9 +810,9 @@ export const PurchaseRequestPage = () => {
   };
 
   const STATUS_TABS: {
-    key: '' | PrListTabStatus;
+    key: '' | RcListTabStatus;
     label: string;
-    countKey: keyof IPurchaseRequestStatusCounts;
+    countKey: keyof IRateContractStatusCounts;
     text: string;
     badge: string;
     activeRing: string;
@@ -942,7 +826,7 @@ export const PurchaseRequestPage = () => {
       activeRing: 'ring-1 ring-gray-300',
     },
     {
-      key: PrStatus.PENDING,
+      key: RcStatus.PENDING,
       label: 'Pending',
       countKey: 'PENDING',
       text: 'text-amber-600',
@@ -950,7 +834,7 @@ export const PurchaseRequestPage = () => {
       activeRing: 'ring-1 ring-amber-300',
     },
     {
-      key: PrStatus.APPROVED,
+      key: RcStatus.APPROVED,
       label: 'Approved',
       countKey: 'APPROVED',
       text: 'text-emerald-600',
@@ -958,7 +842,7 @@ export const PurchaseRequestPage = () => {
       activeRing: 'ring-1 ring-emerald-300',
     },
     {
-      key: PrStatus.REJECTED,
+      key: RcStatus.REJECTED,
       label: 'Rejected',
       countKey: 'REJECTED',
       text: 'text-red-500',
@@ -1000,22 +884,21 @@ export const PurchaseRequestPage = () => {
     {
       label: string;
       align?: 'left' | 'right' | 'center';
-      /** Shimmer cell width (Actions stays narrow). */
       skeletonWidth?: string;
     }[]
   >(
     () => [
-      { label: 'PR Number' },
+      { label: 'RC #' },
       { label: 'Vendor' },
       { label: 'Department' },
       { label: 'Required' },
-      { label: 'Net Amount', align: 'right' },
+      { label: 'Net amount', align: 'right' },
       { label: 'Status' },
       {
         label: 'Workflow step',
         skeletonWidth: 'w-40',
       },
-      { label: 'Created' },
+      { label: 'Updated' },
       { label: 'Actions', align: 'center', skeletonWidth: 'w-10' },
     ],
     [],
@@ -1028,11 +911,11 @@ export const PurchaseRequestPage = () => {
           <div>
             <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
               <ShoppingCart size={18} className="text-emerald-600" />
-              Purchase Request
+              Rate Contract
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {totalCount}{' '}
-              {totalCount === 1 ? 'purchase request' : 'purchase requests'}{' '}
+              {totalCount === 1 ? 'rate contract' : 'rate contracts'}{' '}
               configured
             </p>
           </div>
@@ -1046,9 +929,7 @@ export const PurchaseRequestPage = () => {
                     key={tab.key || 'all'}
                     type="button"
                     onClick={() => setStatusTab(tab.key)}
-                    className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-white border border-gray-100 text-xs font-medium tracking-wide transition hover:border-gray-200 ${
-                      tab.text
-                    } ${isActive ? tab.activeRing : ''}`}
+                    className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-white border border-gray-100 text-xs font-medium tracking-wide transition hover:border-gray-200 ${tab.text} ${isActive ? tab.activeRing : ''}`}
                   >
                     <span>{tab.label}</span>
                     <span
@@ -1078,14 +959,14 @@ export const PurchaseRequestPage = () => {
 
             <Can
               I={Common.Actions.CAN_ADD}
-              a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
+              a={Common.Modules.PROCUREMENT.RATE_CONTRACT}
             >
               <button
                 type="button"
-                onClick={openCreateDrawer}
+                onClick={openCreateModal}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
               >
-                <Plus size={14} /> New Purchase Request
+                <Plus size={14} /> New rate contract
               </button>
             </Can>
           </div>
@@ -1107,9 +988,7 @@ export const PurchaseRequestPage = () => {
                   return (
                     <th
                       key={col.label}
-                      className={`${pad} py-3 ${alignClass} ${
-                        isActions ? 'w-[1%] whitespace-nowrap' : ''
-                      } text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200`}
+                      className={`${pad} py-3 ${alignClass} ${isActions ? 'w-[1%] whitespace-nowrap' : ''} text-xs font-semibold text-gray-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200`}
                     >
                       {col.label}
                     </th>
@@ -1118,7 +997,7 @@ export const PurchaseRequestPage = () => {
               </tr>
             </thead>
             <tbody>
-              {isLoading && rows.length === 0 && (
+              {loading && rows.length === 0 && (
                 <TableRowSkeleton
                   rows={Math.min(take, 10)}
                   withActions={false}
@@ -1129,8 +1008,8 @@ export const PurchaseRequestPage = () => {
                 />
               )}
               {rows.map((row, index) => {
-                const status = (row.status ?? PrStatus.DRAFT) as PurchaseRequestStatus;
-                const badgeClass = statusBadgeClass(String(status));
+                const status = String(row.status ?? RcStatus.DRAFT);
+                const badgeClass = statusBadgeClass(status);
                 return (
                   <tr
                     key={row.id}
@@ -1141,7 +1020,7 @@ export const PurchaseRequestPage = () => {
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80">
                       <span className="inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                        {row.pr_number ?? '—'}
+                        {row.rc_number ?? '—'}
                       </span>
                     </td>
                     <td className="px-4 py-4 border-b border-slate-100/80">
@@ -1171,13 +1050,12 @@ export const PurchaseRequestPage = () => {
                       <span
                         className={`inline-flex text-[11px] font-semibold px-2.5 py-1 rounded-full ${badgeClass}`}
                       >
-                        {formatStatusLabel(String(status))}
+                        {formatStatusLabel(status)}
                       </span>
                     </td>
                     <td className="max-w-[220px] px-4 py-4 border-b border-slate-100/80 text-xs text-gray-600 leading-snug">
-                      <WorkflowStepCell
-                        prId={row.id}
-                        status={String(status)}
+                      <RcWorkflowStepCell
+                        rcId={row.id}
                         progress={row.approval_progress}
                       />
                     </td>
@@ -1187,13 +1065,13 @@ export const PurchaseRequestPage = () => {
                     <td className="w-[1%] whitespace-nowrap px-2 py-4 text-center border-b border-slate-100/80 align-middle">
                       <Can
                         I={Common.Actions.CAN_VIEW}
-                        a={Common.Modules.PROCUREMENT.PURCHASE_REQUEST}
+                        a={Common.Modules.PROCUREMENT.RATE_CONTRACT}
                       >
                         <button
                           type="button"
-                          onClick={() => openViewPurchaseRequest(row.id)}
+                          onClick={() => openViewRateContract(row.id)}
                           className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white text-gray-600 shadow-sm ring-1 ring-gray-200/90 hover:bg-emerald-50 hover:text-emerald-700 hover:ring-emerald-200 transition"
-                          aria-label={`View purchase request ${row.pr_number ?? row.id}`}
+                          aria-label={`View rate contract ${row.rc_number ?? row.id}`}
                         >
                           <Eye size={16} strokeWidth={2} />
                         </button>
@@ -1202,7 +1080,7 @@ export const PurchaseRequestPage = () => {
                   </tr>
                 );
               })}
-              {!isLoading && rows.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <tr>
                   <td
                     colSpan={tableHead.length + 1}
@@ -1210,10 +1088,9 @@ export const PurchaseRequestPage = () => {
                   >
                     <div className="flex flex-col items-center gap-2">
                       <ShoppingCart size={28} className="text-gray-300" />
-                      <p>No purchase requests found.</p>
+                      <p>No rate contracts found.</p>
                       <p className="text-xs text-gray-400">
-                        Try clearing the filters or create a new purchase
-                        request.
+                        Try clearing the filters or create a new rate contract.
                       </p>
                     </div>
                   </td>
@@ -1223,14 +1100,13 @@ export const PurchaseRequestPage = () => {
           </table>
         </div>
 
-        <TablePagination meta={meta} defaultPageSize={DEFAULT_TAKE} />
+        <TablePagination meta={meta ?? undefined} defaultPageSize={DEFAULT_TAKE} />
       </div>
 
-      {/* Filter drawer */}
       <Drawer
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
-        title="Filter Purchase Requests"
+        title="Filter rate contracts"
         subtitle="Narrow down the list"
         footer={
           <div className="flex items-center justify-between gap-3">
@@ -1246,7 +1122,7 @@ export const PurchaseRequestPage = () => {
               onClick={() => filterForm.submit()}
               className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition"
             >
-              Apply Filters
+              Apply filters
             </button>
           </div>
         }
@@ -1262,12 +1138,12 @@ export const PurchaseRequestPage = () => {
             name="search"
             label={
               <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                PR # / Vendor
+                RC # / Vendor
               </span>
             }
           >
             <Input
-              placeholder="Enter PR number or vendor name"
+              placeholder="Enter RC number or vendor name"
               className="rounded-xl soft-input !py-2"
               size="large"
             />
@@ -1310,18 +1186,17 @@ export const PurchaseRequestPage = () => {
         </Form>
       </Drawer>
 
-      {/* Form modal */}
       <FormModal
-        isOpen={isFormDrawerOpen}
-        onClose={closeFormDrawer}
+        isOpen={isFormModalOpen}
+        onClose={closeFormModal}
         size="xl"
-        title="New Purchase Request"
-        subtitle="Create a new purchase request with items."
+        title="New Rate Contract"
+        subtitle="Create a rate contract with line items and supporting details."
         footer={
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={closeFormDrawer}
+              onClick={closeFormModal}
               className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
             >
               Cancel
@@ -1329,28 +1204,31 @@ export const PurchaseRequestPage = () => {
             <button
               type="button"
               onClick={() => submitBtnRef.current?.click()}
-              disabled={isSubmitting}
+              disabled={submitting}
               className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting && (
-                <Loader2 size={14} className="animate-spin" />
+              {submitting && (
+                <Loader2 size={14} className="animate-spin" aria-hidden />
               )}
-              Create PR
+              Submit for approval
             </button>
           </div>
         }
       >
-        <PurchaseRequestAdd
+        <RateContractAdd
+          key={createFormKey}
           onSubmit={handleFormSubmit}
           myRef={submitBtnRef}
-          vendors={fkOptions.vendors}
-          entities={fkOptions.entities}
-          itemTypes={fkOptions.itemTypes}
-          departments={fkOptions.departments}
-          subdepartments={fkOptions.subdepartments}
-          paymentTerms={fkOptions.paymentTerms}
-          centers={fkOptions.centers}
-          items={fkOptions.items}
+          vendors={fk.vendors}
+          entities={fk.entities}
+          itemTypes={fk.itemTypes}
+          departments={fk.departments}
+          subdepartments={fk.subdepartments}
+          paymentTerms={fk.paymentTerms}
+          centers={fk.centers}
+          items={fk.items}
+          termsConditions={fk.termsConditions}
+          currencies={fk.currencies}
         />
       </FormModal>
 
@@ -1358,11 +1236,11 @@ export const PurchaseRequestPage = () => {
         isOpen={isViewModalOpen}
         onClose={closeViewModal}
         size="xl"
-        title="Purchase Request"
+        title="Rate Contract"
         subtitle={
-          viewRecord?.pr_number
-            ? `PR ${viewRecord.pr_number}`
-            : 'View submitted details'
+          viewRecord?.rc_number
+            ? `RC ${viewRecord.rc_number}`
+            : 'View contract details'
         }
         footer={
           <div className="flex items-center justify-end gap-3">
@@ -1385,10 +1263,10 @@ export const PurchaseRequestPage = () => {
         {!viewLoading && viewLoadError && !viewRecord && (
           <div className="flex flex-col items-center gap-4 py-16 px-4 text-center">
             <p className="text-sm text-red-600 max-w-md">{viewLoadError}</p>
-            {viewModalPrId != null && (
+            {viewModalId != null && (
               <button
                 type="button"
-                onClick={() => loadViewRecord(viewModalPrId, { clearRecord: true })}
+                onClick={() => loadViewRecord(viewModalId, { clearRecord: true })}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
               >
                 Retry
@@ -1398,31 +1276,33 @@ export const PurchaseRequestPage = () => {
         )}
         {!viewLoading && viewRecord && (
           <div className="space-y-8">
-            <PurchaseRequestAdd
+            <RateContractAdd
               readOnly
               data={viewRecord}
               onSubmit={() => {}}
-              vendors={fkOptions.vendors}
-              entities={fkOptions.entities}
-              itemTypes={fkOptions.itemTypes}
-              departments={fkOptions.departments}
-              subdepartments={fkOptions.subdepartments}
-              paymentTerms={fkOptions.paymentTerms}
-              centers={fkOptions.centers}
-              items={fkOptions.items}
+              vendors={fk.vendors}
+              entities={fk.entities}
+              itemTypes={fk.itemTypes}
+              departments={fk.departments}
+              subdepartments={fk.subdepartments}
+              paymentTerms={fk.paymentTerms}
+              centers={fk.centers}
+              items={fk.items}
+              termsConditions={fk.termsConditions}
+              currencies={fk.currencies}
             />
 
-            {prAwaitingApproval &&
+            {rcAwaitingApproval &&
               (!viewRecord.approval_steps ||
                 viewRecord.approval_steps.length === 0) && (
-                <div className={PR_SECTION_DIVIDER}>
-                  <p className={PR_SECTION_TITLE}>Approval</p>
+                <div className={RC_SECTION_DIVIDER}>
+                  <p className={RC_SECTION_TITLE}>Approval</p>
                   <div className="rounded-2xl border border-gray-200/90 bg-white px-4 py-3.5 text-sm text-gray-700 shadow-sm ring-1 ring-gray-100/80">
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      No approval queue is stored for this request. It may have
-                      been created before workflow enforcement, or the database
-                      migration for approval steps may not be applied. New
-                      submissions after setup should show steps here.
+                    <p className="text-xs text-gray-600 leading-relaxed m-0">
+                      No approval queue is stored for this contract yet. Ensure an
+                      approval workflow exists for{' '}
+                      <span className="font-medium">RATE_CONTRACT</span> for the
+                      entity and sub-department, then submit again.
                     </p>
                   </div>
                 </div>
@@ -1430,18 +1310,17 @@ export const PurchaseRequestPage = () => {
 
             {viewRecord.approval_steps &&
               viewRecord.approval_steps.length > 0 && (
-                <div className={PR_SECTION_DIVIDER}>
-                  <p className={PR_SECTION_TITLE}>Approval trail</p>
+                <div className={RC_SECTION_DIVIDER}>
+                  <p className={RC_SECTION_TITLE}>Approval trail</p>
                   <ol className="relative space-y-3 pl-1">
                     {viewRecord.approval_steps.map((step, idx) => {
                       const roleLabel =
-                        step.step_role === 'APPROVER'
-                          ? 'Approver'
-                          : 'Reviewer';
+                        step.step_role === 'APPROVER' ? 'Approver' : 'Reviewer';
                       const statusLabel =
                         step.status === PurchaseRequestApprovalStepStatus.PENDING
                           ? 'Pending'
-                          : step.status === PurchaseRequestApprovalStepStatus.APPROVED
+                          : step.status ===
+                              PurchaseRequestApprovalStepStatus.APPROVED
                             ? 'Approved'
                             : 'Rejected';
                       const names = step.assignees
@@ -1489,9 +1368,10 @@ export const PurchaseRequestPage = () => {
                                 {statusLabel}
                               </span>
                             </div>
-                            {step.acted_by_user && (
+                            {step.acted_by_user ? (
                               <p className="mt-2.5 pt-2.5 border-t border-gray-100 text-xs text-gray-500">
-                                {step.status === PurchaseRequestApprovalStepStatus.APPROVED
+                                {step.status ===
+                                PurchaseRequestApprovalStepStatus.APPROVED
                                   ? 'Approved'
                                   : 'Decided'}{' '}
                                 by {step.acted_by_user.first_name}{' '}
@@ -1501,22 +1381,22 @@ export const PurchaseRequestPage = () => {
                                   : ''}
                                 {step.remarks ? ` · ${step.remarks}` : ''}
                               </p>
-                            )}
+                            ) : null}
                           </div>
                         </li>
                       );
                     })}
                   </ol>
 
-                  {canRecordApprovalDecision && (
+                  {canRecordApprovalDecision ? (
                     <div className="mt-6 rounded-2xl border border-gray-200/90 border-l-4 border-l-emerald-500 bg-white p-5 shadow-sm ring-1 ring-gray-100/80">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                         Your action
                       </p>
                       <p className="text-sm text-gray-700 leading-relaxed mb-4">
                         {pendingApprovalStep?.step_role === 'REVIEWER'
-                          ? 'You are assigned as the reviewer for this step. Approve to move the request to the next step, or reject to stop the workflow.'
-                          : 'You are assigned as the final approver. Approve to complete the request, or reject to stop it.'}
+                          ? 'You are assigned as the reviewer for this step. Approve to move the contract to the next step, or reject to stop the workflow.'
+                          : 'You are assigned as the final approver. Approve to complete the contract, or reject to stop it.'}
                       </p>
                       <TextArea
                         value={approvalRemarks}
@@ -1528,9 +1408,9 @@ export const PurchaseRequestPage = () => {
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          disabled={state.approvalDecision.loading}
+                          disabled={approvalDecisionLoading}
                           onClick={() =>
-                            submitApprovalDecision(
+                            submitRcApprovalDecision(
                               PurchaseRequestApprovalDecision.APPROVE,
                             )
                           }
@@ -1542,9 +1422,9 @@ export const PurchaseRequestPage = () => {
                         </button>
                         <button
                           type="button"
-                          disabled={state.approvalDecision.loading}
+                          disabled={approvalDecisionLoading}
                           onClick={() =>
-                            submitApprovalDecision(
+                            submitRcApprovalDecision(
                               PurchaseRequestApprovalDecision.REJECT,
                             )
                           }
@@ -1556,7 +1436,7 @@ export const PurchaseRequestPage = () => {
                         </button>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
           </div>
@@ -1566,4 +1446,4 @@ export const PurchaseRequestPage = () => {
   );
 };
 
-export default PurchaseRequestPage;
+export default RateContractPage;

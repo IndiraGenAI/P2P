@@ -9,3 +9,10 @@ export const PURCHASE_REQUEST_CONSTANTS = {
   NO_APPROVAL_WORKFLOW_MESSAGE:
     'No approval workflow configured for the selected criteria.',
 } as const;
+
+export const RATE_CONTRACT_CONSTANTS = {
+  NUMBER_PREFIX: 'RC-',
+  NUMBER_PAD: 4,
+  NO_APPROVAL_WORKFLOW_MESSAGE:
+    'No approval workflow configured for the selected criteria.',
+} as const;

@@ -40,6 +40,7 @@ import VendorCategoryPage from '@/pages/Vendor/VendorCategory';
 import VendorPage from '@/pages/Vendor/Vendor';
 import VendorSitePage from '@/pages/Vendor/VendorSite';
 import PurchaseRequestPage from '@/pages/PurchaseRequest';
+import RateContractPage from '@/pages/RateContract';
 import WorkflowsPage from '@/pages/Workflows';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
@@ -273,10 +274,7 @@ function AppRoutes({
           <Route path="/purchase-request" element={<PurchaseRequestPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.PROCUREMENT.RATE_CONTRACT} />}>
-          <Route
-            path="/rate-contract"
-            element={<PlaceholderPage title="Rate Contract" />}
-          />
+          <Route path="/rate-contract" element={<RateContractPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.PROCUREMENT.PURCHASE_ORDER} />}>
           <Route

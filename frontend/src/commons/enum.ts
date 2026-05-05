@@ -1,3 +1,5 @@
+/** Mirrors `backend/main-service/src/commons/enum.ts` for consistent PR workflow values. */
+
 export enum GenderType {
   MALE = 'MALE',
   FEMALE = 'FEMALE',
@@ -25,7 +27,7 @@ export enum PurchaseRequestApprovalDecision {
   REJECT = 'REJECT',
 }
 
-/** Header status for rate contracts (aligned with purchase request lifecycle). */
+/** Rate contract header status (matches main-service `RcStatus`). */
 export enum RcStatus {
   DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',

@@ -891,3 +891,177 @@ CREATE TABLE IF NOT EXISTS purchase_request_approval_assignee (
 
 CREATE INDEX IF NOT EXISTS idx_pr_approval_assignee_step
     ON purchase_request_approval_assignee (purchase_request_approval_step_id);
+
+-- ---------------------------------------------------------------------------
+-- Rate contracts (header + line items + documents)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS rate_contracts (
+    id SERIAL PRIMARY KEY,
+
+    rc_number VARCHAR(50) UNIQUE,
+
+    entity_id INTEGER,
+    vendor_id INTEGER,
+    vendor_site_id INTEGER,
+
+    shipping_vendor_site_id INTEGER,
+    billing_vendor_site_id INTEGER,
+
+    shipping_address TEXT,
+    billing_address TEXT,
+
+    currency_id INTEGER,
+    item_type_id INTEGER,
+
+    validity_from DATE,
+    validity_to DATE,
+    required_date DATE,
+
+    frequency VARCHAR(50),
+
+    department_id INTEGER,
+    subdepartment_id INTEGER,
+    payment_term_id INTEGER,
+    terms_condition_id INTEGER,
+
+    overall_summary TEXT,
+
+    total_base_amount NUMERIC(12,2) DEFAULT 0,
+    net_amount NUMERIC(12,2) DEFAULT 0,
+
+    status VARCHAR(50) DEFAULT 'DRAFT',
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_rc_entity FOREIGN KEY (entity_id) REFERENCES entities(id),
+    CONSTRAINT fk_rc_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    CONSTRAINT fk_rc_vendor_site FOREIGN KEY (vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_rc_ship_site FOREIGN KEY (shipping_vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_rc_bill_site FOREIGN KEY (billing_vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_rc_currency FOREIGN KEY (currency_id) REFERENCES currencies(id),
+    CONSTRAINT fk_rc_item_type FOREIGN KEY (item_type_id) REFERENCES item_types(id),
+    CONSTRAINT fk_rc_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_rc_subdepartment FOREIGN KEY (subdepartment_id) REFERENCES subdepartments(id),
+    CONSTRAINT fk_rc_payment_term FOREIGN KEY (payment_term_id) REFERENCES payment_terms(id),
+    CONSTRAINT fk_rc_terms FOREIGN KEY (terms_condition_id) REFERENCES terms_and_conditions(id)
+);
+
+CREATE TABLE IF NOT EXISTS rate_contract_items (
+    id SERIAL PRIMARY KEY,
+
+    rate_contract_id INTEGER NOT NULL,
+
+    item_id INTEGER,
+    description TEXT,
+
+    center_id INTEGER NOT NULL,
+
+    quantity NUMERIC(12,2) NOT NULL DEFAULT 1,
+    rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+    base_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    remarks TEXT,
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_rc_item_contract
+        FOREIGN KEY (rate_contract_id)
+        REFERENCES rate_contracts(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_rc_item_item FOREIGN KEY (item_id) REFERENCES items(id),
+    CONSTRAINT fk_rc_item_center FOREIGN KEY (center_id) REFERENCES centers(id)
+);
+
+CREATE TABLE IF NOT EXISTS rate_contract_documents (
+    id SERIAL PRIMARY KEY,
+
+    rate_contract_id INTEGER NOT NULL,
+
+    file_name VARCHAR(255),
+    file_path TEXT,
+    file_type VARCHAR(100),
+    file_size BIGINT,
+
+    uploaded_by VARCHAR(100),
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_rc_document_contract
+        FOREIGN KEY (rate_contract_id)
+        REFERENCES rate_contracts(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_rc_entity_id ON rate_contracts(entity_id);
+CREATE INDEX IF NOT EXISTS idx_rc_vendor_id ON rate_contracts(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_rc_status ON rate_contracts(status);
+CREATE INDEX IF NOT EXISTS idx_rc_created_date ON rate_contracts(created_date);
+CREATE INDEX IF NOT EXISTS idx_rc_items_contract_id ON rate_contract_items(rate_contract_id);
+CREATE INDEX IF NOT EXISTS idx_rc_items_item_id ON rate_contract_items(item_id);
+CREATE INDEX IF NOT EXISTS idx_rc_docs_contract_id ON rate_contract_documents(rate_contract_id);
+
+-- ---------------------------------------------------------------------------
+-- Rate contract approval execution (same pattern as purchase_request_approval_*)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS rate_contract_approval_step (
+    id SERIAL PRIMARY KEY,
+    rate_contract_id INTEGER NOT NULL,
+    sequence_order INTEGER NOT NULL,
+    approval_workflow_step_id INTEGER,
+    step_role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    acted_by_user_id INTEGER,
+    acted_at TIMESTAMP WITHOUT TIME ZONE,
+    remarks TEXT,
+
+    CONSTRAINT fk_rc_approval_step_rc
+        FOREIGN KEY (rate_contract_id)
+        REFERENCES rate_contracts(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_rc_approval_step_aw_step
+        FOREIGN KEY (approval_workflow_step_id)
+        REFERENCES approval_workflow_step(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_rc_approval_step_actor
+        FOREIGN KEY (acted_by_user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT chk_rc_approval_step_role
+        CHECK (step_role IN ('REVIEWER', 'APPROVER')),
+    CONSTRAINT chk_rc_approval_step_status
+        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_rc_approval_step_rc_seq
+    ON rate_contract_approval_step (rate_contract_id, sequence_order);
+
+CREATE INDEX IF NOT EXISTS idx_rc_approval_step_rc_id
+    ON rate_contract_approval_step (rate_contract_id);
+
+CREATE TABLE IF NOT EXISTS rate_contract_approval_assignee (
+    id SERIAL PRIMARY KEY,
+    rate_contract_approval_step_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_rc_approval_assignee_step
+        FOREIGN KEY (rate_contract_approval_step_id)
+        REFERENCES rate_contract_approval_step(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_rc_approval_assignee_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_rc_approval_assignee_step_user
+        UNIQUE (rate_contract_approval_step_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rc_approval_assignee_step
+    ON rate_contract_approval_assignee (rate_contract_approval_step_id);

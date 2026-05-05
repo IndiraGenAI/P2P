@@ -1,8 +1,10 @@
 import type { IMetaProps } from '@/components/Pagination/Pagination.model';
+import type { PurchaseRequestApprovalDecision } from '@/commons/enum';
 
 export type PurchaseRequestStatus =
   | 'DRAFT'
   | 'SUBMITTED'
+  | 'PENDING'
   | 'APPROVED'
   | 'REJECTED'
   | 'CANCELLED'
@@ -165,6 +167,6 @@ export interface IPurchaseRequestItemPayload {
 }
 
 export interface IPurchaseRequestApprovalDecisionPayload {
-  decision: 'APPROVE' | 'REJECT';
+  decision: PurchaseRequestApprovalDecision;
   remarks?: string | null;
 }

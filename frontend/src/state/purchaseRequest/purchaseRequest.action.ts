@@ -1,5 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { PurchaseRequestApprovalDecision } from '@/commons/enum';
 import purchaseRequestService from '@/services/purchaseRequest/purchaseRequest.service';
 import type {
   IPurchaseRequestPayload,
@@ -70,7 +71,7 @@ export const submitPurchaseRequestApprovalDecision = createAsyncThunk(
   async (
     data: {
       id: number;
-      decision: 'APPROVE' | 'REJECT';
+      decision: PurchaseRequestApprovalDecision;
       remarks?: string | null;
     },
     { rejectWithValue },

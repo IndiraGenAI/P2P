@@ -6,6 +6,7 @@ export enum StoragePath {
   PROFILE_IMAGES = 'ProfileImages',
   VENDOR_DOCUMENTS = 'VendorDocuments',
   PURCHASE_REQUEST_DOCUMENTS = 'PurchaseRequestDocuments',
+  RATE_CONTRACT_DOCUMENTS = 'RateContractDocuments',
 }
 
 export const ActionType = {

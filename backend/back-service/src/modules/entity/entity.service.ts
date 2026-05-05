@@ -83,6 +83,8 @@ export class EntityService {
       'entity.id',
       'entity.name',
       'entity.code',
+      'entity.shipping_addresses',
+      'entity.billing_addresses',
       'entity.status',
       'entity.created_date',
       'entity.updated_date',
