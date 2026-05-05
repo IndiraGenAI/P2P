@@ -7,10 +7,17 @@ export enum GenderType {
 export enum PrStatus {
   DRAFT = 'DRAFT',
   SUBMITTED = 'SUBMITTED',
+  PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED',
   CLOSED = 'CLOSED',
+}
+
+export enum PurchaseRequestApprovalStepStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
 }
 
 export enum PurchaseRequestApprovalDecision {

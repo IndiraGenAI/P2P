@@ -27,6 +27,7 @@ import { PURCHASE_REQUEST_CONSTANTS } from 'src/commons/constant';
 import {
   PrStatus,
   PurchaseRequestApprovalDecision,
+  PurchaseRequestApprovalStepStatus,
 } from 'src/commons/enum';
 import { CreatePurchaseRequestDto } from './dto/create-purchase-request.dto';
 import {
@@ -49,16 +50,16 @@ import {
   PurchaseRequestApprovalTrailDto,
   PurchaseRequestListResponse,
 } from './dto/purchase-request-approval-view.dto';
-import { PurchaseRequestRepository } from './repository/purchase-request.repository';
-import { PurchaseRequestDocumentRepository } from './repository/purchase-request-document.repository';
-import { PurchaseRequestItemRepository } from './repository/purchase-request-item.repository';
+import { purchaseRequestRepository } from './repository/purchase-request.repository';
+import { purchaseRequestDocumentRepository } from './repository/purchase-request-document.repository';
+import { purchaseRequestItemRepository } from './repository/purchase-request-item.repository';
 
 @Injectable()
 export class PurchaseRequestService {
   private async assertPurchaseRequestExists(
     purchaseRequestId: number,
   ): Promise<PurchaseRequest> {
-    const existingPurchaseRequest = await PurchaseRequestRepository.findOne({
+    const existingPurchaseRequest = await purchaseRequestRepository.findOne({
       where: { id: purchaseRequestId },
     });
     if (!existingPurchaseRequest) {
@@ -74,7 +75,7 @@ export class PurchaseRequestService {
   ): Promise<string> {
     const repository = manager
       ? manager.getRepository(PurchaseRequest)
-      : PurchaseRequestRepository;
+      : purchaseRequestRepository;
 
     const lastRecord = await repository
       .createQueryBuilder('purchaseRequest')
@@ -161,7 +162,12 @@ export class PurchaseRequestService {
     nextStatus: string,
   ): Promise<void> {
     const upper = nextStatus.toUpperCase();
-    if (upper !== 'APPROVED' && upper !== 'REJECTED') return;
+    if (
+      upper !== PrStatus.APPROVED &&
+      upper !== PrStatus.REJECTED
+    ) {
+      return;
+    }
     const n = await dataSource.getRepository(PurchaseRequestApprovalStep).count(
       { where: { purchase_request_id: purchaseRequestId } },
     );
@@ -309,7 +315,7 @@ export class PurchaseRequestService {
           sequence_order: seq++,
           approval_workflow_step_id: wfStep.id,
           step_role: wfStep.step_role,
-          status: 'PENDING',
+          status: PurchaseRequestApprovalStepStatus.PENDING,
           acted_by_user_id: null,
           acted_at: null,
           remarks: null,
@@ -416,7 +422,7 @@ export class PurchaseRequestService {
             sequence_order AS seq,
             step_role AS role
           FROM step_rows
-          WHERE status = 'PENDING'
+          WHERE status = '${PurchaseRequestApprovalStepStatus.PENDING}'
           ORDER BY purchase_request_id, sequence_order ASC
         ),
         rejected AS (
@@ -424,7 +430,7 @@ export class PurchaseRequestService {
             purchase_request_id,
             sequence_order AS rej_seq
           FROM step_rows
-          WHERE status = 'REJECTED'
+          WHERE status = '${PurchaseRequestApprovalStepStatus.REJECTED}'
           ORDER BY purchase_request_id, sequence_order ASC
         ),
         agg AS (
@@ -538,9 +544,12 @@ export class PurchaseRequestService {
         createDto.net_amount ?? this.sumItemsAmount(itemsWithComputedAmount);
 
       const statusUpper = this.normalizePrStatus(
-        createDto.status ?? 'SUBMITTED',
+        createDto.status ?? PrStatus.SUBMITTED,
       );
-      if (statusUpper !== 'DRAFT' && statusUpper !== 'SUBMITTED') {
+      if (
+        statusUpper !== PrStatus.DRAFT &&
+        statusUpper !== PrStatus.SUBMITTED
+      ) {
         throw new BadRequestException(
           'Purchase request status must be DRAFT or SUBMITTED when creating.',
         );
@@ -570,7 +579,10 @@ export class PurchaseRequestService {
         remarks: createDto.remarks ?? null,
         overall_summary: createDto.overall_summary ?? null,
         net_amount: this.toMoney(computedNetAmount),
-        status: statusUpper === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
+        status:
+          statusUpper === PrStatus.DRAFT
+            ? PrStatus.DRAFT
+            : PrStatus.SUBMITTED,
         created_by: userEmailId ?? createDto.created_by ?? null,
         created_date: new Date(),
         updated_by: userEmailId ?? createDto.created_by ?? null,
@@ -628,7 +640,7 @@ export class PurchaseRequestService {
       order,
     } = filter;
 
-    const purchaseRequestQueryBuilder = PurchaseRequestRepository.createQueryBuilder(
+    const purchaseRequestQueryBuilder = purchaseRequestRepository.createQueryBuilder(
       'purchaseRequest',
     )
       .leftJoin('purchaseRequest.vendor', 'vendor')
@@ -694,10 +706,12 @@ export class PurchaseRequestService {
     }
     if (status) {
       const u = String(status).toUpperCase();
-      if (u === 'SUBMITTED' || u === 'PENDING') {
+      if (u === PrStatus.SUBMITTED || u === PrStatus.PENDING) {
         purchaseRequestQueryBuilder.andWhere(
           'purchaseRequest.status IN (:...pendingStatuses)',
-          { pendingStatuses: ['SUBMITTED', 'PENDING'] },
+          {
+            pendingStatuses: [PrStatus.SUBMITTED, PrStatus.PENDING],
+          },
         );
       } else {
         purchaseRequestQueryBuilder.andWhere(
@@ -781,7 +795,7 @@ export class PurchaseRequestService {
     REJECTED: number;
   }> {
     const rows: { status: string | null; count: string }[] =
-      await PurchaseRequestRepository.createQueryBuilder('purchaseRequest')
+      await purchaseRequestRepository.createQueryBuilder('purchaseRequest')
         .select('purchaseRequest.status', 'status')
         .addSelect('COUNT(*)', 'count')
         .groupBy('purchaseRequest.status')
@@ -796,9 +810,13 @@ export class PurchaseRequestService {
       const raw = (row.status ?? '').toUpperCase();
       const value = Number(row.count) || 0;
       all += value;
-      if (raw === 'SUBMITTED' || raw === 'PENDING') pending += value;
-      else if (raw === 'APPROVED') approved += value;
-      else if (raw === 'REJECTED') rejected += value;
+      if (raw === PrStatus.SUBMITTED || raw === PrStatus.PENDING) {
+        pending += value;
+      } else if (raw === PrStatus.APPROVED) {
+        approved += value;
+      } else if (raw === PrStatus.REJECTED) {
+        rejected += value;
+      }
     }
 
     return { ALL: all, PENDING: pending, APPROVED: approved, REJECTED: rejected };
@@ -811,7 +829,7 @@ export class PurchaseRequestService {
       approval_steps: PurchaseRequestApprovalStepView[];
     }
   > {
-    const purchaseRequest = await PurchaseRequestRepository.findOne({
+    const purchaseRequest = await purchaseRequestRepository.findOne({
       where: { id: purchaseRequestId },
       relations: {
         vendor: true,
@@ -831,12 +849,12 @@ export class PurchaseRequestService {
     }
 
     const [items, documents] = await Promise.all([
-      PurchaseRequestItemRepository.find({
+      purchaseRequestItemRepository.find({
         where: { purchase_request_id: purchaseRequestId },
         relations: { item: true },
         order: { id: 'ASC' },
       }),
-      PurchaseRequestDocumentRepository.find({
+      purchaseRequestDocumentRepository.find({
         where: { purchase_request_id: purchaseRequestId },
         order: { id: 'ASC' },
       }),
@@ -862,7 +880,7 @@ export class PurchaseRequestService {
   async findOneApprovalTrail(
     purchaseRequestId: number,
   ): Promise<PurchaseRequestApprovalTrailDto> {
-    const purchaseRequest = await PurchaseRequestRepository.findOne({
+    const purchaseRequest = await purchaseRequestRepository.findOne({
       where: { id: purchaseRequestId },
       select: { id: true, status: true },
     });
@@ -1090,7 +1108,7 @@ export class PurchaseRequestService {
       );
       if (
         this.submissionStatusRequiresWorkflow(effectiveStatusUpper) &&
-        previousStatusUpper === 'DRAFT'
+        previousStatusUpper === PrStatus.DRAFT
       ) {
         const existingSteps = await manager.count(
           PurchaseRequestApprovalStep,
@@ -1147,7 +1165,7 @@ export class PurchaseRequestService {
 
       if (
         this.submissionStatusRequiresWorkflow(nextStatusUpper) &&
-        previousStatusUpper === 'DRAFT'
+        previousStatusUpper === PrStatus.DRAFT
       ) {
         const existingSteps = await manager.count(
           PurchaseRequestApprovalStep,
@@ -1189,7 +1207,7 @@ export class PurchaseRequestService {
       }
 
       const prStatus = this.normalizePrStatus(pr.status);
-      if (prStatus !== 'SUBMITTED') {
+      if (prStatus !== PrStatus.SUBMITTED) {
         throw new BadRequestException(
           'This purchase request is not awaiting approval.',
         );
@@ -1199,7 +1217,7 @@ export class PurchaseRequestService {
       const pendingStep = await stepRepo.findOne({
         where: {
           purchase_request_id: purchaseRequestId,
-          status: 'PENDING',
+          status: PurchaseRequestApprovalStepStatus.PENDING,
         },
         order: { sequence_order: 'ASC' },
         relations: { assignees: true },
@@ -1222,20 +1240,20 @@ export class PurchaseRequestService {
       const remarks = dto.remarks ?? null;
 
       if (dto.decision === PurchaseRequestApprovalDecision.REJECT) {
-        pendingStep.status = 'REJECTED';
+        pendingStep.status = PurchaseRequestApprovalStepStatus.REJECTED;
         pendingStep.acted_by_user_id = actingUserId;
         pendingStep.acted_at = now;
         pendingStep.remarks = remarks;
         await stepRepo.save(pendingStep);
 
-        pr.status = 'REJECTED';
+        pr.status = PrStatus.REJECTED;
         pr.updated_by = userEmailId;
         pr.updated_date = now;
         await prRepo.save(pr);
         return;
       }
 
-      pendingStep.status = 'APPROVED';
+      pendingStep.status = PurchaseRequestApprovalStepStatus.APPROVED;
       pendingStep.acted_by_user_id = actingUserId;
       pendingStep.acted_at = now;
       pendingStep.remarks = remarks;
@@ -1244,11 +1262,11 @@ export class PurchaseRequestService {
       const stillPending = await stepRepo.count({
         where: {
           purchase_request_id: purchaseRequestId,
-          status: 'PENDING',
+          status: PurchaseRequestApprovalStepStatus.PENDING,
         },
       });
       if (stillPending === 0) {
-        pr.status = 'APPROVED';
+        pr.status = PrStatus.APPROVED;
         pr.updated_by = userEmailId;
         pr.updated_date = now;
         await prRepo.save(pr);
@@ -1259,7 +1277,7 @@ export class PurchaseRequestService {
   }
 
   async remove(purchaseRequestId: number): Promise<DeleteResult> {
-    const result = await PurchaseRequestRepository.delete({
+    const result = await purchaseRequestRepository.delete({
       id: purchaseRequestId,
     });
     if (result?.affected && result.affected > 0) return result;
@@ -1275,7 +1293,7 @@ export class PurchaseRequestService {
   ): Promise<PurchaseRequestItem> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
     const computedAmount = this.computeItemAmount(createItemDto);
-    const newItem = PurchaseRequestItemRepository.create({
+    const newItem = purchaseRequestItemRepository.create({
       purchase_request_id: purchaseRequestId,
       item_id: createItemDto.item_id ?? null,
       description: createItemDto.description ?? null,
@@ -1288,7 +1306,7 @@ export class PurchaseRequestService {
       updated_by: userEmailId ?? null,
       updated_date: new Date(),
     });
-    const savedItem = await PurchaseRequestItemRepository.save(newItem);
+    const savedItem = await purchaseRequestItemRepository.save(newItem);
     await this.recomputeNetAmount(purchaseRequestId);
     return savedItem;
   }
@@ -1300,7 +1318,7 @@ export class PurchaseRequestService {
     userEmailId: string | null,
   ): Promise<PurchaseRequestItem> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    const existingItem = await PurchaseRequestItemRepository.findOne({
+    const existingItem = await purchaseRequestItemRepository.findOne({
       where: { id: itemId, purchase_request_id: purchaseRequestId },
     });
     if (!existingItem) {
@@ -1348,7 +1366,7 @@ export class PurchaseRequestService {
       existingItem.estimated_rate,
     );
 
-    const savedItem = await PurchaseRequestItemRepository.save(existingItem);
+    const savedItem = await purchaseRequestItemRepository.save(existingItem);
     await this.recomputeNetAmount(purchaseRequestId);
     return savedItem;
   }
@@ -1358,7 +1376,7 @@ export class PurchaseRequestService {
     itemId: number,
   ): Promise<DeleteResult> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    const result = await PurchaseRequestItemRepository.delete({
+    const result = await purchaseRequestItemRepository.delete({
       id: itemId,
       purchase_request_id: purchaseRequestId,
     });
@@ -1374,14 +1392,14 @@ export class PurchaseRequestService {
   private async recomputeNetAmount(
     purchaseRequestId: number,
   ): Promise<void> {
-    const items = await PurchaseRequestItemRepository.find({
+    const items = await purchaseRequestItemRepository.find({
       where: { purchase_request_id: purchaseRequestId },
     });
     const totalAmount = items.reduce(
       (accumulator, item) => accumulator + Number(item.amount ?? 0),
       0,
     );
-    await PurchaseRequestRepository.update(purchaseRequestId, {
+    await purchaseRequestRepository.update(purchaseRequestId, {
       net_amount: this.toMoney(totalAmount),
       updated_date: new Date(),
     });
@@ -1391,7 +1409,7 @@ export class PurchaseRequestService {
     purchaseRequestId: number,
   ): Promise<PurchaseRequestDocument[]> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    return PurchaseRequestDocumentRepository.find({
+    return purchaseRequestDocumentRepository.find({
       where: { purchase_request_id: purchaseRequestId },
       order: { id: 'ASC' },
     });
@@ -1403,7 +1421,7 @@ export class PurchaseRequestService {
     userEmailId: string | null,
   ): Promise<PurchaseRequestDocument> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    const newDocument = PurchaseRequestDocumentRepository.create({
+    const newDocument = purchaseRequestDocumentRepository.create({
       purchase_request_id: purchaseRequestId,
       file_name: createDocumentDto.file_name,
       file_path: createDocumentDto.file_path,
@@ -1416,7 +1434,7 @@ export class PurchaseRequestService {
       uploaded_by: userEmailId ?? null,
       uploaded_date: new Date(),
     });
-    return PurchaseRequestDocumentRepository.save(newDocument);
+    return purchaseRequestDocumentRepository.save(newDocument);
   }
 
   async updateDocument(
@@ -1425,7 +1443,7 @@ export class PurchaseRequestService {
     updateDocumentDto: UpdatePurchaseRequestDocumentDto,
   ): Promise<PurchaseRequestDocument> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    const existingDocument = await PurchaseRequestDocumentRepository.findOne({
+    const existingDocument = await purchaseRequestDocumentRepository.findOne({
       where: {
         id: documentId,
         purchase_request_id: purchaseRequestId,
@@ -1451,7 +1469,7 @@ export class PurchaseRequestService {
           ? null
           : String(updateDocumentDto.file_size);
     }
-    return PurchaseRequestDocumentRepository.save(existingDocument);
+    return purchaseRequestDocumentRepository.save(existingDocument);
   }
 
   async removeDocument(
@@ -1459,7 +1477,7 @@ export class PurchaseRequestService {
     documentId: number,
   ): Promise<DeleteResult> {
     await this.assertPurchaseRequestExists(purchaseRequestId);
-    const result = await PurchaseRequestDocumentRepository.delete({
+    const result = await purchaseRequestDocumentRepository.delete({
       id: documentId,
       purchase_request_id: purchaseRequestId,
     });

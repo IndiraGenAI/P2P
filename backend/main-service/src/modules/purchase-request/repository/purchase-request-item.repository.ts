@@ -1,6 +1,6 @@
 import { dataSource } from '@core/data-source';
 import { PurchaseRequestItem } from 'erp-db';
 
-export const PurchaseRequestItemRepository = dataSource
+export const purchaseRequestItemRepository = dataSource
   .getRepository(PurchaseRequestItem)
   .extend({});
