@@ -44,12 +44,13 @@ import subdepartmentService from '@/services/subdepartment/subdepartment.service
 import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import type { SelectOption } from '@/common/models';
-import purchaseRequestService, {
-  type IPurchaseRequestApprovalProgress,
-  type IPurchaseRequestApprovalStepRow,
-  type IPurchaseRequestStatusCounts,
-  type PurchaseRequestStatus,
-} from '@/services/purchaseRequest/purchaseRequest.service';
+import purchaseRequestService from '@/services/purchaseRequest/purchaseRequest.service';
+import type {
+  IPurchaseRequestApprovalProgress,
+  IPurchaseRequestApprovalStepRow,
+  IPurchaseRequestStatusCounts,
+  PurchaseRequestStatus,
+} from '@/services/purchaseRequest/purchaseRequest.model';
 import {
   buildRecordFromRow,
   type IPurchaseRequestRecord,

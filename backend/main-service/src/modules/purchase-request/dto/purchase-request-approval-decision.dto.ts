@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { PurchaseRequestApprovalDecision } from 'src/commons/enum';
 
 export class PurchaseRequestApprovalDecisionDto {
-  @ApiProperty({ enum: ['APPROVE', 'REJECT'] })
-  @IsIn(['APPROVE', 'REJECT'])
-  decision!: 'APPROVE' | 'REJECT';
+  @ApiProperty({ enum: PurchaseRequestApprovalDecision })
+  @IsEnum(PurchaseRequestApprovalDecision)
+  decision!: PurchaseRequestApprovalDecision;
 
   @ApiPropertyOptional()
   @IsOptional()

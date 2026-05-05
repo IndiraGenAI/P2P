@@ -38,7 +38,6 @@ import { PurchaseRequestService } from './purchase-request.service';
 export class PurchaseRequestController {
   constructor(private readonly service: PurchaseRequestService) {}
 
-  // ---------- header CRUD ----------
   @Role('PROCUREMENT_PURCHASE_REQUEST_CREATE')
   @Post()
   async create(
@@ -82,7 +81,6 @@ export class PurchaseRequestController {
     );
   }
 
-  /** Selected fields only: `id`, `status`, `approval_steps` (for list workflow popover). */
   @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id/approval-trail')
   async findOneApprovalTrail(
@@ -184,7 +182,6 @@ export class PurchaseRequestController {
     );
   }
 
-  // ---------- item endpoints ----------
   @Role('PROCUREMENT_PURCHASE_REQUEST_UPDATE')
   @Post(':id/items')
   async addItem(
@@ -241,7 +238,6 @@ export class PurchaseRequestController {
     );
   }
 
-  // ---------- document endpoints ----------
   @Role('PROCUREMENT_PURCHASE_REQUEST_VIEW')
   @Get(':id/documents')
   async listDocuments(

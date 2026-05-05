@@ -23,6 +23,11 @@ import { DeleteResult, EntityManager, In, IsNull } from 'typeorm';
 import { PageDto } from 'src/general-dto/page.dto';
 import { PageMetaDto } from 'src/general-dto/pagemeta.dto';
 import { PageOptionsDto } from 'src/general-dto/page-option.dto';
+import { PURCHASE_REQUEST_CONSTANTS } from 'src/commons/constant';
+import {
+  PrStatus,
+  PurchaseRequestApprovalDecision,
+} from 'src/commons/enum';
 import { CreatePurchaseRequestDto } from './dto/create-purchase-request.dto';
 import {
   CreatePurchaseRequestDocumentDto,
@@ -36,78 +41,20 @@ import {
 import { UpdatePurchaseRequestDto } from './dto/update-purchase-request.dto';
 import { PurchaseRequestApprovalDecisionDto } from './dto/purchase-request-approval-decision.dto';
 import { UpdatePurchaseRequestStatusDto } from './dto/update-status.dto';
+import {
+  PurchaseRequestApprovalActorView,
+  PurchaseRequestApprovalListProgress,
+  PurchaseRequestApprovalListStep,
+  PurchaseRequestApprovalStepView,
+  PurchaseRequestApprovalTrailDto,
+  PurchaseRequestListResponse,
+} from './dto/purchase-request-approval-view.dto';
 import { PurchaseRequestRepository } from './repository/purchase-request.repository';
 import { PurchaseRequestDocumentRepository } from './repository/purchase-request-document.repository';
 import { PurchaseRequestItemRepository } from './repository/purchase-request-item.repository';
 
-interface PurchaseRequestListResponse {
-  rows: Array<
-    PurchaseRequest & { approval_progress: PurchaseRequestApprovalListProgress | null }
-  >;
-  count: number;
-}
-
-/** One row in the list API `approval_progress.steps` trail. */
-export interface PurchaseRequestApprovalListStep {
-  sequence_order: number;
-  step_role: string;
-  status: string;
-}
-
-/** Snapshot for list/grid: current pending step, totals, and ordered steps. */
-export interface PurchaseRequestApprovalListProgress {
-  total_steps: number;
-  /** Lowest `sequence_order` among steps still `PENDING` (active step). */
-  current_step: number | null;
-  current_role: string | null;
-  /** Lowest `sequence_order` among `REJECTED` steps (if any). */
-  rejected_at_step: number | null;
-  steps: PurchaseRequestApprovalListStep[];
-}
-
-export interface PurchaseRequestApprovalActorView {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-}
-
-export interface PurchaseRequestApprovalAssigneeView {
-  id: number;
-  user_id: number;
-  user: PurchaseRequestApprovalActorView;
-}
-
-export interface PurchaseRequestApprovalStepView {
-  id: number;
-  purchase_request_id: number;
-  sequence_order: number;
-  approval_workflow_step_id: number | null;
-  step_role: string;
-  status: string;
-  acted_by_user_id: number | null;
-  acted_at: Date | null;
-  remarks: string | null;
-  assignees: PurchaseRequestApprovalAssigneeView[];
-  acted_by_user: PurchaseRequestApprovalActorView | null;
-}
-
-/** Slim payload for list workflow popover — avoids loading full PR + items + documents. */
-export interface PurchaseRequestApprovalTrailDto {
-  id: number;
-  status: string;
-  approval_steps: PurchaseRequestApprovalStepView[];
-}
-
-const PURCHASE_REQUEST_NUMBER_PREFIX = 'PR-';
-const PURCHASE_REQUEST_NUMBER_PAD = 4;
-
-const NO_APPROVAL_WORKFLOW_MESSAGE =
-  'No approval workflow configured for the selected criteria.';
-
 @Injectable()
 export class PurchaseRequestService {
-  // ---------- helpers ----------
   private async assertPurchaseRequestExists(
     purchaseRequestId: number,
   ): Promise<PurchaseRequest> {
@@ -145,8 +92,8 @@ export class PurchaseRequestService {
       const numberPart = parseInt(lastRecord.pr_number.replace(/\D/g, ''), 10);
       if (!Number.isNaN(numberPart)) nextNumber = numberPart + 1;
     }
-    return `${PURCHASE_REQUEST_NUMBER_PREFIX}${String(nextNumber).padStart(
-      PURCHASE_REQUEST_NUMBER_PAD,
+    return `${PURCHASE_REQUEST_CONSTANTS.NUMBER_PREFIX}${String(nextNumber).padStart(
+      PURCHASE_REQUEST_CONSTANTS.NUMBER_PAD,
       '0',
     )}`;
   }
@@ -177,7 +124,6 @@ export class PurchaseRequestService {
     );
   }
 
-  /** Item, quantity & rate required on every line (matches PR Add form rules). */
   private assertValidPrLineItem(
     label: string,
     item_id: number | string | null | undefined,
@@ -207,7 +153,7 @@ export class PurchaseRequestService {
   private submissionStatusRequiresWorkflow(
     status: string | null | undefined,
   ): boolean {
-    return this.normalizePrStatus(status) === 'SUBMITTED';
+    return this.normalizePrStatus(status) === PrStatus.SUBMITTED;
   }
 
   private async assertDirectApproveRejectNotUsed(
@@ -288,7 +234,6 @@ export class PurchaseRequestService {
     return null;
   }
 
-  /** All reviewer steps (by sort order), then all approver steps (by sort order). */
   private buildOrderedWorkflowSteps(
     tier: ApprovalWorkflowTier,
   ): ApprovalWorkflowStep[] {
@@ -328,17 +273,23 @@ export class PurchaseRequestService {
     });
 
     if (!workflow) {
-      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+      throw new BadRequestException(
+        PURCHASE_REQUEST_CONSTANTS.NO_APPROVAL_WORKFLOW_MESSAGE,
+      );
     }
 
     const tier = this.pickApprovalTierForAmount(workflow, netAmount);
     if (!tier) {
-      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+      throw new BadRequestException(
+        PURCHASE_REQUEST_CONSTANTS.NO_APPROVAL_WORKFLOW_MESSAGE,
+      );
     }
 
     const ordered = this.buildOrderedWorkflowSteps(tier);
     if (!ordered.length) {
-      throw new BadRequestException(NO_APPROVAL_WORKFLOW_MESSAGE);
+      throw new BadRequestException(
+        PURCHASE_REQUEST_CONSTANTS.NO_APPROVAL_WORKFLOW_MESSAGE,
+      );
     }
 
     const stepRepo = manager.getRepository(PurchaseRequestApprovalStep);
@@ -509,7 +460,6 @@ export class PurchaseRequestService {
         });
       }
     } catch {
-      /* missing tables or DB error — list still works without progress */
     }
     return map;
   }
@@ -552,9 +502,6 @@ export class PurchaseRequestService {
     >;
   }
 
-  // =====================================================================
-  // PURCHASE REQUEST (header + items)
-  // =====================================================================
   async create(
     createDto: CreatePurchaseRequestDto,
     userEmailId: string | null,
@@ -1029,7 +976,6 @@ export class PurchaseRequestService {
       assignIfDefined('overall_summary', updateDto.overall_summary ?? null);
       assignIfDefined('status', updateDto.status);
 
-      // Items: full replace if provided
       if (updateDto.items) {
         const incomingItemIds = updateDto.items
           .map((item) => item.id)
@@ -1116,7 +1062,6 @@ export class PurchaseRequestService {
           await purchaseRequestItemRepository.save(itemsToUpsert);
         }
 
-        // recompute net_amount unless explicitly provided
         if (updateDto.net_amount === undefined) {
           const totalAmount = itemsToUpsert.reduce(
             (accumulator, item) => accumulator + Number(item.amount ?? 0),
@@ -1276,7 +1221,7 @@ export class PurchaseRequestService {
       const now = new Date();
       const remarks = dto.remarks ?? null;
 
-      if (dto.decision === 'REJECT') {
+      if (dto.decision === PurchaseRequestApprovalDecision.REJECT) {
         pendingStep.status = 'REJECTED';
         pendingStep.acted_by_user_id = actingUserId;
         pendingStep.acted_at = now;
@@ -1323,9 +1268,6 @@ export class PurchaseRequestService {
     );
   }
 
-  // =====================================================================
-  // ITEMS (single-item endpoints)
-  // =====================================================================
   async addItem(
     purchaseRequestId: number,
     createItemDto: CreatePurchaseRequestItemDto,
@@ -1445,9 +1387,6 @@ export class PurchaseRequestService {
     });
   }
 
-  // =====================================================================
-  // DOCUMENTS
-  // =====================================================================
   async listDocuments(
     purchaseRequestId: number,
   ): Promise<PurchaseRequestDocument[]> {

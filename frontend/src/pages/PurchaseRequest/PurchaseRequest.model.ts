@@ -3,7 +3,7 @@ import type {
   IPurchaseRequestItemPayload,
   IPurchaseRequestRow,
   PurchaseRequestStatus,
-} from '@/services/purchaseRequest/purchaseRequest.service';
+} from '@/services/purchaseRequest/purchaseRequest.model';
 
 export interface IPurchaseRequestRecord {
   id: number;

@@ -2,7 +2,7 @@ import type { IMetaProps } from '@/components/Pagination/Pagination.model';
 import type {
   IPurchaseRequestRow,
   PurchaseRequestStatus,
-} from '@/services/purchaseRequest/purchaseRequest.service';
+} from '@/services/purchaseRequest/purchaseRequest.model';
 
 export type {
   IPurchaseRequestRow,
@@ -11,7 +11,7 @@ export type {
   IPurchaseRequestPayload,
   IPurchaseRequestItemPayload,
   PurchaseRequestStatus,
-} from '@/services/purchaseRequest/purchaseRequest.service';
+} from '@/services/purchaseRequest/purchaseRequest.model';
 
 export interface IPurchaseRequestListData {
   rows: IPurchaseRequestRow[];

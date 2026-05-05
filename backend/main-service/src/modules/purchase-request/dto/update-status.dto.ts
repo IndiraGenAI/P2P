@@ -1,23 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsString, MaxLength } from 'class-validator';
-
-export const PR_STATUSES = [
-  'DRAFT',
-  'SUBMITTED',
-  'APPROVED',
-  'REJECTED',
-  'CANCELLED',
-  'CLOSED',
-] as const;
-
-export type PrStatus = (typeof PR_STATUSES)[number];
+import { IsEnum, IsNotEmpty, MaxLength } from 'class-validator';
+import { PrStatus } from 'src/commons/enum';
 
 export class UpdatePurchaseRequestStatusDto {
-  @ApiProperty({ enum: PR_STATUSES, example: 'SUBMITTED' })
+  @ApiProperty({ enum: PrStatus, example: PrStatus.SUBMITTED })
   @IsNotEmpty()
-  @IsString()
   @MaxLength(50)
-  @IsIn(PR_STATUSES as unknown as string[])
+  @IsEnum(PrStatus)
   status: PrStatus;
 
   updated_by?: string | null;
