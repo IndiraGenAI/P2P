@@ -1,7 +1,13 @@
 import type { MenuItem } from '@/common/models';
 import type { AppAbility } from '@/ability';
 
-
+/** Respects `item.end` so `/rate-contract` does not match `/rate-contract/grn`. */
+export function menuPathMatches(item: MenuItem, pathname: string): boolean {
+  if (!item.to) return false;
+  if (pathname === item.to) return true;
+  if (item.end === true) return false;
+  return pathname.startsWith(item.to + '/');
+}
 
 export function canShowMenuItem(
   item: MenuItem,

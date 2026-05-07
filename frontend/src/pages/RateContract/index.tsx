@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Form, Input, message, Popover } from 'antd';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Form, Input, message, Popover, Tooltip } from 'antd';
 import { Eye, Filter, ListChecks, Loader2, Plus, ShoppingCart } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { FormModal } from '@/components/ui/FormModal';
@@ -109,7 +109,7 @@ const formatMoney = (value: unknown): string => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-  return `${CURRENCY_SYMBOL} ${formatted}`;
+  return `${CURRENCY_SYMBOL}${formatted}`;
 };
 
 const formatDate = (value: unknown): string => {
@@ -525,6 +525,7 @@ function useRateContractFkOptions() {
 const RateContractPage = () => {
   const fk = useRateContractFkOptions();
   const auth = useAppSelector(authSelector);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterForm] = Form.useForm();
 
@@ -716,6 +717,9 @@ const RateContractPage = () => {
       myUserId,
       myEmail,
     );
+
+  const rcApprovedForGrn =
+    String(viewRecord?.status ?? '').toUpperCase() === RcStatus.APPROVED;
 
   const submitRcApprovalDecision = async (
     decision: PurchaseRequestApprovalDecision,
@@ -1243,7 +1247,37 @@ const RateContractPage = () => {
             : 'View contract details'
         }
         footer={
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
+            <Can
+              I={Common.Actions.CAN_ADD}
+              a={Common.Modules.PROCUREMENT.GRN}
+            >
+              {!rcApprovedForGrn ? (
+                <Tooltip title="Create GRN is available only after the rate contract is approved.">
+                  <span className="inline-block">
+                    <button
+                      type="button"
+                      disabled
+                      className="px-4 py-2 rounded-xl text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed border border-gray-200"
+                    >
+                      Create GRN
+                    </button>
+                  </span>
+                </Tooltip>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!viewRecord?.id) return;
+                    navigate(`/rate-contract/grn?rcId=${viewRecord.id}`);
+                    closeViewModal();
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition"
+                >
+                  Create GRN
+                </button>
+              )}
+            </Can>
             <button
               type="button"
               onClick={closeViewModal}

@@ -7,6 +7,8 @@ export interface MenuItem {
   label: string;
   icon: LucideIcon;
   to?: string;
+  /** When true, `NavLink` matches this route exactly (not prefix). */
+  end?: boolean;
   pageCode?: string;
   action?: string;
   children?: MenuItem[];

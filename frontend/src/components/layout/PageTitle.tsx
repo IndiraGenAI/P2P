@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
 import { APP_MENU_ITEMS } from '@/data';
 import type { MenuItem } from '@/common/models';
+import { menuPathMatches } from '@/common/utils';
 
 interface Crumb {
   label: string;
@@ -17,7 +18,7 @@ const HIDDEN_PREFIXES = ['/permissions'];
 function findTrail(items: MenuItem[], pathname: string, trail: MenuItem[] = []): MenuItem[] | null {
   for (const item of items) {
     const next = [...trail, item];
-    if (item.to && (item.to === pathname || pathname.startsWith(item.to + '/'))) {
+    if (item.to && menuPathMatches(item, pathname)) {
       return next;
     }
     if (item.children?.length) {

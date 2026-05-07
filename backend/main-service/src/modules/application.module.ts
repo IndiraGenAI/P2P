@@ -1,6 +1,8 @@
 import { AuthModule } from './auth/auth.module';
 import { PurchaseRequestModule } from './purchase-request/purchase-request.module';
 import { RateContractModule } from './rate-contract/rate-contract.module';
+import { GrnModule } from './grn/grn.module';
+import { GrnInvoiceModule } from './grn-invoice/grn-invoice.module';
 
 /**
  * Register your business modules here. `AuthModule` is included by default so
@@ -11,4 +13,6 @@ export const ApplicationModules = [
   AuthModule,
   PurchaseRequestModule,
   RateContractModule,
+  GrnModule,
+  GrnInvoiceModule,
 ];

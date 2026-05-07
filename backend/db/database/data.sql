@@ -63,8 +63,10 @@ SELECT v.page_code, v.name, parent.id, v.sequence FROM (
 
         ('PROCUREMENT_PURCHASE_REQUEST',   'Purchase Request',    'PROCUREMENT',        1),
         ('PROCUREMENT_RATE_CONTRACT',      'Rate Contract',       'PROCUREMENT',        2),
-        ('PROCUREMENT_PURCHASE_ORDER',     'Purchase Order',      'PROCUREMENT',        3),
-        ('PROCUREMENT_DIRECT_INVOICE',     'Direct Invoice',      'PROCUREMENT',        4),
+        ('PROCUREMENT_GRN',                'GRN',                 'PROCUREMENT',        3),
+        ('PROCUREMENT_GRN_INVOICE',        'GRN Invoice',         'PROCUREMENT',        4),
+        ('PROCUREMENT_PURCHASE_ORDER',     'Purchase Order',      'PROCUREMENT',        5),
+        ('PROCUREMENT_DIRECT_INVOICE',     'Direct Invoice',      'PROCUREMENT',        6),
 
         ('FINANCE_BUDGETS',                'Budgets',             'FINANCE',            1)
 ) AS v(page_code, name, parent_code, sequence)

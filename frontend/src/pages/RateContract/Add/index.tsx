@@ -24,6 +24,15 @@ const toDayjs = (value: string) => {
 const fromDayjs = (value: Dayjs | null) =>
   value?.isValid() ? value.format('YYYY-MM-DD') : '';
 
+/** New RC / GRN (no persisted header id): blank validity_from opens on today. */
+const initialValidityFrom = (data: IRateContractRecord | undefined): string => {
+  const v = data?.validity_from?.trim();
+  if (v) return v;
+  const id = data?.id;
+  if (id == null || id === 0) return dayjs().format('YYYY-MM-DD');
+  return '';
+};
+
 const SECTION_TITLE =
   'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
 const SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
@@ -158,7 +167,7 @@ const RateContractAdd = (props: IRateContractAddProps) => {
       })(),
       currency_id: data?.currency_id ? String(data.currency_id) : '',
       item_type_id: data?.item_type_id ? String(data.item_type_id) : '',
-      validity_from: data?.validity_from ?? '',
+      validity_from: initialValidityFrom(data),
       validity_to: data?.validity_to ?? '',
       required_date: data?.required_date ?? '',
       frequency: data?.frequency ?? '',

@@ -16,3 +16,17 @@ export const RATE_CONTRACT_CONSTANTS = {
   NO_APPROVAL_WORKFLOW_MESSAGE:
     'No approval workflow configured for the selected criteria.',
 } as const;
+
+export const GRN_CONSTANTS = {
+  NUMBER_PREFIX: 'GRN-',
+  NUMBER_PAD: 4,
+  NO_APPROVAL_WORKFLOW_MESSAGE:
+    'No approval workflow configured for the selected criteria.',
+} as const;
+
+export const GRN_INVOICE_CONSTANTS = {
+  NUMBER_PREFIX: 'INV-',
+  NUMBER_PAD: 4,
+  NO_APPROVAL_WORKFLOW_MESSAGE:
+    'No approval workflow configured for the selected criteria.',
+} as const;

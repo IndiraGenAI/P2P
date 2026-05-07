@@ -5,7 +5,7 @@ import { Logo } from '@/components/ui/Logo';
 import { APP_MENU_ITEMS } from '@/data';
 import { ability } from '@/ability';
 import { useSidebarPermissionCodes } from '@/contexts/SidebarPermissionCodeContext';
-import { filterMenuTree } from '@/common/utils';
+import { filterMenuTree, menuPathMatches } from '@/common/utils';
 import type { MenuItem } from '@/common/models';
 
 interface SidebarProps {
@@ -32,6 +32,7 @@ function SidebarLeaf({
   return (
     <NavLink
       to={item.to}
+      end={item.end === true}
       onClick={onNavigate}
       title={isSidebarOpen ? undefined : item.label}
       className={({ isActive }) =>
@@ -68,7 +69,7 @@ interface SidebarGroupProps {
 }
 
 function isAnyDescendantActive(item: MenuItem, pathname: string): boolean {
-  if (item.to && (pathname === item.to || pathname.startsWith(item.to + '/'))) {
+  if (item.to && menuPathMatches(item, pathname)) {
     return true;
   }
   return !!item.children?.some((c) => isAnyDescendantActive(c, pathname));

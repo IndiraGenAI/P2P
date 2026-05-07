@@ -459,7 +459,7 @@ const formatMoney = (value: unknown): string => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-  return `${CURRENCY_SYMBOL} ${formatted}`;
+  return `${CURRENCY_SYMBOL}${formatted}`;
 };
 
 const useFkOptions = () => {
