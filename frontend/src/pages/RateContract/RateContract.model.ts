@@ -7,6 +7,9 @@ import type {
 export interface IRateContractRecord {
   id: number;
   rc_number?: string | null;
+  /** Vendor / statutory invoice reference (distinct from system rc_number / grn_invoice_number). */
+  invoice_no?: string | null;
+  invoice_date?: string | null;
   entity_id?: number | null;
   vendor_id?: number | null;
   vendor_site_id?: number | null;
@@ -27,6 +30,17 @@ export interface IRateContractRecord {
   payment_term_id?: number | null;
   terms_condition_id?: number | null;
   overall_summary?: string | null;
+  /** GRN Invoice — Fusion / Oracle header */
+  oracle_invoice_group?: string | null;
+  oracle_invoice_source?: string | null;
+  oracle_invoice_type?: string | null;
+  /** Purchase Order form — emergency / unplanned spend */
+  unbudgeted_expense?: boolean | null;
+  unbudgeted_justification?: string | null;
+  advance_po?: boolean | null;
+  advance_percentage?: number | null;
+  /** Sum of line base amounts (header snapshot for PO / RC). */
+  total_base_amount?: number | null;
   status?: string;
   net_amount?: number;
   approval_steps?: IRateContractApprovalStepRow[];
@@ -38,7 +52,13 @@ export interface IRateContractRecord {
     quantity: number;
     rate: number;
     amount: number;
+    gst_id?: number | null;
+    gst_amount?: number;
+    tds_id?: number | null;
+    tds_amount?: number;
+    net_line_amount?: number;
     remarks: string;
+    coa_id?: number | null;
   }[];
 }
 
@@ -82,6 +102,15 @@ export const buildRecordFromRow = (
     quantity: Number(item.quantity ?? 0),
     rate: Number(item.rate ?? 0),
     amount: Number(item.base_amount ?? 0),
+    gst_id: (item as { gst_id?: number | null }).gst_id ?? null,
+    gst_amount: Number((item as { gst_amount?: unknown }).gst_amount ?? 0),
+    tds_id: (item as { tds_id?: number | null }).tds_id ?? null,
+    tds_amount: Number((item as { tds_amount?: unknown }).tds_amount ?? 0),
+    net_line_amount: Number(
+      (item as { net_line_amount?: unknown }).net_line_amount ??
+        item.base_amount ??
+        0,
+    ),
     remarks: item.remarks ?? '',
   })),
 });

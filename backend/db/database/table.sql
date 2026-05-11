@@ -729,6 +729,203 @@ CREATE INDEX IF NOT EXISTS idx_pr_documents_uploaded_date
 ON purchase_request_documents(uploaded_date);
 
 -- ---------------------------------------------------------------------------
+-- Purchase orders (mirror purchase_requests — same columns / workflow pattern)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id SERIAL PRIMARY KEY,
+
+    po_number VARCHAR(50) UNIQUE,
+
+    entity_id INTEGER,
+    vendor_id INTEGER,
+    vendor_site_id INTEGER,
+    item_type_id INTEGER,
+
+    validity_from DATE,
+    validity_to DATE,
+    required_date DATE,
+
+    frequency VARCHAR(50),
+
+    department_id INTEGER,
+    subdepartment_id INTEGER,
+    payment_term_id INTEGER,
+
+    terms_conditions TEXT,
+    center_id INTEGER,
+
+    shipping_vendor_site_id INTEGER,
+    billing_vendor_site_id INTEGER,
+    shipping_address TEXT,
+    billing_address TEXT,
+    currency_id INTEGER,
+    terms_condition_id INTEGER,
+
+    total_base_amount NUMERIC(12,2) DEFAULT 0,
+
+    oracle_invoice_group VARCHAR(255),
+    oracle_invoice_source VARCHAR(50),
+    oracle_invoice_type VARCHAR(50),
+
+    unbudgeted_expense BOOLEAN DEFAULT FALSE,
+    unbudgeted_justification TEXT,
+    advance_po BOOLEAN DEFAULT FALSE,
+    advance_percentage NUMERIC(7,2),
+
+    remarks TEXT,
+    overall_summary TEXT,
+
+    net_amount NUMERIC(12,2) DEFAULT 0,
+
+    status VARCHAR(50) DEFAULT 'DRAFT',
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_po_entity FOREIGN KEY (entity_id) REFERENCES entities(id),
+    CONSTRAINT fk_po_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id),
+    CONSTRAINT fk_po_vendor_site FOREIGN KEY (vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_po_item_type FOREIGN KEY (item_type_id) REFERENCES item_types(id),
+    CONSTRAINT fk_po_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_po_subdepartment FOREIGN KEY (subdepartment_id) REFERENCES subdepartments(id),
+    CONSTRAINT fk_po_payment_term FOREIGN KEY (payment_term_id) REFERENCES payment_terms(id),
+    CONSTRAINT fk_po_center FOREIGN KEY (center_id) REFERENCES centers(id),
+    CONSTRAINT fk_po_ship_site FOREIGN KEY (shipping_vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_po_bill_site FOREIGN KEY (billing_vendor_site_id) REFERENCES vendor_sites(id),
+    CONSTRAINT fk_po_currency FOREIGN KEY (currency_id) REFERENCES currencies(id),
+    CONSTRAINT fk_po_terms_lib FOREIGN KEY (terms_condition_id) REFERENCES terms_and_conditions(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id SERIAL PRIMARY KEY,
+
+    purchase_order_id INTEGER NOT NULL,
+
+    item_id INTEGER,
+    description TEXT,
+    quantity NUMERIC(12,2) NOT NULL DEFAULT 1,
+    estimated_rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+    amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    center_id INTEGER,
+    gst_id INTEGER,
+    gst_amount NUMERIC(12,2) DEFAULT 0,
+    net_line_amount NUMERIC(12,2) DEFAULT 0,
+    coa_id INTEGER,
+
+    remarks TEXT,
+
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_po_item_order
+        FOREIGN KEY (purchase_order_id)
+        REFERENCES purchase_orders(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_po_item
+        FOREIGN KEY (item_id)
+        REFERENCES items(id),
+
+    CONSTRAINT fk_po_item_center FOREIGN KEY (center_id) REFERENCES centers(id),
+    CONSTRAINT fk_po_item_gst FOREIGN KEY (gst_id) REFERENCES gst(id),
+    CONSTRAINT fk_po_item_coa FOREIGN KEY (coa_id) REFERENCES coa(id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order_documents (
+    id SERIAL PRIMARY KEY,
+
+    purchase_order_id INTEGER NOT NULL,
+
+    file_name VARCHAR(255),
+    file_path TEXT,
+    file_type VARCHAR(100),
+    file_size BIGINT,
+
+    uploaded_by VARCHAR(100),
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_po_document_order
+        FOREIGN KEY (purchase_order_id)
+        REFERENCES purchase_orders(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_po_entity_id
+ON purchase_orders(entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_vendor_id
+ON purchase_orders(vendor_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_vendor_site_id
+ON purchase_orders(vendor_site_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_item_type_id
+ON purchase_orders(item_type_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_department_id
+ON purchase_orders(department_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_subdepartment_id
+ON purchase_orders(subdepartment_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_payment_term_id
+ON purchase_orders(payment_term_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_center_id
+ON purchase_orders(center_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_shipping_vendor_site_id
+ON purchase_orders(shipping_vendor_site_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_billing_vendor_site_id
+ON purchase_orders(billing_vendor_site_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_currency_id
+ON purchase_orders(currency_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_terms_condition_id
+ON purchase_orders(terms_condition_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_status
+ON purchase_orders(status);
+
+CREATE INDEX IF NOT EXISTS idx_po_created_date
+ON purchase_orders(created_date);
+
+CREATE INDEX IF NOT EXISTS idx_po_required_date
+ON purchase_orders(required_date);
+
+CREATE INDEX IF NOT EXISTS idx_po_validity_from_to
+ON purchase_orders(validity_from, validity_to);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_purchase_order_id
+ON purchase_order_items(purchase_order_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_item_id
+ON purchase_order_items(item_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_center_id
+ON purchase_order_items(center_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_gst_id
+ON purchase_order_items(gst_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_coa_id
+ON purchase_order_items(coa_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_documents_purchase_order_id
+ON purchase_order_documents(purchase_order_id);
+
+CREATE INDEX IF NOT EXISTS idx_po_documents_uploaded_date
+ON purchase_order_documents(uploaded_date);
+
+-- ---------------------------------------------------------------------------
 -- Approval workflows (scoped by entity, transaction type, subdepartment, center)
 -- center_id NULL = applies to all centers (default).
 -- ---------------------------------------------------------------------------
@@ -891,6 +1088,65 @@ CREATE TABLE IF NOT EXISTS purchase_request_approval_assignee (
 
 CREATE INDEX IF NOT EXISTS idx_pr_approval_assignee_step
     ON purchase_request_approval_assignee (purchase_request_approval_step_id);
+
+-- ---------------------------------------------------------------------------
+-- Purchase order approval execution (mirror purchase_request_approval_*)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS purchase_order_approval_step (
+    id SERIAL PRIMARY KEY,
+    purchase_order_id INTEGER NOT NULL,
+    sequence_order INTEGER NOT NULL,
+    approval_workflow_step_id INTEGER,
+    step_role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    acted_by_user_id INTEGER,
+    acted_at TIMESTAMP WITHOUT TIME ZONE,
+    remarks TEXT,
+
+    CONSTRAINT fk_po_approval_step_po
+        FOREIGN KEY (purchase_order_id)
+        REFERENCES purchase_orders(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_po_approval_step_aw_step
+        FOREIGN KEY (approval_workflow_step_id)
+        REFERENCES approval_workflow_step(id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_po_approval_step_actor
+        FOREIGN KEY (acted_by_user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+    CONSTRAINT chk_po_approval_step_role
+        CHECK (step_role IN ('REVIEWER', 'APPROVER')),
+    CONSTRAINT chk_po_approval_step_status
+        CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_po_approval_step_po_seq
+    ON purchase_order_approval_step (purchase_order_id, sequence_order);
+
+CREATE INDEX IF NOT EXISTS idx_po_approval_step_po_id
+    ON purchase_order_approval_step (purchase_order_id);
+
+CREATE TABLE IF NOT EXISTS purchase_order_approval_assignee (
+    id SERIAL PRIMARY KEY,
+    purchase_order_approval_step_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_po_approval_assignee_step
+        FOREIGN KEY (purchase_order_approval_step_id)
+        REFERENCES purchase_order_approval_step(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_po_approval_assignee_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_po_approval_assignee_step_user
+        UNIQUE (purchase_order_approval_step_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_po_approval_assignee_step
+    ON purchase_order_approval_assignee (purchase_order_approval_step_id);
 
 -- ---------------------------------------------------------------------------
 -- Rate contracts (header + line items + documents)
@@ -1074,6 +1330,7 @@ CREATE TABLE IF NOT EXISTS grns (
     id SERIAL PRIMARY KEY,
     grn_number VARCHAR(50) UNIQUE,
     rate_contract_id INTEGER,
+    purchase_order_id INTEGER,
     invoice_no VARCHAR(100),
     invoice_date DATE,
     entity_id INTEGER,
@@ -1102,6 +1359,7 @@ CREATE TABLE IF NOT EXISTS grns (
     updated_by VARCHAR(100),
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_grn_rc FOREIGN KEY (rate_contract_id) REFERENCES rate_contracts(id) ON DELETE SET NULL,
+    CONSTRAINT fk_grn_po FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL,
     CONSTRAINT fk_grn_entity FOREIGN KEY (entity_id) REFERENCES entities(id),
     CONSTRAINT fk_grn_vendor FOREIGN KEY (vendor_id) REFERENCES vendors(id),
     CONSTRAINT fk_grn_vendor_site FOREIGN KEY (vendor_site_id) REFERENCES vendor_sites(id),
@@ -1124,6 +1382,9 @@ CREATE TABLE IF NOT EXISTS grn_items (
     quantity NUMERIC(12,2) NOT NULL DEFAULT 1,
     rate NUMERIC(12,2) NOT NULL DEFAULT 0,
     base_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    gst_id INTEGER REFERENCES gst(id),
+    gst_amount NUMERIC(12,2) DEFAULT 0,
+    net_line_amount NUMERIC(12,2) DEFAULT 0,
     remarks TEXT,
     created_by VARCHAR(100),
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1183,5 +1444,192 @@ CREATE INDEX IF NOT EXISTS idx_grn_entity_id ON grns(entity_id);
 CREATE INDEX IF NOT EXISTS idx_grn_vendor_id ON grns(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_grn_status ON grns(status);
 CREATE INDEX IF NOT EXISTS idx_grn_rc_id ON grns(rate_contract_id);
+CREATE INDEX IF NOT EXISTS idx_grn_purchase_order_id ON grns(purchase_order_id);
 CREATE INDEX IF NOT EXISTS idx_grn_items_grn_id ON grn_items(grn_id);
 CREATE INDEX IF NOT EXISTS idx_grn_docs_grn_id ON grn_documents(grn_id);
+
+-- ---------------------------------------------------------------------------
+-- GRN Invoice (post-GRN billing document)
+-- ---------------------------------------------------------------------------
+-- Tear down GRN invoice objects so this section can recreate a clean schema.
+-- WARNING: This deletes all GRN invoice rows (use only when resetting / rebuilding).
+DROP TABLE IF EXISTS grn_invoice_approval_assignee;
+DROP TABLE IF EXISTS grn_invoice_approval_step;
+DROP TABLE IF EXISTS grn_invoice_documents;
+DROP TABLE IF EXISTS grn_invoice_items;
+DROP TABLE IF EXISTS grn_invoices;
+
+CREATE TABLE IF NOT EXISTS grn_invoices (
+    id SERIAL PRIMARY KEY,
+    grn_invoice_number VARCHAR(50) UNIQUE,
+    grn_id INTEGER NOT NULL UNIQUE REFERENCES grns(id) ON DELETE RESTRICT,
+    rate_contract_id INTEGER REFERENCES rate_contracts(id) ON DELETE SET NULL,
+    invoice_no VARCHAR(100),
+    invoice_date DATE,
+    entity_id INTEGER REFERENCES entities(id),
+    vendor_id INTEGER REFERENCES vendors(id),
+    vendor_site_id INTEGER REFERENCES vendor_sites(id),
+    shipping_vendor_site_id INTEGER REFERENCES vendor_sites(id),
+    billing_vendor_site_id INTEGER REFERENCES vendor_sites(id),
+    shipping_address TEXT,
+    billing_address TEXT,
+    currency_id INTEGER REFERENCES currencies(id),
+    item_type_id INTEGER REFERENCES item_types(id),
+    validity_from DATE,
+    validity_to DATE,
+    required_date DATE,
+    frequency VARCHAR(50),
+    department_id INTEGER REFERENCES departments(id),
+    subdepartment_id INTEGER REFERENCES subdepartments(id),
+    payment_term_id INTEGER REFERENCES payment_terms(id),
+    terms_condition_id INTEGER REFERENCES terms_and_conditions(id),
+    overall_summary TEXT,
+    oracle_invoice_group VARCHAR(120),
+    oracle_invoice_source VARCHAR(50) DEFAULT 'P2P',
+    oracle_invoice_type VARCHAR(50) DEFAULT 'Standard',
+    total_base_amount NUMERIC(12,2) DEFAULT 0,
+    net_amount NUMERIC(12,2) DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'DRAFT',
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS grn_invoice_items (
+    id SERIAL PRIMARY KEY,
+    grn_invoice_id INTEGER NOT NULL REFERENCES grn_invoices(id) ON DELETE CASCADE,
+    item_id INTEGER REFERENCES items(id),
+    description TEXT,
+    center_id INTEGER NOT NULL REFERENCES centers(id),
+    quantity NUMERIC(12,2) NOT NULL DEFAULT 1,
+    rate NUMERIC(12,2) NOT NULL DEFAULT 0,
+    base_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    remarks TEXT,
+    gst_id INTEGER REFERENCES gst(id),
+    tds_id INTEGER REFERENCES tds(id),
+    gst_amount NUMERIC(12,2) DEFAULT 0,
+    tds_amount NUMERIC(12,2) DEFAULT 0,
+    net_line_amount NUMERIC(12,2) DEFAULT 0,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS grn_invoice_documents (
+    id SERIAL PRIMARY KEY,
+    grn_invoice_id INTEGER NOT NULL REFERENCES grn_invoices(id) ON DELETE CASCADE,
+    file_name VARCHAR(255),
+    file_path TEXT,
+    file_type VARCHAR(100),
+    file_size BIGINT,
+    uploaded_by VARCHAR(100),
+    uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS grn_invoice_approval_step (
+    id SERIAL PRIMARY KEY,
+    grn_invoice_id INTEGER NOT NULL REFERENCES grn_invoices(id) ON DELETE CASCADE,
+    sequence_order INTEGER NOT NULL,
+    approval_workflow_step_id INTEGER REFERENCES approval_workflow_step(id) ON DELETE SET NULL,
+    step_role VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    acted_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    acted_at TIMESTAMP WITHOUT TIME ZONE,
+    remarks TEXT,
+    CONSTRAINT chk_grn_inv_appr_role CHECK (step_role IN ('REVIEWER', 'APPROVER')),
+    CONSTRAINT chk_grn_inv_appr_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_grn_invoice_approval_seq
+    ON grn_invoice_approval_step (grn_invoice_id, sequence_order);
+
+CREATE INDEX IF NOT EXISTS idx_grn_invoice_approval_grn_inv
+    ON grn_invoice_approval_step (grn_invoice_id);
+
+CREATE TABLE IF NOT EXISTS grn_invoice_approval_assignee (
+    id SERIAL PRIMARY KEY,
+    grn_invoice_approval_step_id INTEGER NOT NULL REFERENCES grn_invoice_approval_step(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_grn_inv_appr_assignee UNIQUE (grn_invoice_approval_step_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_grn_inv_appr_assignee_step
+    ON grn_invoice_approval_assignee (grn_invoice_approval_step_id);
+
+CREATE INDEX IF NOT EXISTS idx_grn_invoice_grn_id ON grn_invoices(grn_id);
+CREATE INDEX IF NOT EXISTS idx_grn_invoice_vendor_id ON grn_invoices(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_grn_invoice_items_hdr ON grn_invoice_items(grn_invoice_id);
+
+-- ---------------------------------------------------------------------------
+-- Legacy patches (idempotent ALTERs). For databases created before columns
+-- appeared in CREATE TABLE above; safe to run repeatedly on PostgreSQL.
+-- Automated runner: main-service/scripts/migrate-db-upgrade.cjs reads only the
+-- block between LEGACY_PATCH_START and LEGACY_PATCH_END.
+-- ---------------------------------------------------------------------------
+
+-- LEGACY_PATCH_START
+ALTER TABLE rate_contracts ADD COLUMN IF NOT EXISTS shipping_address TEXT;
+ALTER TABLE rate_contracts ADD COLUMN IF NOT EXISTS billing_address TEXT;
+
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS shipping_vendor_site_id INTEGER REFERENCES vendor_sites(id);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS billing_vendor_site_id INTEGER REFERENCES vendor_sites(id);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS shipping_address TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS billing_address TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS currency_id INTEGER REFERENCES currencies(id);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS terms_condition_id INTEGER REFERENCES terms_and_conditions(id);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS total_base_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS oracle_invoice_group VARCHAR(255);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS oracle_invoice_source VARCHAR(50);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS oracle_invoice_type VARCHAR(50);
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS unbudgeted_expense BOOLEAN DEFAULT FALSE;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS unbudgeted_justification TEXT;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS advance_po BOOLEAN DEFAULT FALSE;
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS advance_percentage NUMERIC(7,2);
+
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS center_id INTEGER REFERENCES centers(id);
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS gst_id INTEGER REFERENCES gst(id);
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS gst_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS net_line_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS coa_id INTEGER REFERENCES coa(id);
+
+ALTER TABLE grns ADD COLUMN IF NOT EXISTS purchase_order_id INTEGER REFERENCES purchase_orders(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_grn_purchase_order_id ON grns(purchase_order_id);
+
+ALTER TABLE grn_invoices ADD COLUMN IF NOT EXISTS oracle_invoice_group VARCHAR(120);
+ALTER TABLE grn_invoices ADD COLUMN IF NOT EXISTS oracle_invoice_source VARCHAR(50) DEFAULT 'P2P';
+ALTER TABLE grn_invoices ADD COLUMN IF NOT EXISTS oracle_invoice_type VARCHAR(50) DEFAULT 'Standard';
+
+ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS gst_id INTEGER REFERENCES gst(id);
+ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS gst_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS net_line_amount NUMERIC(12,2) DEFAULT 0;
+-- LEGACY_PATCH_END
+
+-- ---------------------------------------------------------------------------
+-- Seeds (idempotent). Procurement GRN page + actions; requires PROCUREMENT root.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO pages (page_code, name, parent_page_id, sequence)
+SELECT 'PROCUREMENT_GRN', 'GRN', p.id, 3
+FROM pages p
+WHERE p.page_code = 'PROCUREMENT'
+ON CONFLICT (page_code) DO NOTHING;
+
+UPDATE pages
+SET sequence = 4
+WHERE page_code = 'PROCUREMENT_PURCHASE_ORDER'
+  AND parent_page_id = (SELECT id FROM pages WHERE page_code = 'PROCUREMENT');
+
+UPDATE pages
+SET sequence = 5
+WHERE page_code = 'PROCUREMENT_DIRECT_INVOICE'
+  AND parent_page_id = (SELECT id FROM pages WHERE page_code = 'PROCUREMENT');
+
+INSERT INTO page_actions (page_id, action_id, tag)
+SELECT p.id, a.id, p.page_code || '_' || a.action_code
+FROM pages p
+CROSS JOIN actions a
+WHERE p.page_code = 'PROCUREMENT_GRN'
+  AND a.action_code IN ('VIEW', 'CREATE', 'UPDATE', 'DELETE')
+ON CONFLICT (page_id, action_id) DO NOTHING;

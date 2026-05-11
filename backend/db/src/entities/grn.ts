@@ -11,6 +11,7 @@ import { Department } from "./department";
 import { EntityMaster } from "./entity-master";
 import { ItemType } from "./item-type";
 import { PaymentTerm } from "./payment-term";
+import { PurchaseOrder } from "./purchase-order";
 import { RateContract } from "./rate-contract";
 import { Subdepartment } from "./subdepartment";
 import { TermsCondition } from "./terms-condition";
@@ -33,6 +34,9 @@ export class Grn {
 
   @Column("integer", { name: "rate_contract_id", nullable: true })
   rate_contract_id: number | null;
+
+  @Column("integer", { name: "purchase_order_id", nullable: true })
+  purchase_order_id: number | null;
 
   @Column("character varying", {
     name: "invoice_no",
@@ -159,6 +163,10 @@ export class Grn {
   @ManyToOne(() => RateContract, { onDelete: "SET NULL", nullable: true })
   @JoinColumn([{ name: "rate_contract_id", referencedColumnName: "id" }])
   source_rate_contract: RateContract | null;
+
+  @ManyToOne(() => PurchaseOrder, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn([{ name: "purchase_order_id", referencedColumnName: "id" }])
+  source_purchase_order: PurchaseOrder | null;
 
   @ManyToOne(() => EntityMaster, { onDelete: "RESTRICT", nullable: true })
   @JoinColumn([{ name: "entity_id", referencedColumnName: "id" }])

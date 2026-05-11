@@ -108,6 +108,29 @@ export class GrnInvoice {
   @Column("text", { name: "overall_summary", nullable: true })
   overall_summary: string | null;
 
+  @Column("character varying", {
+    name: "oracle_invoice_group",
+    nullable: true,
+    length: 120,
+  })
+  oracle_invoice_group: string | null;
+
+  @Column("character varying", {
+    name: "oracle_invoice_source",
+    nullable: true,
+    length: 50,
+    default: () => "'P2P'",
+  })
+  oracle_invoice_source: string | null;
+
+  @Column("character varying", {
+    name: "oracle_invoice_type",
+    nullable: true,
+    length: 50,
+    default: () => "'Standard'",
+  })
+  oracle_invoice_type: string | null;
+
   @Column("numeric", {
     name: "total_base_amount",
     nullable: true,

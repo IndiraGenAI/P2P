@@ -17,6 +17,11 @@ export interface IGrnInvoiceItemPayload {
   quantity?: number;
   rate: number;
   base_amount?: number;
+  gst_id?: number | null;
+  gst_amount?: number;
+  tds_id?: number | null;
+  tds_amount?: number;
+  net_line_amount?: number;
   remarks: string;
 }
 
@@ -44,6 +49,9 @@ export interface IGrnInvoicePayload {
   payment_term_id?: number | null;
   terms_condition_id?: number | null;
   overall_summary?: string | null;
+  oracle_invoice_group?: string | null;
+  oracle_invoice_source?: string | null;
+  oracle_invoice_type?: string | null;
   net_amount?: number;
   status?: string;
   items: IGrnInvoiceItemPayload[];
@@ -58,6 +66,11 @@ export interface IGrnInvoiceItemRow {
   quantity: number | string;
   rate: number | string;
   base_amount: number | string;
+  gst_id?: number | null;
+  gst_amount?: number | string | null;
+  tds_id?: number | null;
+  tds_amount?: number | string | null;
+  net_line_amount?: number | string | null;
   remarks?: string | null;
   item?: { id: number; code: string; name: string } | null;
   center?: { id: number; code: string; name: string };
@@ -140,6 +153,9 @@ export interface IGrnInvoiceRow {
   payment_term_id?: number | null;
   terms_condition_id?: number | null;
   overall_summary?: string | null;
+  oracle_invoice_group?: string | null;
+  oracle_invoice_source?: string | null;
+  oracle_invoice_type?: string | null;
   total_base_amount?: number | string | null;
   net_amount?: number | string | null;
   status?: string | null;

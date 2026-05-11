@@ -34,6 +34,15 @@ export class CreateGrnDto {
   @Min(1)
   rate_contract_id?: number | null;
 
+  @ApiPropertyOptional({
+    description: 'Optional link to an approved purchase order (do not set with rate_contract_id)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  purchase_order_id?: number | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

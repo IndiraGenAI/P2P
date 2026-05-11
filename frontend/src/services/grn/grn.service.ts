@@ -24,10 +24,14 @@ const grnService = {
       (res) => res.data,
     ),
 
-  getStatusCounts: (): Promise<IApiResponse<IGrnStatusCounts>> =>
-    mainRequest({ url: `${ENDPOINT}/status-counts`, method: 'GET' }).then(
-      (res) => res.data,
-    ),
+  getStatusCounts: (params?: {
+    source?: 'po' | 'contract';
+  }): Promise<IApiResponse<IGrnStatusCounts>> =>
+    mainRequest({
+      url: `${ENDPOINT}/status-counts`,
+      method: 'GET',
+      params: params ?? {},
+    }).then((res) => res.data),
 
   getById: (id: number): Promise<IApiResponse<IGrnDetail>> =>
     mainRequest({ url: `${ENDPOINT}/${id}`, method: 'GET' }).then(

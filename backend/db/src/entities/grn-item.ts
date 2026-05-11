@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Center } from "./center";
+import { Gst } from "./gst";
 import { Grn } from "./grn";
 import { Item } from "./item";
 
@@ -52,6 +53,27 @@ export class GrnItem {
   })
   base_amount: string;
 
+  @Column("integer", { name: "gst_id", nullable: true })
+  gst_id: number | null;
+
+  @Column("numeric", {
+    name: "gst_amount",
+    nullable: true,
+    precision: 12,
+    scale: 2,
+    default: () => "0",
+  })
+  gst_amount: string | null;
+
+  @Column("numeric", {
+    name: "net_line_amount",
+    nullable: true,
+    precision: 12,
+    scale: 2,
+    default: () => "0",
+  })
+  net_line_amount: string | null;
+
   @Column("text", { name: "remarks", nullable: true })
   remarks: string | null;
 
@@ -94,4 +116,8 @@ export class GrnItem {
   @ManyToOne(() => Center, { onDelete: "RESTRICT" })
   @JoinColumn([{ name: "center_id", referencedColumnName: "id" }])
   center: Center;
+
+  @ManyToOne(() => Gst, { onDelete: "SET NULL", nullable: true })
+  @JoinColumn([{ name: "gst_id", referencedColumnName: "id" }])
+  gst: Gst | null;
 }

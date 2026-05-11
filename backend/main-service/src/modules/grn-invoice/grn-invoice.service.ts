@@ -18,6 +18,8 @@ import {
   GrnInvoiceApprovalStep,
   GrnInvoiceDocument,
   GrnInvoiceItem,
+  Gst,
+  Tds,
   Users,
 } from 'erp-db';
 import { DeleteResult, EntityManager, In, IsNull } from 'typeorm';
@@ -102,10 +104,40 @@ export class GrnInvoiceService {
     return qty * rate;
   }
 
-  private sumLineBases(
-    items: { base_amount?: number | string | null }[],
-  ): number {
-    return items.reduce((acc, row) => acc + Number(row.base_amount ?? 0), 0);
+  /** Net line = base + GST − TDS (both GST and TDS computed on base amount). */
+  private async computeLineTaxAmounts(
+    manager: EntityManager,
+    baseAmount: number,
+    gstId: number | null | undefined,
+    tdsId: number | null | undefined,
+  ): Promise<{
+    gst_amount: number;
+    tds_amount: number;
+    net_line_amount: number;
+  }> {
+    const b = Math.round(Number(baseAmount) * 100) / 100;
+    let gst_amount = 0;
+    if (gstId != null && Number.isInteger(Number(gstId)) && Number(gstId) >= 1) {
+      const id = Number(gstId);
+      const g = await manager.getRepository(Gst).findOne({ where: { id } });
+      if (!g) {
+        throw new BadRequestException(`GST id ${id} is not valid.`);
+      }
+      const pct = Number(g.percentage);
+      gst_amount = Math.round(b * (pct / 100) * 100) / 100;
+    }
+    let tds_amount = 0;
+    if (tdsId != null && Number.isInteger(Number(tdsId)) && Number(tdsId) >= 1) {
+      const id = Number(tdsId);
+      const t = await manager.getRepository(Tds).findOne({ where: { id } });
+      if (!t) {
+        throw new BadRequestException(`TDS id ${id} is not valid.`);
+      }
+      const pct = Number(t.percentage);
+      tds_amount = Math.round(b * (pct / 100) * 100) / 100;
+    }
+    const net_line_amount = Math.round((b + gst_amount - tds_amount) * 100) / 100;
+    return { gst_amount, tds_amount, net_line_amount };
   }
 
   private assertValidRcLine(
@@ -537,7 +569,17 @@ export class GrnInvoiceService {
         grnNumber = await this.generateGrnInvoiceNumber(manager);
       }
 
-      const lines = dto.items.map((item) => {
+      type LineComputed = {
+        dto: CreateGrnInvoiceItemDto;
+        base: number;
+        gst_amount: number;
+        tds_amount: number;
+        net_line_amount: number;
+      };
+      const computedLines: LineComputed[] = [];
+      let sumBase = 0;
+      let sumNet = 0;
+      for (const item of dto.items) {
         this.assertValidRcLine(
           'Line item',
           item.item_id,
@@ -546,10 +588,23 @@ export class GrnInvoiceService {
           item.remarks,
         );
         const base = this.computeBaseAmount(item);
-        return { ...item, base_amount: base };
-      });
+        const tax = await this.computeLineTaxAmounts(
+          manager,
+          base,
+          item.gst_id,
+          item.tds_id,
+        );
+        sumBase += base;
+        sumNet += tax.net_line_amount;
+        computedLines.push({ dto: item, base, ...tax });
+      }
 
-      const totalBase = dto.net_amount ?? this.sumLineBases(lines as never);
+      const headerNet =
+        dto.net_amount !== undefined && dto.net_amount !== null
+          ? Number(dto.net_amount)
+          : sumNet;
+
+      const totalBase = sumBase;
 
       const statusUpper = this.normalizeStatus(dto.status ?? RcStatus.SUBMITTED);
       if (statusUpper !== RcStatus.DRAFT && statusUpper !== RcStatus.SUBMITTED) {
@@ -588,8 +643,13 @@ export class GrnInvoiceService {
         payment_term_id: dto.payment_term_id ?? null,
         terms_condition_id: dto.terms_condition_id ?? null,
         overall_summary: dto.overall_summary ?? null,
+        oracle_invoice_group: dto.oracle_invoice_group?.trim() ?? null,
+        oracle_invoice_source:
+          dto.oracle_invoice_source?.trim() || 'P2P',
+        oracle_invoice_type:
+          dto.oracle_invoice_type?.trim() || 'Standard',
         total_base_amount: this.toMoney(totalBase),
-        net_amount: this.toMoney(totalBase),
+        net_amount: this.toMoney(headerNet),
         status:
           statusUpper === RcStatus.DRAFT ? RcStatus.DRAFT : RcStatus.SUBMITTED,
         created_by: userEmailId ?? dto.created_by ?? null,
@@ -599,16 +659,21 @@ export class GrnInvoiceService {
       });
       const saved = await rcRepo.save(header);
 
-      const rows = (lines as CreateGrnInvoiceItemDto[]).map((item) =>
+      const rows = computedLines.map((c) =>
         itemRepo.create({
           grn_invoice_id: saved.id,
-          item_id: item.item_id ?? null,
-          description: item.description ?? null,
-          center_id: item.center_id,
-          quantity: this.toMoney(item.quantity ?? 1),
-          rate: this.toMoney(item.rate),
-          base_amount: this.toMoney(this.computeBaseAmount(item)),
-          remarks: item.remarks ?? null,
+          item_id: c.dto.item_id ?? null,
+          description: c.dto.description ?? null,
+          center_id: c.dto.center_id,
+          quantity: this.toMoney(c.dto.quantity ?? 1),
+          rate: this.toMoney(c.dto.rate),
+          base_amount: this.toMoney(c.base),
+          gst_id: c.dto.gst_id ?? null,
+          gst_amount: this.toMoney(c.gst_amount),
+          tds_id: c.dto.tds_id ?? null,
+          tds_amount: this.toMoney(c.tds_amount),
+          net_line_amount: this.toMoney(c.net_line_amount),
+          remarks: c.dto.remarks ?? null,
           created_by: userEmailId ?? null,
           created_date: new Date(),
           updated_by: userEmailId ?? null,
@@ -625,7 +690,7 @@ export class GrnInvoiceService {
         await this.bootstrapGrnApprovalChain(
           manager,
           saved,
-          totalBase,
+          headerNet,
           firstCenter,
         );
       }
@@ -1034,6 +1099,17 @@ export class GrnInvoiceService {
       if (dto.overall_summary !== undefined) {
         rc.overall_summary = dto.overall_summary ?? null;
       }
+      if (dto.oracle_invoice_group !== undefined) {
+        rc.oracle_invoice_group = dto.oracle_invoice_group?.trim() || null;
+      }
+      if (dto.oracle_invoice_source !== undefined) {
+        rc.oracle_invoice_source =
+          dto.oracle_invoice_source?.trim() || 'P2P';
+      }
+      if (dto.oracle_invoice_type !== undefined) {
+        rc.oracle_invoice_type =
+          dto.oracle_invoice_type?.trim() || 'Standard';
+      }
       if (dto.status !== undefined) rc.status = dto.status ?? null;
 
       if (dto.items) {
@@ -1083,6 +1159,13 @@ export class GrnInvoiceService {
             base_amount: row.base_amount,
           });
 
+          const gstIdRaw =
+            row.gst_id !== undefined ? row.gst_id ?? null : prev?.gst_id ?? null;
+          const tdsIdRaw =
+            row.tds_id !== undefined ? row.tds_id ?? null : prev?.tds_id ?? null;
+          const { gst_amount, tds_amount, net_line_amount } =
+            await this.computeLineTaxAmounts(manager, base, gstIdRaw, tdsIdRaw);
+
           if (row.id && prev) {
             if (row.item_id !== undefined) prev.item_id = row.item_id ?? null;
             if (row.description !== undefined) {
@@ -1092,6 +1175,11 @@ export class GrnInvoiceService {
             prev.quantity = this.toMoney(qty);
             prev.rate = this.toMoney(rate);
             prev.base_amount = this.toMoney(base);
+            prev.gst_id = gstIdRaw;
+            prev.gst_amount = this.toMoney(gst_amount);
+            prev.tds_id = tdsIdRaw;
+            prev.tds_amount = this.toMoney(tds_amount);
+            prev.net_line_amount = this.toMoney(net_line_amount);
             if (row.remarks !== undefined) prev.remarks = row.remarks ?? null;
             prev.updated_by = userEmailId ?? null;
             prev.updated_date = new Date();
@@ -1106,6 +1194,11 @@ export class GrnInvoiceService {
                 quantity: this.toMoney(qty),
                 rate: this.toMoney(rate),
                 base_amount: this.toMoney(base),
+                gst_id: gstIdRaw,
+                gst_amount: this.toMoney(gst_amount),
+                tds_id: tdsIdRaw,
+                tds_amount: this.toMoney(tds_amount),
+                net_line_amount: this.toMoney(net_line_amount),
                 remarks: row.remarks ?? null,
                 created_by: userEmailId ?? null,
                 created_date: new Date(),
@@ -1118,12 +1211,22 @@ export class GrnInvoiceService {
         if (batch.length) await itemRepo.save(batch);
 
         if (dto.net_amount === undefined) {
-          const sum = batch.reduce(
+          const sumB = batch.reduce(
             (a, it) => a + Number(it.base_amount ?? 0),
             0,
           );
-          rc.total_base_amount = this.toMoney(sum);
-          rc.net_amount = this.toMoney(sum);
+          const sumN = batch.reduce(
+            (a, it) =>
+              a +
+              Number(
+                it.net_line_amount != null && String(it.net_line_amount) !== ''
+                  ? it.net_line_amount
+                  : it.base_amount ?? 0,
+              ),
+            0,
+          );
+          rc.total_base_amount = this.toMoney(sumB);
+          rc.net_amount = this.toMoney(sumN);
         }
       }
 

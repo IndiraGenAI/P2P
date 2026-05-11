@@ -17,6 +17,8 @@ import {
   GrnApprovalStep,
   GrnDocument,
   GrnItem,
+  Gst,
+  PurchaseOrder,
   RateContract,
   Users,
 } from 'erp-db';
@@ -106,6 +108,27 @@ export class GrnService {
     items: { base_amount?: number | string | null }[],
   ): number {
     return items.reduce((acc, row) => acc + Number(row.base_amount ?? 0), 0);
+  }
+
+  private async computeGstAmountsForLine(
+    manager: EntityManager,
+    gstId: number | null | undefined,
+    baseAmount: number,
+  ): Promise<{ gst_amount: number; net_line_amount: number }> {
+    const b = Math.round(Number(baseAmount) * 100) / 100;
+    if (gstId == null || !Number.isInteger(Number(gstId)) || Number(gstId) < 1) {
+      return { gst_amount: 0, net_line_amount: b };
+    }
+    const id = Number(gstId);
+    const g = await manager.getRepository(Gst).findOne({ where: { id } });
+    if (!g) {
+      throw new BadRequestException(`GST id ${id} is not valid.`);
+    }
+    const pct = Number(g.percentage);
+    const gstRaw = b * (pct / 100);
+    const gst_amount = Math.round(gstRaw * 100) / 100;
+    const net_line_amount = Math.round((b + gst_amount) * 100) / 100;
+    return { gst_amount, net_line_amount };
   }
 
   private assertValidRcLine(
@@ -505,6 +528,15 @@ export class GrnService {
       const rcRepo = manager.getRepository(Grn);
       const itemRepo = manager.getRepository(GrnItem);
 
+      if (
+        dto.rate_contract_id != null &&
+        dto.purchase_order_id != null
+      ) {
+        throw new BadRequestException(
+          'Link either a rate contract or a purchase order, not both.',
+        );
+      }
+
       if (dto.rate_contract_id != null) {
         const srcId = Number(dto.rate_contract_id);
         if (!Number.isInteger(srcId) || srcId < 1) {
@@ -524,6 +556,25 @@ export class GrnService {
         }
       }
 
+      if (dto.purchase_order_id != null) {
+        const poId = Number(dto.purchase_order_id);
+        if (!Number.isInteger(poId) || poId < 1) {
+          throw new BadRequestException('Invalid purchase order id.');
+        }
+        const po = await manager.getRepository(PurchaseOrder).findOne({
+          where: { id: poId },
+          select: { id: true, status: true },
+        });
+        if (!po) {
+          throw new BadRequestException('Purchase order not found.');
+        }
+        if (this.normalizeStatus(po.status) !== RcStatus.APPROVED) {
+          throw new BadRequestException(
+            'GRN can only be linked to an approved purchase order.',
+          );
+        }
+      }
+
       let grnNumber = dto.grn_number?.trim() || null;
       if (grnNumber) {
         const exists = await rcRepo
@@ -537,7 +588,16 @@ export class GrnService {
         grnNumber = await this.generateGrnNumber(manager);
       }
 
-      const lines = dto.items.map((item) => {
+      type LineComputed = {
+        dto: CreateGrnItemDto;
+        base: number;
+        gst_amount: number;
+        net_line_amount: number;
+      };
+      const computedLines: LineComputed[] = [];
+      let sumBase = 0;
+      let sumNet = 0;
+      for (const item of dto.items) {
         this.assertValidRcLine(
           'Line item',
           item.item_id,
@@ -546,10 +606,20 @@ export class GrnService {
           item.remarks,
         );
         const base = this.computeBaseAmount(item);
-        return { ...item, base_amount: base };
-      });
+        const tax = await this.computeGstAmountsForLine(
+          manager,
+          item.gst_id,
+          base,
+        );
+        sumBase += base;
+        sumNet += tax.net_line_amount;
+        computedLines.push({ dto: item, base, ...tax });
+      }
 
-      const totalBase = dto.net_amount ?? this.sumLineBases(lines as never);
+      const headerNet =
+        dto.net_amount !== undefined && dto.net_amount !== null
+          ? Number(dto.net_amount)
+          : sumNet;
 
       const statusUpper = this.normalizeStatus(dto.status ?? RcStatus.SUBMITTED);
       if (statusUpper !== RcStatus.DRAFT && statusUpper !== RcStatus.SUBMITTED) {
@@ -565,6 +635,8 @@ export class GrnService {
         grn_number: grnNumber,
         rate_contract_id:
           dto.rate_contract_id != null ? Number(dto.rate_contract_id) : null,
+        purchase_order_id:
+          dto.purchase_order_id != null ? Number(dto.purchase_order_id) : null,
         invoice_no: dto.invoice_no?.trim() ?? null,
         invoice_date: dto.invoice_date ? new Date(dto.invoice_date) : null,
         entity_id: dto.entity_id ?? null,
@@ -585,8 +657,8 @@ export class GrnService {
         payment_term_id: dto.payment_term_id ?? null,
         terms_condition_id: dto.terms_condition_id ?? null,
         overall_summary: dto.overall_summary ?? null,
-        total_base_amount: this.toMoney(totalBase),
-        net_amount: this.toMoney(totalBase),
+        total_base_amount: this.toMoney(sumBase),
+        net_amount: this.toMoney(headerNet),
         status:
           statusUpper === RcStatus.DRAFT ? RcStatus.DRAFT : RcStatus.SUBMITTED,
         created_by: userEmailId ?? dto.created_by ?? null,
@@ -596,16 +668,19 @@ export class GrnService {
       });
       const saved = await rcRepo.save(header);
 
-      const rows = (lines as CreateGrnItemDto[]).map((item) =>
+      const rows = computedLines.map((c) =>
         itemRepo.create({
           grn_id: saved.id,
-          item_id: item.item_id ?? null,
-          description: item.description ?? null,
-          center_id: item.center_id,
-          quantity: this.toMoney(item.quantity ?? 1),
-          rate: this.toMoney(item.rate),
-          base_amount: this.toMoney(this.computeBaseAmount(item)),
-          remarks: item.remarks ?? null,
+          item_id: c.dto.item_id ?? null,
+          description: c.dto.description ?? null,
+          center_id: c.dto.center_id,
+          quantity: this.toMoney(c.dto.quantity ?? 1),
+          rate: this.toMoney(c.dto.rate),
+          base_amount: this.toMoney(c.base),
+          gst_id: c.dto.gst_id ?? null,
+          gst_amount: this.toMoney(c.gst_amount),
+          net_line_amount: this.toMoney(c.net_line_amount),
+          remarks: c.dto.remarks ?? null,
           created_by: userEmailId ?? null,
           created_date: new Date(),
           updated_by: userEmailId ?? null,
@@ -622,7 +697,7 @@ export class GrnService {
         await this.bootstrapGrnApprovalChain(
           manager,
           saved,
-          totalBase,
+          headerNet,
           firstCenter,
         );
       }
@@ -637,6 +712,7 @@ export class GrnService {
     filter: GetGrnFilterDto,
   ): Promise<PageDto<Grn> | { rows: Grn[]; count: number }> {
     const {
+      source,
       search,
       status,
       vendor_id,
@@ -661,6 +737,12 @@ export class GrnService {
       .leftJoinAndSelect('rc.subdepartment', 'subdepartment')
       .leftJoinAndSelect('rc.payment_term', 'payment_term')
       .leftJoinAndSelect('rc.terms_condition', 'terms_condition');
+
+    if (source === 'po') {
+      qb.andWhere('rc.purchase_order_id IS NOT NULL');
+    } else if (source === 'contract') {
+      qb.andWhere('rc.rate_contract_id IS NOT NULL');
+    }
 
     if (search) {
       qb.andWhere(
@@ -724,19 +806,26 @@ export class GrnService {
     return new PageDto(enriched as unknown as Grn[], meta);
   }
 
-  async getStatusCounts(): Promise<{
+  async getStatusCounts(
+    source?: 'po' | 'contract',
+  ): Promise<{
     ALL: number;
     PENDING: number;
     APPROVED: number;
     REJECTED: number;
   }> {
-    const rows: { status: string | null; count: string }[] =
-      await grnRepository
-        .createQueryBuilder('rc')
-        .select('rc.status', 'status')
-        .addSelect('COUNT(*)', 'count')
-        .groupBy('rc.status')
-        .getRawMany();
+    const qb = grnRepository
+      .createQueryBuilder('rc')
+      .select('rc.status', 'status')
+      .addSelect('COUNT(*)', 'count');
+    if (source === 'po') {
+      qb.andWhere('rc.purchase_order_id IS NOT NULL');
+    } else if (source === 'contract') {
+      qb.andWhere('rc.rate_contract_id IS NOT NULL');
+    }
+    const rows: { status: string | null; count: string }[] = await qb
+      .groupBy('rc.status')
+      .getRawMany();
 
     let all = 0;
     let pending = 0;
@@ -1080,6 +1169,11 @@ export class GrnService {
             base_amount: row.base_amount,
           });
 
+          const gstIdRaw =
+            row.gst_id !== undefined ? row.gst_id ?? null : prev?.gst_id ?? null;
+          const { gst_amount, net_line_amount } =
+            await this.computeGstAmountsForLine(manager, gstIdRaw, base);
+
           if (row.id && prev) {
             if (row.item_id !== undefined) prev.item_id = row.item_id ?? null;
             if (row.description !== undefined) {
@@ -1089,6 +1183,9 @@ export class GrnService {
             prev.quantity = this.toMoney(qty);
             prev.rate = this.toMoney(rate);
             prev.base_amount = this.toMoney(base);
+            prev.gst_id = gstIdRaw;
+            prev.gst_amount = this.toMoney(gst_amount);
+            prev.net_line_amount = this.toMoney(net_line_amount);
             if (row.remarks !== undefined) prev.remarks = row.remarks ?? null;
             prev.updated_by = userEmailId ?? null;
             prev.updated_date = new Date();
@@ -1103,6 +1200,9 @@ export class GrnService {
                 quantity: this.toMoney(qty),
                 rate: this.toMoney(rate),
                 base_amount: this.toMoney(base),
+                gst_id: row.gst_id ?? null,
+                gst_amount: this.toMoney(gst_amount),
+                net_line_amount: this.toMoney(net_line_amount),
                 remarks: row.remarks ?? null,
                 created_by: userEmailId ?? null,
                 created_date: new Date(),
@@ -1115,12 +1215,22 @@ export class GrnService {
         if (batch.length) await itemRepo.save(batch);
 
         if (dto.net_amount === undefined) {
-          const sum = batch.reduce(
+          const sumB = batch.reduce(
             (a, it) => a + Number(it.base_amount ?? 0),
             0,
           );
-          rc.total_base_amount = this.toMoney(sum);
-          rc.net_amount = this.toMoney(sum);
+          const sumN = batch.reduce(
+            (a, it) =>
+              a +
+              Number(
+                it.net_line_amount != null && String(it.net_line_amount) !== ''
+                  ? it.net_line_amount
+                  : it.base_amount ?? 0,
+              ),
+            0,
+          );
+          rc.total_base_amount = this.toMoney(sumB);
+          rc.net_amount = this.toMoney(sumN);
         }
       }
 

@@ -17,12 +17,14 @@ export interface IGrnItemPayload {
   quantity?: number;
   rate: number;
   base_amount?: number;
+  gst_id?: number | null;
   remarks: string;
 }
 
 export interface IGrnPayload {
   grn_number?: string | null;
   rate_contract_id?: number | null;
+  purchase_order_id?: number | null;
   invoice_no?: string | null;
   invoice_date?: string | null;
   entity_id?: number | null;
@@ -57,6 +59,9 @@ export interface IGrnItemRow {
   quantity: number | string;
   rate: number | string;
   base_amount: number | string;
+  gst_id?: number | null;
+  gst_amount?: number | string | null;
+  net_line_amount?: number | string | null;
   remarks?: string | null;
   item?: { id: number; code: string; name: string } | null;
   center?: { id: number; code: string; name: string };

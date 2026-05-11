@@ -172,6 +172,24 @@ export class CreateGrnInvoiceDto {
   @IsString()
   overall_summary?: string | null;
 
+  @ApiPropertyOptional({ example: 'CORP-GRP-01' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  oracle_invoice_group?: string | null;
+
+  @ApiPropertyOptional({ example: 'P2P' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  oracle_invoice_source?: string | null;
+
+  @ApiPropertyOptional({ example: 'Standard' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  oracle_invoice_type?: string | null;
+
   @ApiPropertyOptional({
     example: 0,
     description: 'If omitted, computed from line items',

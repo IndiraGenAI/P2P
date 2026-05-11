@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, message, Popover, Tooltip } from 'antd';
 import { Eye, Filter, ListChecks, Loader2, Plus, ShoppingCart } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
@@ -18,6 +18,10 @@ import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import termsConditionService from '@/services/termsCondition/termsCondition.service';
 import currencyService from '@/services/currency/currency.service';
+import gstService from '@/services/gst/gst.service';
+import purchaseOrderService from '@/services/purchaseOrder/purchaseOrder.service';
+import type { IPurchaseOrderRow } from '@/services/purchaseOrder/purchaseOrder.model';
+import { purchaseOrderRowToRateContractRecord } from '@/pages/PurchaseOrder/poFormAdapter';
 import type { SelectOption } from '@/common/models';
 import type { IMetaProps } from '@/components/Pagination/Pagination.model';
 import { useAppSelector } from '@/state/app.hooks';
@@ -43,7 +47,10 @@ import {
   type IRateContractRecord,
 } from '@/pages/RateContract/RateContract.model';
 import RateContractAdd from '@/pages/RateContract/Add';
-import type { ISubdepartmentOption } from '@/pages/RateContract/Add/Add.model';
+import type {
+  IGstRateOption,
+  ISubdepartmentOption,
+} from '@/pages/RateContract/Add/Add.model';
 
 const DEFAULT_TAKE = 10;
 const NON_FILTER_KEYS = new Set([
@@ -53,6 +60,7 @@ const NON_FILTER_KEYS = new Set([
   'order',
   'status',
   'rcId',
+  'poId',
 ]);
 
 const RC_LIST_TAB_STATUSES = [
@@ -153,6 +161,14 @@ type PageToast =
   | { variant: 'success'; text: string }
   | { variant: 'error'; text: string };
 
+function localTodayYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function grnCreatePrefillFromApprovedRc(
   detail: IRateContractDetail,
 ): IRateContractRecord {
@@ -161,6 +177,24 @@ function grnCreatePrefillFromApprovedRc(
     ...r,
     id: 0,
     rc_number: '',
+    invoice_no: '',
+    invoice_date: localTodayYmd(),
+    status: RcStatus.DRAFT,
+    approval_steps: [],
+    items: r.items.map(({ id: _lineId, ...line }) => ({ ...line })),
+  };
+}
+
+function grnCreatePrefillFromApprovedPo(
+  detail: IPurchaseOrderRow,
+): IRateContractRecord {
+  const r = purchaseOrderRowToRateContractRecord(detail);
+  return {
+    ...r,
+    id: 0,
+    rc_number: '',
+    invoice_no: '',
+    invoice_date: localTodayYmd(),
     status: RcStatus.DRAFT,
     approval_steps: [],
     items: r.items.map(({ id: _lineId, ...line }) => ({ ...line })),
@@ -426,6 +460,7 @@ function useRateContractFkOptions() {
   const [items, setItems] = useState<SelectOption[]>([]);
   const [termsConditions, setTermsConditions] = useState<SelectOption[]>([]);
   const [currencies, setCurrencies] = useState<SelectOption[]>([]);
+  const [gstRates, setGstRates] = useState<IGstRateOption[]>([]);
   const fetched = useRef(false);
 
   useEffect(() => {
@@ -550,6 +585,20 @@ function useRateContractFkOptions() {
         );
       })
       .catch(() => setCurrencies([]));
+
+    gstService
+      .searchGstData(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setGstRates(
+          rows.map((r) => ({
+            id: r.id,
+            label: `${r.code} — ${Number(r.percentage)}%`,
+            percentage: Number(r.percentage),
+          })),
+        );
+      })
+      .catch(() => setGstRates([]));
   }, []);
 
   return {
@@ -563,6 +612,7 @@ function useRateContractFkOptions() {
     items,
     termsConditions,
     currencies,
+    gstRates,
   };
 }
 
@@ -570,7 +620,14 @@ const GrnPage = () => {
   const fk = useRateContractFkOptions();
   const auth = useAppSelector(authSelector);
   const navigate = useNavigate();
+  const { pathname: grnPathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isPoGrnRoute = grnPathname.startsWith('/purchase-order/grn');
+  const grnListSource: 'po' | 'contract' = isPoGrnRoute ? 'po' : 'contract';
+  const grnPageTitle = isPoGrnRoute ? 'PO GRN' : 'Contract GRN';
+  const grnPageSubtitle = isPoGrnRoute
+    ? 'Goods receipts against approved purchase orders.'
+    : 'Goods receipts against approved rate contracts (purchase request flow).';
   const [filterForm] = Form.useForm();
 
   const take = Number(searchParams.get('take')) || DEFAULT_TAKE;
@@ -590,6 +647,8 @@ const GrnPage = () => {
     null,
   );
   const [createSourceRcId, setCreateSourceRcId] = useState<number | null>(null);
+  const [createSourcePoId, setCreateSourcePoId] = useState<number | null>(null);
+  const [createPrefillFromPo, setCreatePrefillFromPo] = useState(false);
   const [createPrefillLabel, setCreatePrefillLabel] = useState<string | null>(
     null,
   );
@@ -619,6 +678,17 @@ const GrnPage = () => {
   const rcIdQuery = searchParams.get('rcId');
   useEffect(() => {
     if (!rcIdQuery) return;
+    if (isPoGrnRoute) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('rcId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
     const id = Number.parseInt(rcIdQuery, 10);
     if (!Number.isFinite(id) || id < 1) {
       setSearchParams(
@@ -663,6 +733,8 @@ const GrnPage = () => {
         const label = detail.rc_number?.trim() || `RC #${id}`;
         setCreatePrefill(grnCreatePrefillFromApprovedRc(detail));
         setCreateSourceRcId(id);
+        setCreateSourcePoId(null);
+        setCreatePrefillFromPo(false);
         setCreatePrefillLabel(label);
         setCreateFormKey((k) => k + 1);
         setIsFormModalOpen(true);
@@ -686,7 +758,92 @@ const GrnPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [rcIdQuery, setSearchParams]);
+  }, [rcIdQuery, isPoGrnRoute, setSearchParams]);
+
+  const poIdQuery = searchParams.get('poId');
+  useEffect(() => {
+    if (!poIdQuery) return;
+    if (!isPoGrnRoute) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('poId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
+    const id = Number.parseInt(poIdQuery, 10);
+    if (!Number.isFinite(id) || id < 1) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('poId');
+          return next;
+        },
+        { replace: true },
+      );
+      return;
+    }
+    let cancelled = false;
+    void purchaseOrderService
+      .getById(id)
+      .then((api) => {
+        if (cancelled) return;
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('poId');
+            return next;
+          },
+          { replace: true },
+        );
+        const detail = api.data;
+        if (!detail) {
+          setPageToast({
+            variant: 'error',
+            text: 'Purchase order not found.',
+          });
+          return;
+        }
+        if (String(detail.status ?? '').toUpperCase() !== RcStatus.APPROVED) {
+          setPageToast({
+            variant: 'error',
+            text:
+              'Only an approved purchase order can be used to create a GRN.',
+          });
+          return;
+        }
+        const label = detail.po_number?.trim() || `PO #${id}`;
+        setCreatePrefill(grnCreatePrefillFromApprovedPo(detail));
+        setCreateSourcePoId(id);
+        setCreateSourceRcId(null);
+        setCreatePrefillFromPo(true);
+        setCreatePrefillLabel(label);
+        setCreateFormKey((k) => k + 1);
+        setIsFormModalOpen(true);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setPageToast({
+            variant: 'error',
+            text: readApiErrorMessage(err, 'Could not load purchase order.'),
+          });
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete('poId');
+              return next;
+            },
+            { replace: true },
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [poIdQuery, isPoGrnRoute, setSearchParams]);
 
   useEffect(() => {
     if (pageToast == null) return;
@@ -698,19 +855,19 @@ const GrnPage = () => {
     setPageToast(null);
   }, [pageToast]);
 
-  const refreshStatusCounts = () => {
+  const refreshStatusCounts = useCallback(() => {
     grnService
-      .getStatusCounts()
+      .getStatusCounts({ source: grnListSource })
       .then((res) => {
         if (res?.data) setStatusCounts(res.data);
       })
       .catch(() => {});
-  };
+  }, [grnListSource]);
 
   const loadList = useCallback(() => {
     const data: Record<string, unknown> = {};
     searchParams.forEach((value, key) => {
-      if (key === 'rcId') return;
+      if (key === 'rcId' || key === 'poId') return;
       data[key] = value;
     });
     if (!data.take) data.take = DEFAULT_TAKE;
@@ -718,6 +875,7 @@ const GrnPage = () => {
     if (String(data.status ?? '').toUpperCase() === RcStatus.PENDING) {
       data.status = RcStatus.SUBMITTED;
     }
+    data.source = grnListSource;
 
     setLoading(true);
     grnService
@@ -735,7 +893,7 @@ const GrnPage = () => {
         setMeta(null);
       })
       .finally(() => setLoading(false));
-  }, [searchParams]);
+  }, [searchParams, grnListSource]);
 
   useEffect(() => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -764,11 +922,11 @@ const GrnPage = () => {
       return;
     }
     loadList();
-  }, [searchParams]);
+  }, [searchParams, setSearchParams, loadList]);
 
   useEffect(() => {
     refreshStatusCounts();
-  }, []);
+  }, [refreshStatusCounts]);
 
   useEffect(() => {
     const data: Record<string, string> = {};
@@ -889,6 +1047,8 @@ const GrnPage = () => {
   const openCreateModal = () => {
     setCreatePrefill(null);
     setCreateSourceRcId(null);
+    setCreateSourcePoId(null);
+    setCreatePrefillFromPo(false);
     setCreatePrefillLabel(null);
     setCreateFormKey((k) => k + 1);
     setIsFormModalOpen(true);
@@ -898,6 +1058,8 @@ const GrnPage = () => {
     setIsFormModalOpen(false);
     setCreatePrefill(null);
     setCreateSourceRcId(null);
+    setCreateSourcePoId(null);
+    setCreatePrefillFromPo(false);
     setCreatePrefillLabel(null);
   };
 
@@ -905,6 +1067,9 @@ const GrnPage = () => {
     const payload: IGrnPayload = {
       grn_number: values.rc_number || undefined,
       rate_contract_id: createSourceRcId ?? undefined,
+      purchase_order_id: createSourcePoId ?? undefined,
+      invoice_no: values.invoice_no?.trim() || null,
+      invoice_date: values.invoice_date?.trim() || null,
       entity_id: values.entity_id ?? null,
       vendor_id: values.vendor_id ?? null,
       vendor_site_id: values.vendor_site_id ?? null,
@@ -931,6 +1096,7 @@ const GrnPage = () => {
         center_id: i.center_id!,
         quantity: i.quantity,
         rate: i.rate,
+        gst_id: i.gst_id != null && i.gst_id > 0 ? i.gst_id : null,
         remarks: i.remarks.trim(),
       })),
     };
@@ -1012,7 +1178,7 @@ const GrnPage = () => {
   const onFinishFilter = (values: Record<string, unknown>) => {
     const existing: Record<string, string> = {};
     searchParams.forEach((value, key) => {
-      if (key === 'rcId') return;
+      if (key === 'rcId' || key === 'poId') return;
       existing[key] = value;
     });
     const merged = { ...existing, ...values };
@@ -1023,7 +1189,8 @@ const GrnPage = () => {
           val !== '' &&
           val !== null &&
           key !== 'skip' &&
-          key !== 'rcId',
+          key !== 'rcId' &&
+          key !== 'poId',
       )
       .map(([key, val]) => `${key}=${encodeURIComponent(val as string)}`)
       .join('&');
@@ -1074,12 +1241,11 @@ const GrnPage = () => {
           <div>
             <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
               <ShoppingCart size={18} className="text-emerald-600" />
-              GRN
+              {grnPageTitle}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {totalCount}{' '}
-              {totalCount === 1 ? 'GRN' : 'GRNs'}{' '}
-              configured
+            <p className="text-xs text-gray-500 mt-0.5 max-w-xl">
+              {grnPageSubtitle} {totalCount}{' '}
+              {totalCount === 1 ? 'record' : 'records'}.
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -1120,18 +1286,20 @@ const GrnPage = () => {
               )}
             </button>
 
-            <Can
-              I={Common.Actions.CAN_ADD}
-              a={Common.Modules.PROCUREMENT.GRN}
-            >
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
+            {!isPoGrnRoute && (
+              <Can
+                I={Common.Actions.CAN_ADD}
+                a={Common.Modules.PROCUREMENT.GRN}
               >
-                <Plus size={14} /> New GRN
-              </button>
-            </Can>
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm"
+                >
+                  <Plus size={14} /> New GRN
+                </button>
+              </Can>
+            )}
           </div>
         </div>
 
@@ -1356,7 +1524,9 @@ const GrnPage = () => {
         title="New GRN"
         subtitle={
           createPrefillLabel
-            ? `Prefilled from approved rate contract ${createPrefillLabel}. Adjust quantities or lines before submitting.`
+            ? createPrefillFromPo
+              ? `Prefilled from approved purchase order ${createPrefillLabel}. Adjust quantities or lines before submitting.`
+              : `Prefilled from approved rate contract ${createPrefillLabel}. Adjust quantities or lines before submitting.`
             : 'Create a GRN with line items and supporting details.'
         }
         footer={
@@ -1384,6 +1554,7 @@ const GrnPage = () => {
       >
         <RateContractAdd
           key={createFormKey}
+          formVariant="grn"
           data={createPrefill ?? undefined}
           onSubmit={handleFormSubmit}
           myRef={submitBtnRef}
@@ -1397,6 +1568,7 @@ const GrnPage = () => {
           items={fk.items}
           termsConditions={fk.termsConditions}
           currencies={fk.currencies}
+          gstRates={fk.gstRates}
         />
       </FormModal>
 
@@ -1479,6 +1651,7 @@ const GrnPage = () => {
           <div className="space-y-8">
             <RateContractAdd
               readOnly
+              formVariant="grn"
               data={viewRecord}
               onSubmit={() => {}}
               vendors={fk.vendors}
@@ -1491,6 +1664,7 @@ const GrnPage = () => {
               items={fk.items}
               termsConditions={fk.termsConditions}
               currencies={fk.currencies}
+              gstRates={fk.gstRates}
             />
 
             {rcAwaitingApproval &&

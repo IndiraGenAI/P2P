@@ -1,0 +1,710 @@
+import { useEffect, useMemo, useState } from 'react';
+import { DatePicker, Form, Input, InputNumber } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { Plus, Trash2 } from 'lucide-react';
+import { Select } from '@/components/ui/Select';
+import vendorSiteService, {
+  type IVendorSiteRow,
+} from '@/services/vendorSite/vendorSite.service';
+import type { SelectOption } from '@/common/models';
+
+dayjs.extend(customParseFormat);
+
+const DATE_FORMAT = 'DD MMM YYYY';
+const toDayjs = (value: string) => {
+  if (!value) return null;
+  const d = dayjs(value, ['YYYY-MM-DD', DATE_FORMAT], true);
+  return d.isValid() ? d : null;
+};
+const fromDayjs = (value: Dayjs | null) =>
+  value?.isValid() ? value.format('YYYY-MM-DD') : '';
+import type { IPurchaseOrderRecord } from '../purchaseOrder.model';
+import type { IPurchaseOrderAddProps } from './Add.model';
+
+const SECTION_TITLE =
+  'text-[11px] font-semibold tracking-[0.14em] text-gray-600 uppercase mb-4';
+const SECTION_DIVIDER = 'border-t border-gray-200 pt-6 mt-2';
+const FIELD_INPUT_CLASS = 'rounded-xl soft-input !py-2.5';
+
+const wrapLabel = (label: string) => (
+  <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+    {label}
+  </span>
+);
+
+const FREQUENCY_OPTIONS = [
+  { value: '', label: 'Frequency…' },
+  { value: 'ONE_TIME', label: 'One Time' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'HALF_YEARLY', label: 'Half Yearly' },
+  { value: 'YEARLY', label: 'Yearly' },
+];
+
+interface ItemRowDraft {
+  id?: number;
+  item_id: number | null;
+  description: string;
+  quantity: number;
+  estimated_rate: number;
+  amount: number;
+  remarks: string;
+}
+
+const emptyRow = (): ItemRowDraft => ({
+  item_id: null,
+  description: '',
+  quantity: 1,
+  estimated_rate: 0,
+  amount: 0,
+  remarks: '',
+});
+
+interface FormValues {
+  po_number: string;
+  entity_id: string;
+  vendor_id: string;
+  vendor_site_id: string;
+  item_type_id: string;
+  department_id: string;
+  subdepartment_id: string;
+  payment_term_id: string;
+  center_id: string;
+  validity_from: string;
+  validity_to: string;
+  required_date: string;
+  frequency: string;
+  remarks: string;
+  terms_conditions: string;
+  overall_summary: string;
+}
+
+const PurchaseOrderAdd = (props: IPurchaseOrderAddProps) => {
+  const {
+    data,
+    readOnly = false,
+    onSubmit,
+    myRef,
+    vendors,
+    entities,
+    itemTypes,
+    departments,
+    subdepartments,
+    paymentTerms,
+    centers,
+    items,
+  } = props;
+  const [form] = Form.useForm<FormValues>();
+  const isEdit = !!data?.id;
+  const ro = readOnly;
+
+  const initialValues = useMemo<FormValues>(
+    () => ({
+      po_number: data?.po_number ?? '',
+      entity_id: data?.entity_id ? String(data.entity_id) : '',
+      vendor_id: data?.vendor_id ? String(data.vendor_id) : '',
+      vendor_site_id: data?.vendor_site_id ? String(data.vendor_site_id) : '',
+      item_type_id: data?.item_type_id ? String(data.item_type_id) : '',
+      department_id: data?.department_id ? String(data.department_id) : '',
+      subdepartment_id: data?.subdepartment_id
+        ? String(data.subdepartment_id)
+        : '',
+      payment_term_id: data?.payment_term_id
+        ? String(data.payment_term_id)
+        : '',
+      center_id: data?.center_id ? String(data.center_id) : '',
+      validity_from: data?.validity_from ?? '',
+      validity_to: data?.validity_to ?? '',
+      required_date: data?.required_date ?? '',
+      frequency: data?.frequency ?? '',
+      remarks: data?.remarks ?? '',
+      terms_conditions: data?.terms_conditions ?? '',
+      overall_summary: data?.overall_summary ?? '',
+    }),
+    [data],
+  );
+
+  const [local, setLocal] = useState<FormValues>(initialValues);
+  const [vendorSites, setVendorSites] = useState<SelectOption[]>([]);
+  const [vendorSitesLoading, setVendorSitesLoading] = useState(false);
+  const [rows, setRows] = useState<ItemRowDraft[]>(() =>
+    data?.items?.length
+      ? data.items.map((item) => ({
+          id: item.id,
+          item_id: item.item_id ?? null,
+          description: item.description ?? '',
+          quantity: Number(item.quantity ?? 0),
+          estimated_rate: Number(item.estimated_rate ?? 0),
+          amount: Number(item.amount ?? 0),
+          remarks: item.remarks ?? '',
+        }))
+      : [emptyRow()],
+  );
+  const [itemsError, setItemsError] = useState<string>('');
+
+  useEffect(() => {
+    form.resetFields();
+    setLocal(initialValues);
+    setRows(
+      data?.items?.length
+        ? data.items.map((item) => ({
+            id: item.id,
+            item_id: item.item_id ?? null,
+            description: item.description ?? '',
+            quantity: Number(item.quantity ?? 0),
+            estimated_rate: Number(item.estimated_rate ?? 0),
+            amount: Number(item.amount ?? 0),
+            remarks: item.remarks ?? '',
+          }))
+        : [emptyRow()],
+    );
+    setItemsError('');
+  }, [initialValues]);
+
+  const setField = (key: keyof FormValues, value: string) => {
+    setLocal((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'department_id') {
+        next.subdepartment_id = '';
+      }
+      if (key === 'vendor_id' && value !== prev.vendor_id) {
+        next.vendor_site_id = '';
+      }
+      return next;
+    });
+    if (key === 'department_id') {
+      form.setFieldsValue({
+        department_id: value,
+        subdepartment_id: '',
+      } as Partial<FormValues>);
+    } else if (key === 'vendor_id') {
+      form.setFieldsValue({
+        vendor_id: value,
+        vendor_site_id: '',
+      } as Partial<FormValues>);
+    } else {
+      form.setFieldsValue({ [key]: value } as Partial<FormValues>);
+    }
+  };
+
+  useEffect(() => {
+    const vendorId = local.vendor_id;
+    if (!vendorId) {
+      setVendorSites([]);
+      return;
+    }
+    let cancelled = false;
+    setVendorSitesLoading(true);
+    const params = new URLSearchParams();
+    params.set('noLimit', 'true');
+    params.set('status', 'true');
+    params.set('vendor_id', vendorId);
+    vendorSiteService
+      .search(params)
+      .then((res) => {
+        if (cancelled) return;
+        const list = (res.data as { rows: IVendorSiteRow[] }).rows ?? [];
+        setVendorSites(
+          list.map((s) => ({
+            value: String(s.id),
+            label: s.site_name
+              ? `${s.site_code} — ${s.site_name}`
+              : s.site_code,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setVendorSites([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVendorSitesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [local.vendor_id]);
+
+  const filteredSubdepartments = useMemo(
+    () =>
+      local.department_id
+        ? subdepartments.filter(
+            (sd) => sd.department_id === local.department_id,
+          )
+        : [],
+    [subdepartments, local.department_id],
+  );
+
+  const updateRow = (index: number, patch: Partial<ItemRowDraft>) => {
+    setRows((prev) => {
+      const next = [...prev];
+      const merged = { ...next[index], ...patch };
+      const hasQty = patch.quantity !== undefined;
+      const hasRate = patch.estimated_rate !== undefined;
+      if (hasQty || hasRate) {
+        merged.amount =
+          Number(merged.quantity ?? 0) * Number(merged.estimated_rate ?? 0);
+      }
+      next[index] = merged;
+      return next;
+    });
+  };
+
+  const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+  const removeRow = (index: number) =>
+    setRows((prev) =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== index),
+    );
+
+  const totalNet = useMemo(
+    () => rows.reduce((sum, r) => sum + Number(r.amount ?? 0), 0),
+    [rows],
+  );
+
+  const onFinish = (values: FormValues) => {
+    if (ro) return;
+    if (!rows.length) {
+      setItemsError('Please add at least one item.');
+      return;
+    }
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const rowNum = i + 1;
+      if (r.item_id == null || r.item_id < 1) {
+        setItemsError(`Row ${rowNum}: select an item.`);
+        return;
+      }
+      const qty = Number(r.quantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        setItemsError(`Row ${rowNum}: quantity must be greater than 0.`);
+        return;
+      }
+      const rate = Number(r.estimated_rate);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        setItemsError(`Row ${rowNum}: rate must be greater than 0.`);
+        return;
+      }
+    }
+    setItemsError('');
+
+    const payload: IPurchaseOrderRecord = {
+      id: data?.id ?? 0,
+      po_number: values.po_number?.trim() || undefined,
+      entity_id: values.entity_id ? Number(values.entity_id) : null,
+      vendor_id: values.vendor_id ? Number(values.vendor_id) : null,
+      vendor_site_id: values.vendor_site_id
+        ? Number(values.vendor_site_id)
+        : null,
+      item_type_id: values.item_type_id ? Number(values.item_type_id) : null,
+      department_id: values.department_id ? Number(values.department_id) : null,
+      subdepartment_id: values.subdepartment_id
+        ? Number(values.subdepartment_id)
+        : null,
+      payment_term_id: values.payment_term_id
+        ? Number(values.payment_term_id)
+        : null,
+      center_id: values.center_id ? Number(values.center_id) : null,
+      validity_from: local.validity_from || null,
+      validity_to: local.validity_to || null,
+      required_date: local.required_date || null,
+      frequency: local.frequency || null,
+      remarks: values.remarks?.trim() || null,
+      terms_conditions: values.terms_conditions?.trim() || null,
+      overall_summary: values.overall_summary?.trim() || null,
+      status: data?.id ? (data?.status ?? 'DRAFT') : 'SUBMITTED',
+      net_amount: totalNet,
+      items: rows.map((r) => ({
+        id: r.id,
+        item_id: r.item_id ?? null,
+        description: r.description?.trim() || null,
+        quantity: Number(r.quantity ?? 0),
+        estimated_rate: Number(r.estimated_rate ?? 0),
+        amount: Number(r.amount ?? 0),
+        remarks: r.remarks?.trim() || null,
+      })),
+    };
+    onSubmit(payload);
+  };
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={onFinish}
+      initialValues={initialValues}
+    >
+      {/* ───── Header ───── */}
+      <div>
+        <p className={SECTION_TITLE}>Header</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+          <Form.Item
+            name="po_number"
+            label={wrapLabel('PO Number (Auto-generated)')}
+          >
+            <Input
+              placeholder="Auto-generated"
+              className={FIELD_INPUT_CLASS}
+              size="large"
+              disabled={ro || !isEdit}
+            />
+          </Form.Item>
+          <Form.Item
+            name="vendor_id"
+            label={wrapLabel('Vendor')}
+            rules={[{ required: true, message: 'Please select vendor' }]}
+          >
+            <Select
+              value={local.vendor_id}
+              onChange={(v) => setField('vendor_id', v)}
+              options={[{ value: '', label: 'Select Vendor…' }, ...vendors]}
+              placeholder="Select Vendor…"
+              disabled={ro}
+            />
+          </Form.Item>
+          <Form.Item
+            name="vendor_site_id"
+            label={wrapLabel('Vendor Site')}
+          >
+            <Select
+              value={local.vendor_site_id}
+              onChange={(v) => setField('vendor_site_id', v)}
+              options={[
+                {
+                  value: '',
+                  label: local.vendor_id
+                    ? vendorSitesLoading
+                      ? 'Loading sites…'
+                      : vendorSites.length === 0
+                        ? 'No sites for this vendor'
+                        : 'Select Site…'
+                    : 'Select Vendor first…',
+                },
+                ...vendorSites,
+              ]}
+              placeholder={
+                local.vendor_id ? 'Select Site…' : 'Select Vendor first…'
+              }
+              disabled={ro || !local.vendor_id || vendorSitesLoading}
+            />
+          </Form.Item>
+          <Form.Item name="entity_id" label={wrapLabel('Entity')}>
+            <Select
+              value={local.entity_id}
+              onChange={(v) => setField('entity_id', v)}
+              options={[{ value: '', label: 'Select Entity…' }, ...entities]}
+              placeholder="Select Entity…"
+              disabled={ro}
+            />
+          </Form.Item>
+          <Form.Item name="item_type_id" label={wrapLabel('Item Type')}>
+            <Select
+              value={local.item_type_id}
+              onChange={(v) => setField('item_type_id', v)}
+              options={[
+                { value: '', label: 'Select Item Type…' },
+                ...itemTypes,
+              ]}
+              placeholder="Select Item Type…"
+              disabled={ro}
+            />
+          </Form.Item>
+          <Form.Item name="payment_term_id" label={wrapLabel('Payment Term')}>
+            <Select
+              value={local.payment_term_id}
+              onChange={(v) => setField('payment_term_id', v)}
+              options={[
+                { value: '', label: 'Select Payment Term…' },
+                ...paymentTerms,
+              ]}
+              placeholder="Select Payment Term…"
+              disabled={ro}
+            />
+          </Form.Item>
+        </div>
+      </div>
+
+      {/* ───── Dates & frequency ───── */}
+      <div className={SECTION_DIVIDER}>
+        <p className={SECTION_TITLE}>Validity & Schedule</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6">
+          <Form.Item label={wrapLabel('Validity From')}>
+            <DatePicker
+              value={toDayjs(local.validity_from)}
+              onChange={(d) => setField('validity_from', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              disabled={ro}
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
+            />
+          </Form.Item>
+          <Form.Item label={wrapLabel('Validity To')}>
+            <DatePicker
+              value={toDayjs(local.validity_to)}
+              onChange={(d) => setField('validity_to', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              disabled={ro}
+              disabledDate={(current) => {
+                const from = toDayjs(local.validity_from);
+                return !!(current && from && current.isBefore(from, 'day'));
+              }}
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
+            />
+          </Form.Item>
+          <Form.Item label={wrapLabel('Required Date')}>
+            <DatePicker
+              value={toDayjs(local.required_date)}
+              onChange={(d) => setField('required_date', fromDayjs(d))}
+              format={DATE_FORMAT}
+              placeholder="Select date"
+              allowClear
+              disabled={ro}
+              className={FIELD_INPUT_CLASS + ' w-full !px-3 border'}
+            />
+          </Form.Item>
+          <Form.Item name="frequency" label={wrapLabel('Frequency')}>
+            <Select
+              value={local.frequency}
+              onChange={(v) => setField('frequency', v)}
+              options={FREQUENCY_OPTIONS}
+              placeholder="Frequency…"
+              disabled={ro}
+            />
+          </Form.Item>
+        </div>
+      </div>
+
+      {/* ───── Org ───── */}
+      <div className={SECTION_DIVIDER}>
+        <p className={SECTION_TITLE}>Organisation</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6">
+          <Form.Item name="department_id" label={wrapLabel('Department')}>
+            <Select
+              value={local.department_id}
+              onChange={(v) => setField('department_id', v)}
+              options={[
+                { value: '', label: 'Select Department…' },
+                ...departments,
+              ]}
+              placeholder="Select Department…"
+              disabled={ro}
+            />
+          </Form.Item>
+          <Form.Item
+            name="subdepartment_id"
+            label={wrapLabel('Sub-department')}
+          >
+            <Select
+              value={local.subdepartment_id}
+              onChange={(v) => setField('subdepartment_id', v)}
+              options={[
+                {
+                  value: '',
+                  label: local.department_id
+                    ? 'Select Sub-department…'
+                    : 'Select Department first…',
+                },
+                ...filteredSubdepartments,
+              ]}
+              placeholder={
+                local.department_id
+                  ? 'Select Sub-department…'
+                  : 'Select Department first…'
+              }
+              disabled={ro || !local.department_id}
+            />
+          </Form.Item>
+          <Form.Item name="center_id" label={wrapLabel('Center')}>
+            <Select
+              value={local.center_id}
+              onChange={(v) => setField('center_id', v)}
+              options={[{ value: '', label: 'Select Center…' }, ...centers]}
+              placeholder="Select Center…"
+              disabled={ro}
+            />
+          </Form.Item>
+        </div>
+      </div>
+
+      {/* ───── Items ───── */}
+      <div className={SECTION_DIVIDER}>
+        <div className="flex items-center justify-between mb-4">
+          <p className={SECTION_TITLE + ' !mb-0'}>Items</p>
+          {!ro && (
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+            >
+              <Plus size={14} /> Add Item
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-12">
+                  #
+                </th>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-56">
+                  Item
+                </th>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-24">
+                  Qty
+                </th>
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
+                  Rate (₹)
+                </th>
+                <th className="px-2 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider w-32">
+                  Amount (₹)
+                </th>
+                {!ro && <th className="px-3 py-2 text-center w-12"> </th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr
+                  key={index}
+                  className="border-t border-gray-100 hover:bg-slate-50/50"
+                >
+                  <td className="px-3 py-2 text-gray-500">{index + 1}</td>
+                  <td className="px-2 py-1.5">
+                    <Select
+                      value={row.item_id ? String(row.item_id) : ''}
+                      onChange={(v) =>
+                        updateRow(index, { item_id: v ? Number(v) : null })
+                      }
+                      options={[
+                        { value: '', label: 'Select Item…' },
+                        ...items,
+                      ]}
+                      placeholder="Select Item…"
+                      size="sm"
+                      disabled={ro}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Input
+                      value={row.description}
+                      onChange={(e) =>
+                        updateRow(index, { description: e.target.value })
+                      }
+                      placeholder="Description"
+                      className="rounded-lg soft-input"
+                      readOnly={ro}
+                      disabled={ro}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <InputNumber
+                      value={row.quantity}
+                      onChange={(value) =>
+                        updateRow(index, { quantity: Number(value ?? 0) })
+                      }
+                      min={0}
+                      precision={2}
+                      controls={false}
+                      className="w-full rounded-lg pr-num-input"
+                      readOnly={ro}
+                      disabled={ro}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <InputNumber
+                      value={row.estimated_rate}
+                      onChange={(value) =>
+                        updateRow(index, {
+                          estimated_rate: Number(value ?? 0),
+                        })
+                      }
+                      min={0}
+                      precision={2}
+                      controls={false}
+                      className="w-full rounded-lg pr-num-input"
+                      readOnly={ro}
+                      disabled={ro}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 text-center text-sm font-medium text-gray-700 tabular-nums">
+                    ₹ {Number(row.amount).toFixed(2)}
+                  </td>
+                  {!ro && (
+                    <td className="px-2 py-1.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(index)}
+                        disabled={rows.length === 1}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition disabled:opacity-30 disabled:cursor-not-allowed"
+                        aria-label={`Remove row ${index + 1}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              <tr className="border-t-2 border-gray-200 bg-slate-50">
+                <td colSpan={5} className="px-3 py-2 text-right font-semibold">
+                  Net Amount
+                </td>
+                <td className="px-2 py-2 text-center font-semibold text-emerald-700 tabular-nums">
+                  ₹ {totalNet.toFixed(2)}
+                </td>
+                {!ro && <td />}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {itemsError && (
+          <p className="text-xs text-red-500 mt-2">{itemsError}</p>
+        )}
+      </div>
+
+      {/* ───── Notes ───── */}
+      <div className={SECTION_DIVIDER}>
+        <p className={SECTION_TITLE}>Notes</p>
+        <Form.Item name="remarks" label={wrapLabel('Remarks')}>
+          <Input.TextArea
+            rows={2}
+            placeholder="Internal remarks"
+            className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
+          />
+        </Form.Item>
+        <Form.Item name="terms_conditions" label={wrapLabel('Terms & Conditions')}>
+          <Input.TextArea
+            rows={3}
+            placeholder="Payment terms, delivery terms, etc."
+            className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
+          />
+        </Form.Item>
+        <Form.Item name="overall_summary" label={wrapLabel('Overall Summary')}>
+          <Input.TextArea
+            rows={2}
+            placeholder="Summary visible to approver"
+            className="rounded-xl soft-input"
+            readOnly={ro}
+            disabled={ro}
+          />
+        </Form.Item>
+      </div>
+
+      <button ref={myRef} type="submit" className="hidden" tabIndex={-1}>
+        Submit
+      </button>
+    </Form>
+  );
+};
+
+export default PurchaseOrderAdd;

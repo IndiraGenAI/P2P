@@ -89,8 +89,13 @@ export class GrnController {
 
   @Role('PROCUREMENT_GRN_VIEW')
   @Get('status-counts')
-  async getStatusCounts(@Res() res: Response): Promise<Response> {
-    const result = await this.service.getStatusCounts();
+  async getStatusCounts(
+    @Query('source') source: 'po' | 'contract' | undefined,
+    @Res() res: Response,
+  ): Promise<Response> {
+    const normalized =
+      source === 'po' || source === 'contract' ? source : undefined;
+    const result = await this.service.getStatusCounts(normalized);
     return baseController.getResult(
       res,
       200,

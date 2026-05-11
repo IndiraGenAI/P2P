@@ -2,11 +2,19 @@ import type { IGrnDetail } from '@/services/grn/grn.model';
 import type { IRateContractRecord } from '@/pages/RateContract/RateContract.model';
 import type { IRateContractApprovalStepRow } from '@/services/rateContract/rateContract.model';
 
+function formatYmd(value: string | Date | null | undefined): string {
+  if (value == null || value === '') return '';
+  const s = typeof value === 'string' ? value : String(value);
+  return s.slice(0, 10);
+}
+
 /** Reuse Rate Contract form UI: map GRN API detail into the RC record shape. */
 export function grnDetailToRcRecordShape(row: IGrnDetail): IRateContractRecord {
   return {
     id: row.id,
     rc_number: row.grn_number ?? '',
+    invoice_no: row.invoice_no?.trim() ?? '',
+    invoice_date: formatYmd(row.invoice_date),
     entity_id: row.entity_id ?? null,
     vendor_id: row.vendor_id ?? null,
     vendor_site_id: row.vendor_site_id ?? null,
@@ -44,6 +52,11 @@ export function grnDetailToRcRecordShape(row: IGrnDetail): IRateContractRecord {
       quantity: Number(item.quantity ?? 0),
       rate: Number(item.rate ?? 0),
       amount: Number(item.base_amount ?? 0),
+      gst_id: item.gst_id ?? null,
+      gst_amount: Number(item.gst_amount ?? 0),
+      net_line_amount: Number(
+        item.net_line_amount ?? item.base_amount ?? 0,
+      ),
       remarks: item.remarks ?? '',
     })),
   };

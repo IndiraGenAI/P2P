@@ -9,6 +9,8 @@ export function grnInvoiceDetailToRcRecordShape(
   return {
     id: row.id,
     rc_number: row.grn_invoice_number ?? '',
+    invoice_no: row.invoice_no?.trim() ?? '',
+    invoice_date: row.invoice_date ? String(row.invoice_date).slice(0, 10) : '',
     entity_id: row.entity_id ?? null,
     vendor_id: row.vendor_id ?? null,
     vendor_site_id: row.vendor_site_id ?? null,
@@ -33,6 +35,9 @@ export function grnInvoiceDetailToRcRecordShape(
     payment_term_id: row.payment_term_id ?? null,
     terms_condition_id: row.terms_condition_id ?? null,
     overall_summary: row.overall_summary ?? '',
+    oracle_invoice_group: row.oracle_invoice_group?.trim() ?? null,
+    oracle_invoice_source: row.oracle_invoice_source?.trim() ?? 'P2P',
+    oracle_invoice_type: row.oracle_invoice_type?.trim() ?? 'Standard',
     status: row.status ?? 'DRAFT',
     net_amount: row.net_amount != null ? Number(row.net_amount) : 0,
     approval_steps: row.approval_steps as unknown as
@@ -46,6 +51,16 @@ export function grnInvoiceDetailToRcRecordShape(
       quantity: Number(item.quantity ?? 0),
       rate: Number(item.rate ?? 0),
       amount: Number(item.base_amount ?? 0),
+      gst_id: item.gst_id ?? null,
+      gst_amount:
+        item.gst_amount != null ? Number(item.gst_amount) : undefined,
+      tds_id: item.tds_id ?? null,
+      tds_amount:
+        item.tds_amount != null ? Number(item.tds_amount) : undefined,
+      net_line_amount:
+        item.net_line_amount != null
+          ? Number(item.net_line_amount)
+          : undefined,
       remarks: item.remarks ?? '',
     })),
   };

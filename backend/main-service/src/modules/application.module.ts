@@ -1,5 +1,6 @@
 import { AuthModule } from './auth/auth.module';
 import { PurchaseRequestModule } from './purchase-request/purchase-request.module';
+import { PurchaseOrderModule } from './purchase-order/purchase-order.module';
 import { RateContractModule } from './rate-contract/rate-contract.module';
 import { GrnModule } from './grn/grn.module';
 import { GrnInvoiceModule } from './grn-invoice/grn-invoice.module';
@@ -12,6 +13,7 @@ import { GrnInvoiceModule } from './grn-invoice/grn-invoice.module';
 export const ApplicationModules = [
   AuthModule,
   PurchaseRequestModule,
+  PurchaseOrderModule,
   RateContractModule,
   GrnModule,
   GrnInvoiceModule,

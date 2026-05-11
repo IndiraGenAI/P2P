@@ -18,6 +18,8 @@ import centerService from '@/services/center/center.service';
 import entityService from '@/services/entity/entity.service';
 import termsConditionService from '@/services/termsCondition/termsCondition.service';
 import currencyService from '@/services/currency/currency.service';
+import gstService from '@/services/gst/gst.service';
+import tdsService from '@/services/tds/tds.service';
 import type { SelectOption } from '@/common/models';
 import type { IMetaProps } from '@/components/Pagination/Pagination.model';
 import { useAppSelector } from '@/state/app.hooks';
@@ -43,7 +45,11 @@ import {
   type IRateContractRecord,
 } from '@/pages/RateContract/RateContract.model';
 import RateContractAdd from '@/pages/RateContract/Add';
-import type { ISubdepartmentOption } from '@/pages/RateContract/Add/Add.model';
+import type {
+  IGstRateOption,
+  ITdsRateOption,
+  ISubdepartmentOption,
+} from '@/pages/RateContract/Add/Add.model';
 
 const DEFAULT_TAKE = 10;
 const NON_FILTER_KEYS = new Set([
@@ -153,6 +159,14 @@ type PageToast =
   | { variant: 'success'; text: string }
   | { variant: 'error'; text: string };
 
+function localTodayYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** Prefill create-invoice form from an approved GRN header + lines. */
 function invoiceCreatePrefillFromApprovedGrn(
   detail: IGrnDetail,
@@ -162,6 +176,8 @@ function invoiceCreatePrefillFromApprovedGrn(
     ...r,
     id: 0,
     rc_number: '',
+    invoice_no: r.invoice_no?.trim() || '',
+    invoice_date: r.invoice_date?.trim() || localTodayYmd(),
     status: RcStatus.DRAFT,
     approval_steps: [],
     items: r.items.map(({ id: _lineId, ...line }) => ({ ...line })),
@@ -427,6 +443,8 @@ function useRateContractFkOptions() {
   const [items, setItems] = useState<SelectOption[]>([]);
   const [termsConditions, setTermsConditions] = useState<SelectOption[]>([]);
   const [currencies, setCurrencies] = useState<SelectOption[]>([]);
+  const [gstRates, setGstRates] = useState<IGstRateOption[]>([]);
+  const [tdsRates, setTdsRates] = useState<ITdsRateOption[]>([]);
   const fetched = useRef(false);
 
   useEffect(() => {
@@ -551,6 +569,37 @@ function useRateContractFkOptions() {
         );
       })
       .catch(() => setCurrencies([]));
+
+    gstService
+      .searchGstData(params)
+      .then((res) => {
+        const rows = res.data?.rows ?? [];
+        setGstRates(
+          rows.map((r) => ({
+            id: r.id,
+            label: `${r.code} — ${Number(r.percentage)}%`,
+            percentage: Number(r.percentage),
+          })),
+        );
+      })
+      .catch(() => setGstRates([]));
+
+    tdsService
+      .searchTdsData(searchParamsToRecord(params))
+      .then((res) => {
+        const inner = res?.data as
+          | { rows?: { id: number; code: string; percentage: number | string }[] }
+          | undefined;
+        const rows = inner?.rows ?? [];
+        setTdsRates(
+          rows.map((r) => ({
+            id: r.id,
+            label: `${r.code} — ${Number(r.percentage)}%`,
+            percentage: Number(r.percentage),
+          })),
+        );
+      })
+      .catch(() => setTdsRates([]));
   }, []);
 
   return {
@@ -564,6 +613,8 @@ function useRateContractFkOptions() {
     items,
     termsConditions,
     currencies,
+    gstRates,
+    tdsRates,
   };
 }
 
@@ -913,6 +964,8 @@ const GrnInvoicePage = () => {
       grn_id: createSourceGrnId,
       grn_invoice_number: values.rc_number || undefined,
       rate_contract_id: undefined,
+      invoice_no: values.invoice_no?.trim() || null,
+      invoice_date: values.invoice_date?.trim() || null,
       entity_id: values.entity_id ?? null,
       vendor_id: values.vendor_id ?? null,
       vendor_site_id: values.vendor_site_id ?? null,
@@ -931,6 +984,10 @@ const GrnInvoicePage = () => {
       payment_term_id: values.payment_term_id ?? null,
       terms_condition_id: values.terms_condition_id ?? null,
       overall_summary: values.overall_summary || null,
+      oracle_invoice_group: values.oracle_invoice_group?.trim() || null,
+      oracle_invoice_source:
+        values.oracle_invoice_source?.trim() || 'P2P',
+      oracle_invoice_type: values.oracle_invoice_type?.trim() || 'Standard',
       net_amount: values.net_amount,
       status: RcStatus.SUBMITTED,
       items: values.items.map((i) => ({
@@ -939,6 +996,8 @@ const GrnInvoicePage = () => {
         center_id: i.center_id!,
         quantity: i.quantity,
         rate: i.rate,
+        gst_id: i.gst_id != null && i.gst_id > 0 ? i.gst_id : null,
+        tds_id: i.tds_id != null && i.tds_id > 0 ? i.tds_id : null,
         remarks: i.remarks.trim(),
       })),
     };
@@ -1360,7 +1419,7 @@ const GrnInvoicePage = () => {
       <FormModal
         isOpen={isFormModalOpen}
         onClose={closeFormModal}
-        size="xl"
+        size="full"
         title="New invoice"
         subtitle={
           createPrefillLabel
@@ -1392,6 +1451,7 @@ const GrnInvoicePage = () => {
       >
         <RateContractAdd
           key={createFormKey}
+          formVariant="grn_invoice"
           data={createPrefill ?? undefined}
           onSubmit={handleFormSubmit}
           myRef={submitBtnRef}
@@ -1405,13 +1465,15 @@ const GrnInvoicePage = () => {
           items={fk.items}
           termsConditions={fk.termsConditions}
           currencies={fk.currencies}
+          gstRates={fk.gstRates}
+          tdsRates={fk.tdsRates}
         />
       </FormModal>
 
       <FormModal
         isOpen={isViewModalOpen}
         onClose={closeViewModal}
-        size="xl"
+        size="full"
         title="GRN Invoice"
         subtitle={
           viewRecord?.rc_number
@@ -1454,6 +1516,7 @@ const GrnInvoicePage = () => {
           <div className="space-y-8">
             <RateContractAdd
               readOnly
+              formVariant="grn_invoice"
               data={viewRecord}
               onSubmit={() => {}}
               vendors={fk.vendors}
@@ -1466,6 +1529,8 @@ const GrnInvoicePage = () => {
               items={fk.items}
               termsConditions={fk.termsConditions}
               currencies={fk.currencies}
+              gstRates={fk.gstRates}
+              tdsRates={fk.tdsRates}
             />
 
             {rcAwaitingApproval &&

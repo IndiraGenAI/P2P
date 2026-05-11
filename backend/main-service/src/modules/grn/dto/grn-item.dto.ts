@@ -53,6 +53,13 @@ export class CreateGrnItemDto {
   @Min(0)
   base_amount?: number;
 
+  @ApiPropertyOptional({ description: 'GST master row; tax computed server-side' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  gst_id?: number | null;
+
   @ApiProperty({ example: 'Site-specific note' })
   @IsNotEmpty()
   @IsString()
@@ -108,6 +115,13 @@ export class UpdateGrnItemDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   base_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  gst_id?: number | null;
 
   @ApiPropertyOptional()
   @IsOptional()
