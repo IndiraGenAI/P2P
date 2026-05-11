@@ -38,7 +38,7 @@ import {
   PurchaseRequestApprovalDecision,
   PurchaseRequestApprovalStepStatus,
   RcStatus,
-} from '@/commons/enum';
+} from '@/common/enums';
 import { grnDetailToRcRecordShape } from './grnFormAdapter';
 import rateContractService from '@/services/rateContract/rateContract.service';
 import type { IRateContractDetail } from '@/services/rateContract/rateContract.model';

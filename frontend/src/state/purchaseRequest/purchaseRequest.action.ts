@@ -1,6 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { PurchaseRequestApprovalDecision } from '@/commons/enum';
+import { PurchaseRequestApprovalDecision } from '@/common/enums';
 import purchaseRequestService from '@/services/purchaseRequest/purchaseRequest.service';
 import type {
   IPurchaseRequestPayload,

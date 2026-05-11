@@ -1,7 +1,7 @@
 import type {
   ApprovalWorkflowStepRole,
   ApprovalWorkflowTransactionType,
-} from '@/common/enums/approval-workflow.enum';
+} from '@/common/enums';
 
 export interface IApprovalWorkflowStep {
   order: number;

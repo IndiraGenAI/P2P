@@ -1,5 +1,5 @@
 import type { IMetaProps } from '@/components/Pagination/Pagination.model';
-import type { PurchaseRequestApprovalDecision } from '@/commons/enum';
+import type { PurchaseRequestApprovalDecision } from '@/common/enums';
 
 export type GrnStatus =
   | 'DRAFT'

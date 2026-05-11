@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, type LucideIcon } from 'lucide-react';
-import { Trend } from '@/common/enums';
+import { Trend } from '@/common/constants';
 
 interface StatCardProps {
   label: string;

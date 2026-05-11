@@ -65,11 +65,16 @@ export { PurchaseOrderItem } from './entities/purchase-order-item';
 export { PurchaseOrderDocument } from './entities/purchase-order-document';
 export { PurchaseOrderApprovalStep } from './entities/purchase-order-approval-step';
 export { PurchaseOrderApprovalAssignee } from './entities/purchase-order-approval-assignee';
+export { Budget } from './entities/budget';
 export { ApprovalWorkflow } from './entities/approval-workflow';
 export { ApprovalWorkflowTier } from './entities/approval-workflow-tier';
 export { ApprovalWorkflowStep } from './entities/approval-workflow-step';
 export { ApprovalWorkflowStepUser } from './entities/approval-workflow-step-user';
+export { ApprovalWorkflowV2 } from './entities/approval-workflow-v2';
+export { ApprovalWorkflowV2Step } from './entities/approval-workflow-v2-step';
+export { ApprovalWorkflowV2StepUser } from './entities/approval-workflow-v2-step-user';
 export {
   ApprovalWorkflowStepRole,
   ApprovalWorkflowTransactionType,
+  ApprovalWorkflowV2Scope,
 } from './enums/approval-workflow.enums';

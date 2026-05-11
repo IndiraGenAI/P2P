@@ -38,7 +38,7 @@ import {
   PurchaseRequestApprovalDecision,
   PurchaseRequestApprovalStepStatus,
   RcStatus,
-} from '@/commons/enum';
+} from '@/common/enums';
 import { grnDetailToRcRecordShape } from '@/pages/Grn/grnFormAdapter';
 import { grnInvoiceDetailToRcRecordShape } from './grnInvoiceFormAdapter';
 import {

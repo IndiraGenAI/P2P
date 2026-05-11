@@ -9,7 +9,7 @@ import vendorSiteService, {
 } from '@/services/vendorSite/vendorSite.service';
 import entityService from '@/services/entity/entity.service';
 import type { SelectOption } from '@/common/models';
-import { RateContractFrequency } from '@/commons/enum';
+import { RateContractFrequency } from '@/common/enums';
 import type { IRateContractRecord } from '../RateContract.model';
 import type {
   IRateContractAddProps,

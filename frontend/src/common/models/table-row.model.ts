@@ -1,4 +1,4 @@
-import type { UserStatus } from '@/common/enums';
+import type { UserStatus } from '@/common/constants';
 
 
 

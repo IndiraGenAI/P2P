@@ -17,7 +17,7 @@ import {
   ApprovalWorkflowStepRole,
   ApprovalWorkflowTransactionType,
   TRANSACTION_TYPE_OPTIONS,
-} from '@/common/enums/approval-workflow.enum';
+} from '@/common/enums';
 
 /** `center_id` empty string = all centers (default). */
 const CENTER_ALL_VALUE = '';

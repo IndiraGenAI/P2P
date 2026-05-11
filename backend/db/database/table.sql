@@ -303,6 +303,55 @@ CREATE TABLE IF NOT EXISTS entities (
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ---------------------------------------------------------------------------
+-- Budgets (COA / department / entity / location scoped amounts)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS budgets (
+    id SERIAL PRIMARY KEY,
+    financial_year VARCHAR(20) NOT NULL,
+    budget_type VARCHAR(20) NOT NULL,
+    coa_id INTEGER NOT NULL,
+    department_id INTEGER NOT NULL,
+    subdepartment_id INTEGER NOT NULL,
+    entity_id INTEGER NOT NULL,
+    center_id INTEGER NOT NULL,
+    cost_center_id INTEGER NOT NULL,
+    amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+    consumed_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+    balance_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+    control_type VARCHAR(30) NOT NULL,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_budget_type CHECK (budget_type IN ('OPEX', 'CAPEX')),
+    CONSTRAINT chk_budget_control CHECK (control_type IN ('HARD_STOP', 'SOFT_WARNING', 'NONE')),
+    CONSTRAINT fk_budget_coa FOREIGN KEY (coa_id) REFERENCES coa(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budget_department FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budget_subdepartment FOREIGN KEY (subdepartment_id) REFERENCES subdepartments(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budget_entity FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budget_center FOREIGN KEY (center_id) REFERENCES centers(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_budget_cost_center FOREIGN KEY (cost_center_id) REFERENCES cost_centers(id) ON DELETE RESTRICT,
+    CONSTRAINT uq_budget_scope UNIQUE (
+        financial_year,
+        budget_type,
+        coa_id,
+        department_id,
+        subdepartment_id,
+        entity_id,
+        center_id,
+        cost_center_id
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_budgets_financial_year ON budgets(financial_year);
+CREATE INDEX IF NOT EXISTS idx_budgets_budget_type ON budgets(budget_type);
+CREATE INDEX IF NOT EXISTS idx_budgets_coa_id ON budgets(coa_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_department_id ON budgets(department_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_entity_id ON budgets(entity_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_center_id ON budgets(center_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_cost_center_id ON budgets(cost_center_id);
 
 CREATE TABLE IF NOT EXISTS payment_terms (
     id SERIAL PRIMARY KEY,
@@ -1031,6 +1080,65 @@ CREATE TABLE IF NOT EXISTS approval_workflow_step_user (
 -- Then recreate FKs/indexes if needed, or drop constraints before rename.
 
 -- ---------------------------------------------------------------------------
+-- Approval Workflow V2 (single chain, scoped by ITEM / VENDOR / BUDGET)
+-- One workflow per scope. No amount tiers — just a linear chain of steps.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS approval_workflow_v2 (
+    id SERIAL PRIMARY KEY,
+    scope VARCHAR(20) NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT TRUE,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE,
+
+    CONSTRAINT chk_approval_workflow_v2_scope
+        CHECK (scope IN ('ITEM', 'VENDOR', 'BUDGET'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_approval_workflow_v2_scope
+    ON approval_workflow_v2 (scope);
+
+CREATE TABLE IF NOT EXISTS approval_workflow_v2_step (
+    id SERIAL PRIMARY KEY,
+    approval_workflow_v2_id INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL,
+    step_role VARCHAR(20) NOT NULL,
+    created_by VARCHAR(100),
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_date TIMESTAMP WITHOUT TIME ZONE,
+
+    CONSTRAINT fk_aw_v2_step_workflow
+        FOREIGN KEY (approval_workflow_v2_id)
+        REFERENCES approval_workflow_v2(id)
+        ON DELETE CASCADE,
+    CONSTRAINT chk_approval_workflow_v2_step_role
+        CHECK (step_role IN ('REVIEWER', 'APPROVER'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_approval_workflow_v2_step_order
+    ON approval_workflow_v2_step (approval_workflow_v2_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS approval_workflow_v2_step_user (
+    id SERIAL PRIMARY KEY,
+    approval_workflow_v2_step_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+
+    CONSTRAINT fk_aw_v2_step_user_step
+        FOREIGN KEY (approval_workflow_v2_step_id)
+        REFERENCES approval_workflow_v2_step(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_aw_v2_step_user_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT uq_approval_workflow_v2_step_user
+        UNIQUE (approval_workflow_v2_step_id, user_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- Purchase request approval execution (sequential reviewers then approvers)
 -- ---------------------------------------------------------------------------
 
@@ -1604,6 +1712,13 @@ ALTER TABLE grn_invoices ADD COLUMN IF NOT EXISTS oracle_invoice_type VARCHAR(50
 ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS gst_id INTEGER REFERENCES gst(id);
 ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS gst_amount NUMERIC(12,2) DEFAULT 0;
 ALTER TABLE grn_items ADD COLUMN IF NOT EXISTS net_line_amount NUMERIC(12,2) DEFAULT 0;
+
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS consumed_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS balance_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+UPDATE budgets
+SET balance_amount = COALESCE(amount, 0) - COALESCE(consumed_amount, 0)
+WHERE balance_amount = 0
+  AND COALESCE(amount, 0) <> COALESCE(consumed_amount, 0);
 -- LEGACY_PATCH_END
 
 -- ---------------------------------------------------------------------------

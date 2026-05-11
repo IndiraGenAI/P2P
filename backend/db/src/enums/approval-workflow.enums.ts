@@ -17,3 +17,13 @@ export enum ApprovalWorkflowStepRole {
   REVIEWER = 'REVIEWER',
   APPROVER = 'APPROVER',
 }
+
+/**
+ * Approval-workflow V2 scope. One workflow per scope.
+ * Frontend: keep in sync with `frontend/src/common/enums/approval-workflow.enum.ts`.
+ */
+export enum ApprovalWorkflowV2Scope {
+  ITEM = 'ITEM',
+  VENDOR = 'VENDOR',
+  BUDGET = 'BUDGET',
+}

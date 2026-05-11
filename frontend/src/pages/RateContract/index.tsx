@@ -34,7 +34,7 @@ import {
   PurchaseRequestApprovalDecision,
   PurchaseRequestApprovalStepStatus,
   RcStatus,
-} from '@/commons/enum';
+} from '@/common/enums';
 import {
   buildRecordFromRow,
   type IRateContractRecord,

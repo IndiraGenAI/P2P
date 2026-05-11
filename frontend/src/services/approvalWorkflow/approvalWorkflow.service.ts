@@ -5,7 +5,7 @@ import type {
   IApprovalWorkflowDetails,
   ISaveApprovalWorkflowPayload,
 } from './approvalWorkflow.model';
-import type { ApprovalWorkflowTransactionType } from '@/common/enums/approval-workflow.enum';
+import type { ApprovalWorkflowTransactionType } from '@/common/enums';
 
 export interface IApprovalWorkflowScopeQuery {
   entity_id: number;

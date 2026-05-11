@@ -3,7 +3,7 @@ import { ChevronsUpDown, Download, Filter, Pencil, Trash2 } from 'lucide-react';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { MOCK_USERS } from '@/data';
-import { UserStatus } from '@/common/enums';
+import { UserStatus } from '@/common/constants';
 import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,

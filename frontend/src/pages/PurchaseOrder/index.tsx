@@ -69,7 +69,7 @@ import {
   PrStatus,
   PurchaseRequestApprovalDecision,
   PurchaseRequestApprovalStepStatus,
-} from '@/commons/enum';
+} from '@/common/enums';
 
 const DEFAULT_TAKE = 10;
 /** Paging, sort, and list tab `status` are not counted toward the Filter drawer badge. */

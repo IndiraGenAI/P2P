@@ -4,7 +4,7 @@ export interface PaginationState {
   total: number;
 }
 
-import type { SortDirection } from '@/common/enums';
+import type { SortDirection } from '@/common/constants';
 
 export interface SortState<TKey extends string = string> {
   key: TKey | null;

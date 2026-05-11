@@ -12,8 +12,7 @@ import {
 import { StatCard } from '@/components/ui/StatCard';
 import { GaugeChart } from '@/components/ui/GaugeChart';
 import { STATS_CHART_DATA } from '@/data';
-import { CHART_COLORS } from '@/common/constants';
-import { Trend } from '@/common/enums';
+import { CHART_COLORS, Trend } from '@/common/constants';
 
 type DateRange = 'Monthly' | 'Quarterly' | 'Annually';
 

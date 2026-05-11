@@ -1,4 +1,4 @@
-import { UserStatus } from '@/common/enums';
+import { UserStatus } from '@/common/constants';
 import type { TableRow } from '@/common/models';
 
 export const MOCK_USERS: TableRow[] = [

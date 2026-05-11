@@ -1,4 +1,4 @@
-import { RouteKey } from '@/common/enums';
+import { RouteKey } from './app.constants';
 
 export const PAGE_TITLES: Record<RouteKey, string> = {
   [RouteKey.Dashboard]: 'Dashboard',

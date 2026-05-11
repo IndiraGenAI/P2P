@@ -31,6 +31,7 @@ import vendorMasterReducer from './vendor/vendor.reducer';
 import vendorSiteMasterReducer from './vendorSite/vendorSite.reducer';
 import purchaseRequestReducer from './purchaseRequest/purchaseRequest.reducer';
 import purchaseOrderReducer from './purchaseOrder/purchaseOrder.reducer';
+import budgetMasterReducer from './budget/budget.reducer';
 
 export const store = configureStore({
   reducer: {
@@ -66,6 +67,7 @@ export const store = configureStore({
     vendorSiteMaster: vendorSiteMasterReducer,
     purchaseRequest: purchaseRequestReducer,
     purchaseOrder: purchaseOrderReducer,
+    budgetMaster: budgetMasterReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),

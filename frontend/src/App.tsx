@@ -44,7 +44,9 @@ import { PurchaseOrderPage } from '@/pages/PurchaseOrder';
 import RateContractPage from '@/pages/RateContract';
 import GrnPage from '@/pages/Grn';
 import GrnInvoicePage from '@/pages/GrnInvoice';
+import { BudgetsPage } from '@/pages/Budgets';
 import WorkflowsPage from '@/pages/Workflows';
+import WorkflowsV2Page from '@/pages/WorkflowsV2';
 import { NotAccessPage } from '@/pages/NotAccessPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ability } from '@/ability';
@@ -158,7 +160,7 @@ function AppRoutes({
           <Route path="/workflows" element={<WorkflowsPage />} />
         </Route>
         <Route element={<RequirePage pageCode={Modules.WORKFLOW.WORKFLOW_V2} />}>
-          <Route path="/workflows-v2" element={<PlaceholderPage title="Workflow (V2)" />} />
+          <Route path="/workflows-v2" element={<WorkflowsV2Page />} />
         </Route>
 
         <Route element={<RequirePage pageCode={Modules.APPROVALS.ITEM_APPROVAL} />}>
@@ -297,7 +299,7 @@ function AppRoutes({
         </Route>
 
         <Route element={<RequirePage pageCode={Modules.FINANCE.BUDGETS} />}>
-          <Route path="/budgets" element={<PlaceholderPage title="Budgets" />} />
+          <Route path="/budgets" element={<BudgetsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
